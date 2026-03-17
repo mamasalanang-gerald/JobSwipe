@@ -1,0 +1,48 @@
+{
+  "expo": {
+    "name": "JobApp",
+    "slug": "jobapp",
+    "version": "1.0.0",
+    "scheme": "jobapp",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "jsEngine": "hermes",
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to access your location"
+        }
+      ]
+    ],
+    "ios": {
+      "supportsTabletMode": true,
+      "bundleIdentifier": "com.jobapp.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.jobapp.mobile"
+    },
+    "githubUrl": "https://github.com/yourusername/jobapp"
+  }
+}

@@ -1,0 +1,134 @@
+services:
+  # PostgreSQL - Relational Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: jobapp_postgres
+    environment:
+      POSTGRES_DB: ${DB_DATABASE:-jobapp}
+      POSTGRES_USER: ${DB_USERNAME:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - jobapp_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB - NoSQL Database
+  mongodb:
+    image: mongo:7
+    container_name: jobapp_mongodb
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE:-jobapp}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - jobapp_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Cache & Session Store
+  redis:
+    image: redis:7-alpine
+    container_name: jobapp_redis
+    command: redis-server --requirepass ${REDIS_PASSWORD:-password}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - jobapp_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # PHP Laravel Backend
+  laravel:
+    build:
+      context: ./backend
+      dockerfile: ../docker/Dockerfile.laravel
+    container_name: jobapp_laravel
+    environment:
+      APP_NAME: JobApp
+      APP_ENV: ${APP_ENV:-local}
+      APP_DEBUG: ${APP_DEBUG:-true}
+      APP_URL: ${APP_URL:-http://localhost:8000}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-jobapp}
+      DB_USERNAME: ${DB_USERNAME:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-password}
+      MONGO_HOST: mongodb
+      MONGO_USERNAME: ${MONGO_ROOT_USERNAME:-root}
+      MONGO_PASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+      MONGO_DATABASE: ${MONGO_DATABASE:-jobapp}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-password}
+      REDIS_PORT: 6379
+      JWT_SECRET: ${JWT_SECRET:-your-secret-key}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/var/www/html
+      - laravel_vendor:/var/www/html/vendor
+    networks:
+      - jobapp_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Redis Commander (optional - for Redis management)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: jobapp_redis_commander
+    environment:
+      - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:-password}
+    ports:
+      - "8081:8081"
+    networks:
+      - jobapp_network
+    depends_on:
+      - redis
+
+  # Mongo Express (optional - for MongoDB management)
+  mongo-express:
+    image: mongo-express:latest
+    container_name: jobapp_mongo_express
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: ${MONGO_ROOT_USERNAME:-root}
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_ROOT_PASSWORD:-password}
+      ME_CONFIG_MONGODB_URL: mongodb://${MONGO_ROOT_USERNAME:-root}:${MONGO_ROOT_PASSWORD:-password}@mongodb:27017/
+      ME_CONFIG_BASICAUTH: false
+    ports:
+      - "8082:8081"
+    networks:
+      - jobapp_network
+    depends_on:
+      - mongodb
+
+networks:
+  jobapp_network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  mongodb_data:
+  redis_data:
+  laravel_vendor:

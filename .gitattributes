@@ -1,0 +1,36 @@
+* text=auto
+* eol=lf
+
+# Frontend
+*.tsx eol=lf
+*.ts eol=lf
+*.jsx eol=lf
+*.js eol=lf
+
+# Backend
+*.php eol=lf
+
+# Config files
+*.json eol=lf
+*.yaml eol=lf
+*.yml eol=lf
+*.md eol=lf
+
+# Images
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+
+# Fonts
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+
+# Archives
+*.zip binary
+*.tar binary
+*.gz binary

@@ -1,0 +1,17 @@
+jobapp_laravel  | 
+jobapp_laravel  | Fatal error: Uncaught TypeError: {closure}(): Argument #1 ($exceptions) must be of type Illuminate\Foundation\Exceptions\Handler, Illuminate\Foundation\Configuration\Exceptions given, called in /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Configuration/ApplicationBuilder.php on line 380 and defined in /var/www/html/bootstrap/app.php:15
+jobapp_laravel  | Stack trace:
+jobapp_laravel  | #0 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Configuration/ApplicationBuilder.php(380): {closure}(Object(Illuminate\Foundation\Configuration\Exceptions))
+jobapp_laravel  | #1 /var/www/html/vendor/laravel/framework/src/Illuminate/Container/Container.php(1432): Illuminate\Foundation\Configuration\ApplicationBuilder->Illuminate\Foundation\Configuration\{closure}(Object(Illuminate\Foundation\Exceptions\Handler), Object(Illuminate\Foundation\Application))
+jobapp_laravel  | #2 /var/www/html/vendor/laravel/framework/src/Illuminate/Container/Container.php(1368): Illuminate\Container\Container->fireCallbackArray(Object(Illuminate\Foundation\Exceptions\Handler), Array)
+jobapp_laravel  | #3 /var/www/html/vendor/laravel/framework/src/Illuminate/Container/Container.php(1354): Illuminate\Container\Container->fireAfterResolvingCallbacks('Illuminate\\Cont...', Object(Illuminate\Foundation\Exceptions\Handler))
+jobapp_laravel  | #4 /var/www/html/vendor/laravel/framework/src/Illuminate/Container/Container.php(850): Illuminate\Container\Container->fireResolvingCallbacks('Illuminate\\Cont...', Object(Illuminate\Foundation\Exceptions\Handler))
+jobapp_laravel  | #5 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1078): Illuminate\Container\Container->resolve('Illuminate\\Cont...', Array, true)
+jobapp_laravel  | #6 /var/www/html/vendor/laravel/framework/src/Illuminate/Container/Container.php(763): Illuminate\Foundation\Application->resolve('Illuminate\\Cont...', Array)
+jobapp_laravel  | #7 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1058): Illuminate\Container\Container->make('Illuminate\\Cont...', Array)
+jobapp_laravel  | #8 /var/www/html/vendor/laravel/framework/src/Illuminate/Container/Container.php(1580): Illuminate\Foundation\Application->make('Illuminate\\Cont...')
+jobapp_laravel  | #9 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(621): Illuminate\Container\Container->offsetGet('Illuminate\\Cont...')
+jobapp_laravel  | #10 /var/www/html/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(200): Illuminate\Foundation\Console\Kernel->reportException(Object(Error))
+jobapp_laravel  | #11 /var/www/html/artisan(12): Illuminate\Foundation\Console\Kernel->handle(Object(Symfony\Component\Console\Input\ArgvInput), Object(Symfony\Component\Console\Output\ConsoleOutput))
+jobapp_laravel  | #12 {main}
+jobapp_laravel  |   thrown in /var/www/html/bootstrap/app.php on line 15
