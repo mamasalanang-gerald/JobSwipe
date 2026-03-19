@@ -60,7 +60,7 @@ class PreservationPropertyTest extends TestCase
             "Laravel Pint output should contain expected patterns indicating it ran successfully.\nOutput: $outputString"
         );
     }
-    
+
     /**
      * Property 2: Preservation - Migration Behavior
      *
@@ -105,7 +105,7 @@ class PreservationPropertyTest extends TestCase
             "Migration command help should be displayed.\nOutput: $outputString"
         );
     }
-    
+
     /**
      * Property 2: Preservation - Feature Test Behavior
      *
@@ -151,7 +151,7 @@ class PreservationPropertyTest extends TestCase
             "Feature test command should be available. Exit code: $exitCode\nOutput: ".implode("\n", $output)
         );
     }
-    
+
     /**
      * Property 2: Preservation - Docker Build Behavior
      *
