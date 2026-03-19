@@ -4,10 +4,9 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-
-    protected $connection = "pgsql";
-
+return new class extends Migration
+{
+    protected $connection = 'pgsql';
 
     public function up(): void
     {
@@ -25,9 +24,9 @@ return new class extends Migration {
             $table->check("role IN ('applicant','hr','company_admin','moderator','super_admin')");
         });
 
-        DB::statement("CREATE UNIQUE INDEX idx_users_email ON users(email);");
-        DB::statement("CREATE INDEX idx_users_role ON users(role);");
-        DB::statement("CREATE INDEX idx_users_is_banned ON users (is_banned) WHERE is_banned = TRUE");
+        DB::statement('CREATE UNIQUE INDEX idx_users_email ON users(email);');
+        DB::statement('CREATE INDEX idx_users_role ON users(role);');
+        DB::statement('CREATE INDEX idx_users_is_banned ON users (is_banned) WHERE is_banned = TRUE');
     }
 
     public function down(): void

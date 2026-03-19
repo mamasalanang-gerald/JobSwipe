@@ -4,8 +4,9 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
-    protected $connection = "pgsql";
+return new class extends Migration
+{
+    protected $connection = 'pgsql';
 
     public function up(): void
     {
@@ -26,7 +27,6 @@ return new class extends Migration {
         DB::statement('CREATE INDEX idx_applicant_profiles_queue ON applicant_profiles (subscription_tier, total_points DESC)');
         DB::statement("CREATE INDEX idx_applicant_profiles_active_sub ON applicant_profiles (subscription_status) WHERE subscription_status = 'active'");
     }
-
 
     public function down(): void
     {
