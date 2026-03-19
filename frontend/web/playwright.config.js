@@ -77,13 +77,13 @@ module.exports = defineConfig({
     {
       command: 'npm run dev',
       url: 'http://localhost:3000',
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       timeout: 120 * 1000,
     },
     {
       command: 'cd ../../backend && php artisan serve --host=0.0.0.0 --port=8000',
       url: 'http://localhost:8000/api/health',
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       timeout: 120 * 1000,
     }
   ],
