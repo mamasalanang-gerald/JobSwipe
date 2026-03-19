@@ -20,7 +20,6 @@ return new class extends Migration
             $table->integer('points');
             $table->string('description', 255)->nullable();
             $table->timestampTz('created_at')->default(DB::raw('NOW()'));
-            $table->timestamps();
 
             $table->foreign('applicant_id')->references('id')->on('applicant_profiles');
         });
