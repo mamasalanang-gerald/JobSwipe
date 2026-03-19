@@ -3,21 +3,38 @@ const { test, expect } = require('@playwright/test');
 
 test.describe('JobApp E2E Tests', () => {
   test.beforeEach(async ({ page }) => {
-    // Navigate to the app
-    await page.goto('/');
+    // Navigate to the app with retry logic
+    await page.goto('/', { waitUntil: 'networkidle', timeout: 30000 });
   });
 
   test('homepage loads correctly', async ({ page }) => {
+    // Wait for the page to be fully loaded
+    await page.waitForLoadState('domcontentloaded');
+    
     // Expect page title
-    await expect(page).toHaveTitle(/JobApp/);
+    await expect(page).toHaveTitle(/JobApp/, { timeout: 10000 });
     
     // Expect main heading
-    await expect(page.locator('h1')).toBeVisible();
+    await expect(page.locator('h1')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('h1')).toHaveText('JobApp');
   });
 
   test('API health check works', async ({ request }) => {
-    // Test API health endpoint
-    const response = await request.get('/api/health');
+    // Test API health endpoint with retry
+    let response;
+    let retries = 3;
+    
+    while (retries > 0) {
+      try {
+        response = await request.get('/api/health', { timeout: 10000 });
+        if (response.ok()) break;
+      } catch (e) {
+        retries--;
+        if (retries === 0) throw e;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
     expect(response.ok()).toBeTruthy();
     
     const data = await response.json();

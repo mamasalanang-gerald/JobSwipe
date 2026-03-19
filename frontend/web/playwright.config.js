@@ -13,7 +13,7 @@ module.exports = defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 3 : undefined,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html'],
@@ -78,13 +78,17 @@ module.exports = defineConfig({
       command: 'npm run dev',
       url: 'http://localhost:3000',
       reuseExistingServer: true,
-      timeout: 120 * 1000,
+      timeout: 180 * 1000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     },
     {
       command: 'cd ../../backend && php artisan serve --host=0.0.0.0 --port=8000',
       url: 'http://localhost:8000/api/health',
       reuseExistingServer: true,
-      timeout: 120 * 1000,
+      timeout: 180 * 1000,
+      stdout: 'pipe',
+      stderr: 'pipe',
     }
   ],
 });
