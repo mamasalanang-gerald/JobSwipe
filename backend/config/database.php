@@ -55,6 +55,17 @@ return [
             'prefix' => '',
             'prefix_indexes' => true,
         ],
+        'mongodb' => [
+            'driver' => 'mongodb',
+            'host' => env('MONGO_HOST', 'mongodb'),
+            'port' => env('MONGO_PORT', 27017),
+            'database' => env('MONGO_DATABASE', 'jobapp'),
+            'username' => env('MONGO_ROOT_USERNAME', 'root'),
+            'password' => env('MONGO_ROOT_PASSWORD', 'password'),
+            'options' => [
+                'database' => 'admin', // Required to authenticate against admin db
+            ],
+        ],
     ],
     'migrations' => 'migrations',
     'redis' => [
