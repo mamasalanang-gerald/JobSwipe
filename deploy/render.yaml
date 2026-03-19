@@ -1,0 +1,42 @@
+services:
+  # Laravel Backend API
+  - type: web
+    name: jobapp-backend
+    env: docker
+    dockerfilePath: ./Dockerfile
+    rootDir: .
+    plan: starter
+    region: oregon
+    branch: main
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_NAME
+        value: JobApp
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        fromService:
+          type: web
+          name: jobapp-backend
+          property: host
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_KEY
+        generateValue: true
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: error
+
+databases:
+  # PostgreSQL Database
+  - name: jobapp-postgres
+    plan: starter
+    region: oregon
+    
+  # Redis Cache
+  - name: jobapp-redis
+    plan: starter
+    region: oregon
