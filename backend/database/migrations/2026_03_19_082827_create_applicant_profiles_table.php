@@ -24,6 +24,9 @@ return new class extends Migration
 
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
+
+        DB::statement("ALTER TABLE applicant_profiles ADD CONSTRAINT applicant_profiles_subscription_tier_check CHECK (subscription_tier IN ('free', 'basic', 'pro'))");
+        DB::statement("ALTER TABLE applicant_profiles ADD CONSTRAINT applicant_profiles_subscription_status_check CHECK (subscription_status IN ('active', 'inactive', 'cancelled'))");
         DB::statement('CREATE INDEX idx_applicant_profiles_queue ON applicant_profiles (subscription_tier, total_points DESC)');
         DB::statement("CREATE INDEX idx_applicant_profiles_active_sub ON applicant_profiles (subscription_status) WHERE subscription_status = 'active'");
     }

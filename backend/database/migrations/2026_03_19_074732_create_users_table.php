@@ -23,7 +23,6 @@ return new class extends Migration
         });
 
         DB::statement("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('applicant','hr','company_admin','moderator','super_admin'))");
-        DB::statement('CREATE UNIQUE INDEX idx_users_email ON users(email);');
         DB::statement('CREATE INDEX idx_users_role ON users(role);');
         DB::statement('CREATE INDEX idx_users_is_banned ON users (is_banned) WHERE is_banned = TRUE');
     }

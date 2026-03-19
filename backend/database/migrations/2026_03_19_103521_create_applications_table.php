@@ -24,9 +24,11 @@ return new class extends Migration
 
             $table->unique(['applicant_id', 'job_posting_id']);
         });
-        DB::statement('CREATE INDEX idx_applications_job_posting_id ON applications(job_posting_id');
+
+        DB::statement("ALTER TABLE applications ADD CONSTRAINT applications_status_check CHECK (status IN ('applied', 'invited', 'dismissed'))");
+        DB::statement('CREATE INDEX idx_applications_job_posting_id ON applications(job_posting_id)');
         DB::statement('CREATE INDEX idx_applications_job_status ON applications(job_posting_id, status)');
-        DB::statement('CREATE INDEX idx_applications_applicant_id ON applications (applicant_id, created_at DESC)');
+        DB::statement('CREATE INDEX idx_applications_applicant_id ON applications(applicant_id, created_at DESC)');
     }
 
     /**
