@@ -13,6 +13,12 @@ class SetupStructure extends Command
      * @var string
      */
     protected $signature = 'app:setup-structure';
+
+    /**
+     * The console command description.
+     *
+     * @var string
+     */
     protected $description = 'Setup app folder structure';
 
     public function handle()
@@ -27,14 +33,16 @@ class SetupStructure extends Command
             app_path('Repositories'),
             app_path('Jobs'),
         ];
+
         foreach ($folders as $folder) {
-            if (!File::exists($folder)) {
+            if (! File::exists($folder)) {
                 File::makeDirectory($folder, 0755, true);
                 $this->info("Created: {$folder}");
             } else {
                 $this->line("Already exists: {$folder}");
             }
         }
+
         return Command::SUCCESS;
     }
 }
