@@ -30,7 +30,7 @@ class PreservationPropertyTest extends TestCase
         $pintPath = $basePath.'/vendor/bin/pint';
 
         // Skip if vendor/bin/pint doesn't exist (dependencies not installed)
-        if (!file_exists($pintPath)) {
+        if (! file_exists($pintPath)) {
             $this->markTestSkipped('Laravel Pint not installed. Run composer install first.');
         }
 
@@ -75,12 +75,12 @@ class PreservationPropertyTest extends TestCase
         $artisanPath = $basePath.'/artisan';
 
         // Skip if artisan doesn't exist
-        if (!file_exists($artisanPath)) {
+        if (! file_exists($artisanPath)) {
             $this->markTestSkipped('Artisan command not found.');
         }
 
         // Skip if vendor directory doesn't exist (dependencies not installed)
-        if (!is_dir($basePath.'/vendor')) {
+        if (! is_dir($basePath.'/vendor')) {
             $this->markTestSkipped('Vendor directory not found. Run composer install first.');
         }
 
@@ -120,12 +120,12 @@ class PreservationPropertyTest extends TestCase
         $featureTestsPath = $basePath.'/tests/Feature';
 
         // Skip if Feature tests directory doesn't exist
-        if (!is_dir($featureTestsPath)) {
+        if (! is_dir($featureTestsPath)) {
             $this->markTestSkipped('Feature tests directory does not exist. This is expected for this project.');
         }
 
         // Skip if vendor directory doesn't exist (dependencies not installed)
-        if (!is_dir($basePath.'/vendor')) {
+        if (! is_dir($basePath.'/vendor')) {
             $this->markTestSkipped('Vendor directory not found. Run composer install first.');
         }
 
@@ -166,7 +166,7 @@ class PreservationPropertyTest extends TestCase
         $dockerfilePath = $basePath.'/Dockerfile';
 
         // Skip if Dockerfile doesn't exist
-        if (!file_exists($dockerfilePath)) {
+        if (! file_exists($dockerfilePath)) {
             $this->markTestSkipped('Dockerfile not found at project root.');
         }
 
