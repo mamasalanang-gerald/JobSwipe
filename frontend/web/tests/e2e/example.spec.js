@@ -26,7 +26,7 @@ test.describe('JobApp E2E Tests', () => {
     
     while (retries > 0) {
       try {
-        response = await request.get('/api/health', { timeout: 10000 });
+        response = await request.get('http://localhost:8000/api/health', { timeout: 10000 });
         if (response.ok()) break;
       } catch (e) {
         retries--;
