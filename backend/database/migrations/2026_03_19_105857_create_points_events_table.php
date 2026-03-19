@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    protected $connection = 'pgsql';
+
     /**
      * Run the migrations.
      */
@@ -20,9 +22,11 @@ return new class extends Migration
             $table->timestampTz('created_at')->default(DB::raw('NOW()'));
             $table->timestamps();
 
-            $table->foreign('applicant')->references('id')->on('applicant_profiles');
+            $table->foreign('applicant_id')->references('id')->on('applicant_profiles');
         });
-        DB::statement('CREATE INDEX idx_points_events_applicant_id ON point_events(applicant_id, created_at DESC)');
+
+        DB::statement("ALTER TABLE points_events ADD CONSTRAINT points_events_event_type_check CHECK (event_type IN ('resume_uploaded', 'bio_added', 'profile_photo_uploaded', 'linkedin_linked', 'social_linked', 'skills_added', 'cover_letter_uploaded', 'portfolio_uploaded', 'subscribed_basic', 'subscribed_pro', 'bonus_pro'))");
+        DB::statement('CREATE INDEX idx_points_events_applicant_id ON points_events(applicant_id, created_at DESC)');
         DB::statement("CREATE UNIQUE INDEX idx_points_events_type ON points_events(applicant_id, event_type) WHERE event_type NOT IN ('subscribed_basic', 'subscribed_pro', 'bonus_pro')");
     }
 
