@@ -1,0 +1,25 @@
+# Global code owners
+* @your-team/maintainers
+
+# Backend specific
+backend/ @your-team/backend-team
+Dockerfile @your-team/backend-team @your-team/devops-team
+
+# Frontend specific
+frontend/web/ @your-team/frontend-team
+frontend/mobile/ @your-team/mobile-team
+
+# Infrastructure and deployment
+.github/ @your-team/devops-team
+deploy/ @your-team/devops-team
+docker/ @your-team/devops-team
+docker-compose.yml @your-team/devops-team
+
+# Documentation
+docs/ @your-team/maintainers
+*.md @your-team/maintainers
+
+# Configuration files
+.env.example @your-team/backend-team @your-team/devops-team
+composer.json @your-team/backend-team
+package.json @your-team/frontend-team
