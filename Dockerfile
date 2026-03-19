@@ -39,7 +39,8 @@ WORKDIR /var/www/html
 COPY backend/ .
 
 # Install PHP dependencies for production
-RUN composer install --optimize-autoloader --no-dev --no-scripts --no-interaction --prefer-dist
+RUN composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist && \
+    php artisan package:discover --ansi
 
 # Create necessary directories and set permissions
 RUN mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache && \
