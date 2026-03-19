@@ -192,7 +192,7 @@ class PreservationPropertyTest extends TestCase
         // 3. The CI workflow already tests actual Docker builds
         // This test verifies the Dockerfile exists and is valid for the CI workflow
     }
-    
+
     /**
      * Property 2: Preservation - Security Scan Behavior
      *
