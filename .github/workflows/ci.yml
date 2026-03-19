@@ -166,7 +166,7 @@ jobs:
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
         run: |
           cd backend
-          composer install --no-interaction --prefer-dist --optimize-autoloader
+          composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-mongodb
 
       - name: 🔧 Setup Backend Environment
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
