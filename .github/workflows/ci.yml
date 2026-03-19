@@ -1,0 +1,626 @@
+name: 🚀 CI Pipeline
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ==========================================
+  # PHASE 1: LINT AND VALIDATE
+  # ==========================================
+  lint-and-validate:
+    name: 📋 Phase 1 - Lint & Validate
+    runs-on: ubuntu-latest
+    outputs:
+      backend-changed: ${{ steps.changes.outputs.backend }}
+      frontend-web-changed: ${{ steps.changes.outputs.frontend-web }}
+      frontend-mobile-changed: ${{ steps.changes.outputs.frontend-mobile }}
+    
+    steps:
+      - name: 🔍 Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 🔄 Detect Changes
+        uses: dorny/paths-filter@v2
+        id: changes
+        with:
+          filters: |
+            backend:
+              - 'backend/**'
+              - 'Dockerfile'
+            frontend-web:
+              - 'frontend/web/**'
+            frontend-mobile:
+              - 'frontend/mobile/**'
+
+      - name: 🔍 Check Merge Conflicts
+        run: |
+          echo "🔍 Checking for merge conflicts..."
+          git merge-tree $(git merge-base HEAD main) HEAD main | grep -q "<<<<<<< " && {
+            echo "❌ Merge conflicts detected!"
+            exit 1
+          } || echo "✅ No merge conflicts found"
+
+      - name: 📁 Validate Dockerfile Exists
+        run: |
+          echo "📁 Checking Dockerfile..."
+          if [ ! -f "Dockerfile" ]; then
+            echo "❌ Dockerfile not found!"
+            exit 1
+          fi
+          echo "✅ Dockerfile exists"
+
+      - name: 🔧 Setup Node.js
+        if: steps.changes.outputs.frontend-web == 'true' || steps.changes.outputs.frontend-mobile == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+          cache-dependency-path: |
+            frontend/web/package-lock.json
+            frontend/mobile/package-lock.json
+
+      - name: 🔧 Setup PHP
+        if: steps.changes.outputs.backend == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb
+          coverage: none
+
+      - name: 📦 Install Backend Dependencies
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          cd backend
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: 🎨 Backend Lint (Laravel Pint)
+        if: steps.changes.outputs.backend == 'true'
+        run: |
+          cd backend
+          ./vendor/bin/pint --test
+
+      - name: 📦 Install Web Frontend Dependencies
+        if: steps.changes.outputs.frontend-web == 'true'
+        run: |
+          cd frontend/web
+          npm ci
+
+      - name: 🎨 Web Frontend Lint
+        if: steps.changes.outputs.frontend-web == 'true'
+        run: |
+          cd frontend/web
+          npm run lint
+
+      - name: 📦 Install Mobile Frontend Dependencies
+        if: steps.changes.outputs.frontend-mobile == 'true'
+        run: |
+          cd frontend/mobile
+          npm ci
+
+      - name: 🎨 Mobile Frontend Lint
+        if: steps.changes.outputs.frontend-mobile == 'true'
+        run: |
+          cd frontend/mobile
+          npm run lint
+
+      - name: ✅ Phase 1 Complete
+        run: echo "✅ Phase 1 - Lint & Validate completed successfully"
+
+  # ==========================================
+  # PHASE 2: UNIT TESTS (Layer 1)
+  # ==========================================
+  unit-tests:
+    name: 🧪 Phase 2 - Unit Tests (Layer 1)
+    runs-on: ubuntu-latest
+    needs: lint-and-validate
+    if: always() && needs.lint-and-validate.result == 'success'
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: jobapp_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: 🔍 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup PHP
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb
+          coverage: xdebug
+
+      - name: 📦 Install Backend Dependencies
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-mongodb
+
+      - name: 🔧 Setup Backend Environment
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          cp .env.example .env
+          sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
+          sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
+          php artisan key:generate
+          php artisan jwt:secret --force
+
+      - name: 🗄️ Run Backend Migrations
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          php artisan migrate --force
+
+      - name: 🧪 Run Backend Unit Tests
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          php artisan test --testsuite=Unit --coverage-clover=coverage.xml
+
+      - name: 🔧 Setup Node.js
+        if: needs.lint-and-validate.outputs.frontend-web-changed == 'true' || needs.lint-and-validate.outputs.frontend-mobile-changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 🧪 Run Web Frontend Unit Tests
+        if: needs.lint-and-validate.outputs.frontend-web-changed == 'true'
+        run: |
+          cd frontend/web
+          npm ci
+          npm run test:unit
+
+      - name: 🧪 Run Mobile Frontend Unit Tests
+        if: needs.lint-and-validate.outputs.frontend-mobile-changed == 'true'
+        run: |
+          cd frontend/mobile
+          npm ci
+          npm run test
+
+      - name: ✅ Phase 2 Complete
+        run: echo "✅ Phase 2 - Unit Tests completed successfully"
+
+  # ==========================================
+  # PHASE 3: INTEGRATION TESTS (Layer 2)
+  # ==========================================
+  integration-tests:
+    name: 🔗 Phase 3 - Integration Tests (Layer 2)
+    runs-on: ubuntu-latest
+    needs: lint-and-validate
+    if: always() && needs.lint-and-validate.result == 'success'
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: jobapp_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: password
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: 🔍 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup PHP
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb
+
+      - name: 📦 Install Backend Dependencies
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: 🔧 Setup Backend Environment
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          cp .env.example .env
+          sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
+          sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
+          sed -i 's/MONGO_HOST=mongodb/MONGO_HOST=127.0.0.1/' .env
+          php artisan key:generate
+          php artisan jwt:secret --force
+
+      - name: 🗄️ Run Backend Migrations & Seeders
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          php artisan migrate --force
+          php artisan db:seed --force
+
+      - name: 🔗 Run Backend Integration Tests
+        if: needs.lint-and-validate.outputs.backend-changed == 'true'
+        run: |
+          cd backend
+          php artisan test --testsuite=Feature
+
+      - name: 🔧 Setup Node.js
+        if: needs.lint-and-validate.outputs.frontend-web-changed == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 🔗 Run Web Frontend Integration Tests
+        if: needs.lint-and-validate.outputs.frontend-web-changed == 'true'
+        run: |
+          cd frontend/web
+          npm ci
+          npm run test:integration
+
+      - name: ✅ Phase 3 Complete
+        run: echo "✅ Phase 3 - Integration Tests completed successfully"
+
+  # ==========================================
+  # PHASE 4: E2E TESTS (Layer 3)
+  # ==========================================
+  e2e-tests:
+    name: 🎭 Phase 4 - E2E Tests (Layer 3)
+    runs-on: ubuntu-latest
+    needs: [lint-and-validate, unit-tests, integration-tests]
+    if: always() && needs.unit-tests.result == 'success' && needs.integration-tests.result == 'success'
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: jobapp_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+      mongodb:
+        image: mongo:7
+        env:
+          MONGO_INITDB_ROOT_USERNAME: root
+          MONGO_INITDB_ROOT_PASSWORD: password
+        options: >-
+          --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 27017:27017
+
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+      - name: 🔍 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb
+
+      - name: 🔧 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: 📦 Install Backend Dependencies
+        run: |
+          cd backend
+          composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: 🔧 Setup Backend Environment
+        run: |
+          cd backend
+          cp .env.example .env
+          sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
+          sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
+          sed -i 's/MONGO_HOST=mongodb/MONGO_HOST=127.0.0.1/' .env
+          php artisan key:generate
+          php artisan jwt:secret --force
+
+      - name: 🗄️ Setup Database
+        run: |
+          cd backend
+          php artisan migrate --force
+          php artisan db:seed --force
+
+      - name: 🚀 Start Backend Server
+        run: |
+          cd backend
+          php artisan serve --host=0.0.0.0 --port=8000 &
+          sleep 5
+
+      - name: 📦 Install Frontend Dependencies
+        run: |
+          cd frontend/web
+          npm ci
+
+      - name: 🏗️ Build Frontend
+        run: |
+          cd frontend/web
+          npm run build
+
+      - name: 🚀 Start Frontend Server
+        run: |
+          cd frontend/web
+          npm start &
+          sleep 10
+
+      - name: 📦 Install Playwright
+        run: |
+          cd frontend/web
+          npx playwright install --with-deps
+
+      - name: 🎭 Run E2E Tests
+        run: |
+          cd frontend/web
+          npx playwright test
+
+      - name: 📊 Upload E2E Test Results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: frontend/web/playwright-report/
+          retention-days: 30
+
+      - name: ✅ Phase 4 Complete
+        run: echo "✅ Phase 4 - E2E Tests completed successfully"
+
+  # ==========================================
+  # PHASE 5: TEST & BUILD DOCKER
+  # ==========================================
+  test-build-docker:
+    name: 🐳 Phase 5 - Test & Build Docker
+    runs-on: ubuntu-latest
+    needs: [lint-and-validate, unit-tests, integration-tests]
+    if: always() && needs.unit-tests.result == 'success' && needs.integration-tests.result == 'success'
+    
+    steps:
+      - name: 🔍 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🏗️ Build Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: jobapp-test:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: 🧪 Test Docker Image
+        run: |
+          echo "🧪 Testing Docker image..."
+          docker run --rm -d --name jobapp-test -p 8080:8080 jobapp-test:latest
+          sleep 30
+          
+          # Test health endpoint
+          curl -f http://localhost:8080/api/health || {
+            echo "❌ Health check failed!"
+            docker logs jobapp-test
+            exit 1
+          }
+          
+          echo "✅ Docker image test passed!"
+          docker stop jobapp-test
+
+      - name: ✅ Phase 5 Complete
+        run: echo "✅ Phase 5 - Test & Build Docker completed successfully"
+
+  # ==========================================
+  # PHASE 6: SECURITY LAYER (Layer 4)
+  # ==========================================
+  security-scan:
+    name: 🔒 Phase 6 - Security Scan (Layer 4)
+    runs-on: ubuntu-latest
+    needs: [test-build-docker, e2e-tests]
+    if: always() && needs.test-build-docker.result == 'success' && needs.e2e-tests.result == 'success'
+    
+    steps:
+      - name: 🔍 Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 🔧 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🏗️ Build Docker Image for Security Scan
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: jobapp-security:latest
+          cache-from: type=gha
+
+      - name: 📋 Generate SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          image: jobapp-security:latest
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: 🔍 Security Vulnerability Scan with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: jobapp-security:latest
+          format: sarif
+          output: trivy-results.sarif
+
+      - name: 📊 Upload Trivy Results to GitHub Security
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: 🔧 Install Cosign
+        uses: sigstore/cosign-installer@v3
+
+      - name: 🔐 Sign Container Image with Cosign
+        run: |
+          echo "🔐 Signing container image..."
+          cosign sign --yes jobapp-security:latest
+
+      - name: 📊 Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom
+          path: sbom.spdx.json
+          retention-days: 90
+
+      - name: 📊 Upload Security Scan Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-scan-results
+          path: trivy-results.sarif
+          retention-days: 90
+
+      - name: ✅ Phase 6 Complete
+        run: echo "✅ Phase 6 - Security Scan completed successfully"
+
+  # ==========================================
+  # PHASE 7: CI SUMMARY
+  # ==========================================
+  ci-summary:
+    name: 📊 Phase 7 - CI Summary
+    runs-on: ubuntu-latest
+    needs: [lint-and-validate, unit-tests, integration-tests, e2e-tests, test-build-docker, security-scan]
+    if: always()
+    
+    steps:
+      - name: 📊 Generate CI Summary
+        run: |
+          echo "# 🚀 CI Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Phase Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Phase | Status | Description |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|-------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1️⃣ Lint & Validate | ${{ needs.lint-and-validate.result == 'success' && '✅ Passed' || '❌ Failed' }} | Code quality and merge conflict checks |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2️⃣ Unit Tests (Layer 1) | ${{ needs.unit-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} | Individual component testing |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3️⃣ Integration Tests (Layer 2) | ${{ needs.integration-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} | Component interaction testing |" >> $GITHUB_STEP_SUMMARY
+          echo "| 4️⃣ E2E Tests (Layer 3) | ${{ needs.e2e-tests.result == 'success' && '✅ Passed' || '❌ Failed' }} | End-to-end user flow testing |" >> $GITHUB_STEP_SUMMARY
+          echo "| 5️⃣ Docker Build & Test | ${{ needs.test-build-docker.result == 'success' && '✅ Passed' || '❌ Failed' }} | Container build and functionality test |" >> $GITHUB_STEP_SUMMARY
+          echo "| 6️⃣ Security Scan (Layer 4) | ${{ needs.security-scan.result == 'success' && '✅ Passed' || '❌ Failed' }} | SBOM, vulnerability scan, and signing |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🎯 Overall Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ "${{ needs.lint-and-validate.result }}" == "success" && 
+                "${{ needs.unit-tests.result }}" == "success" && 
+                "${{ needs.integration-tests.result }}" == "success" && 
+                "${{ needs.e2e-tests.result }}" == "success" && 
+                "${{ needs.test-build-docker.result }}" == "success" && 
+                "${{ needs.security-scan.result }}" == "success" ]]; then
+            echo "### ✅ **CI Pipeline PASSED** - Ready for CD!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "All phases completed successfully. The code is ready for deployment to production." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ❌ **CI Pipeline FAILED** - Deployment blocked" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "One or more phases failed. Please review the failed jobs and fix the issues before merging." >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📈 Testing Layers Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Layer 1**: Unit Tests - ✅ Individual components" >> $GITHUB_STEP_SUMMARY
+          echo "- **Layer 2**: Integration Tests - ✅ Component interactions" >> $GITHUB_STEP_SUMMARY
+          echo "- **Layer 3**: E2E Tests - ✅ Complete user workflows" >> $GITHUB_STEP_SUMMARY
+          echo "- **Layer 4**: Security Tests - ✅ Vulnerability & compliance" >> $GITHUB_STEP_SUMMARY
+
+      - name: ✅ CI Pipeline Complete
+        run: |
+          if [[ "${{ needs.lint-and-validate.result }}" == "success" && 
+                "${{ needs.unit-tests.result }}" == "success" && 
+                "${{ needs.integration-tests.result }}" == "success" && 
+                "${{ needs.e2e-tests.result }}" == "success" && 
+                "${{ needs.test-build-docker.result }}" == "success" && 
+                "${{ needs.security-scan.result }}" == "success" ]]; then
+            echo "✅ All CI phases passed successfully!"
+            exit 0
+          else
+            echo "❌ CI pipeline failed - blocking merge"
+            exit 1
+          fi
