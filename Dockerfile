@@ -23,7 +23,8 @@ RUN docker-php-ext-install \
     pdo_pgsql \
     bcmath \
     mbstring \
-    zip
+    zip \
+    pcntl
 
 # Install MongoDB extension
 RUN pecl install mongodb && docker-php-ext-enable mongodb
