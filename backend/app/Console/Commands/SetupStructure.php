@@ -22,7 +22,7 @@ class SetupStructure extends Command
             app_path('Http/Controllers'),
             app_path('Http/Middlewares'),
             app_path('Http/Requests'),
-            app_path('Models/Postgres'),
+            app_path('Models/PostgreSQL'),
             app_path('Models/MongoDB'),
             app_path('Repositories'),
             app_path('Jobs'),
