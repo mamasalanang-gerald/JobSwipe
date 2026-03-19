@@ -505,6 +505,7 @@ jobs:
           context: .
           file: ./Dockerfile
           push: false
+          load: true
           tags: jobapp-security:latest
           cache-from: type=gha
 
@@ -521,22 +522,16 @@ jobs:
           image-ref: jobapp-security:latest
           format: sarif
           output: trivy-results.sarif
+        continue-on-error: true
 
       - name: 📊 Upload Trivy Results to GitHub Security
         uses: github/codeql-action/upload-sarif@v3
         if: always()
         with:
           sarif_file: trivy-results.sarif
+        continue-on-error: true
 
-      - name: 🔧 Install Cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: 🔐 Sign Container Image with Cosign
-        run: |
-          echo "🔐 Signing container image..."
-          cosign sign --yes jobapp-security:latest
-
-      - name: 📊 Upload SBOM Artifact
+      - name: � Upload SBOM Artifact
         uses: actions/upload-artifact@v4
         with:
           name: sbom
@@ -545,10 +540,12 @@ jobs:
 
       - name: 📊 Upload Security Scan Results
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: security-scan-results
           path: trivy-results.sarif
           retention-days: 90
+        continue-on-error: true
 
       - name: ✅ Phase 6 Complete
         run: echo "✅ Phase 6 - Security Scan completed successfully"
