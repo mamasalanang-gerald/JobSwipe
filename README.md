@@ -143,6 +143,27 @@ Please ensure:
 - All tests pass
 - Database migrations are properly documented
 
+## 🚀 Deployment
+
+### Production Deployment to Render
+
+For production deployment instructions, see the [`deploy/`](deploy/) directory:
+
+- **[Quick Start Guide](deploy/README.md)** - Overview of deployment files
+- **[Detailed Instructions](deploy/RENDER_DEPLOY.md)** - Step-by-step deployment guide  
+- **[Deployment Checklist](deploy/DEPLOYMENT_CHECKLIST.md)** - Ensure nothing is missed
+- **[Environment Template](deploy/.env.render.template)** - Production environment variables
+
+**Security Note**: Never commit actual secrets to git. Use the provided `generate-secrets.sh` script to create secure keys.
+
+### Local Docker Testing
+
+Test the production Docker build locally:
+```bash
+docker build -t jobapp-test .
+docker run -p 8080:8080 jobapp-test
+```
+
 ## License
 
 MIT
