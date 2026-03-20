@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     protected $connection = 'pgsql';
 
     public function up(): void
@@ -19,7 +18,7 @@ return new class extends Migration
             $table->string('subscription_tier', 10)->default('none');
             $table->string('subscription_status', 15)->default('inactive');
             $table->integer('active_listings_count')->default(0);
-            $table->timestamps();
+            $table->timestampsTz();
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });

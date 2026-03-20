@@ -4,8 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration
-{
+return new class extends Migration {
     protected $connection = 'pgsql';
 
     public function up(): void
@@ -20,7 +19,7 @@ return new class extends Migration
             $table->integer('daily_swipe_limit')->default(15);
             $table->integer('extra_swipe_balance')->default(0);
             $table->date('swipe_reset_at')->nullable();
-            $table->timestamps();
+            $table->timestampsTz();
 
             $table->foreign('user_id')->references('id')->on('users')->cascadeOnDelete();
         });
