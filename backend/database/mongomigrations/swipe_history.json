@@ -1,0 +1,152 @@
+{
+  "collection": "swipe_history",
+  "validator": {
+    "$jsonSchema": {
+      "bsonType": "object",
+      "required": [
+        "user_id",
+        "actor_type",
+        "direction",
+        "target_id",
+        "target_type",
+        "swiped_at"
+      ],
+      "properties": {
+        "user_id": {
+          "bsonType": "string",
+          "description": "UUID of the actor from PostgreSQL users.id"
+        },
+        "actor_type": {
+          "bsonType": "string",
+          "enum": [
+            "applicant",
+            "hr"
+          ]
+        },
+        "direction": {
+          "bsonType": "string",
+          "enum": [
+            "left",
+            "right"
+          ]
+        },
+        "target_id": {
+          "bsonType": "string",
+          "description": "UUID of a job_posting or applicant_profile depending on target_type"
+        },
+        "target_type": {
+          "bsonType": "string",
+          "enum": [
+            "job_posting",
+            "applicant"
+          ]
+        },
+        "job_posting_id": {
+          "bsonType": [
+            "string",
+            "null"
+          ],
+          "description": "Always set on HR swipes for context. Null on applicant swipes."
+        },
+        "swiped_at": {
+          "bsonType": "date"
+        },
+        "meta": {
+          "bsonType": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "subscription_tier": {
+              "bsonType": [
+                "string",
+                "null"
+              ],
+              "enum": [
+                "free",
+                "basic",
+                "pro",
+                null
+              ]
+            },
+            "daily_swipe_count_at_time": {
+              "bsonType": [
+                "int",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    }
+  },
+  "validationLevel": "strict",
+  "validationAction": "error",
+  "indexes": [
+    {
+      "keys": {
+        "user_id": 1,
+        "target_id": 1,
+        "target_type": 1
+      },
+      "options": {
+        "unique": true,
+        "name": "idx_swipe_history_dedup"
+      }
+    },
+    {
+      "keys": {
+        "user_id": 1,
+        "actor_type": 1,
+        "swiped_at": -1
+      },
+      "options": {
+        "name": "idx_swipe_history_daily_count"
+      }
+    },
+    {
+      "keys": {
+        "target_id": 1,
+        "target_type": 1,
+        "direction": 1
+      },
+      "options": {
+        "name": "idx_swipe_history_target"
+      }
+    },
+    {
+      "keys": {
+        "swiped_at": 1
+      },
+      "options": {
+        "expireAfterSeconds": 15552000,
+        "name": "idx_swipe_history_ttl"
+      }
+    }
+  ],
+  "documents": [
+    {
+      "filter": {
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "target_id": "20000000-0000-0000-0000-000000000001",
+        "target_type": "job_posting"
+      },
+      "data": {
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "actor_type": "applicant",
+        "direction": "right",
+        "target_id": "20000000-0000-0000-0000-000000000001",
+        "target_type": "job_posting",
+        "job_posting_id": null,
+        "swiped_at": {
+          "$date": "2026-03-21T00:00:00Z"
+        },
+        "meta": {
+          "subscription_tier": "free",
+          "daily_swipe_count_at_time": 1
+        }
+      },
+      "upsert": true
+    }
+  ]
+}
