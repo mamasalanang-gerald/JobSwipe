@@ -24,14 +24,14 @@ class MakeMongoMigration extends Command
 
         $directory = database_path('mongomigrations');
 
-        if (!File::isDirectory($directory)) {
+        if (! File::isDirectory($directory)) {
             File::makeDirectory($directory, 0755, true);
             $this->info("Created directory: {$directory}");
         }
 
-        $path = $directory . DIRECTORY_SEPARATOR . $collection . '.json';
+        $path = $directory.DIRECTORY_SEPARATOR.$collection.'.json';
 
-        if (File::exists($path) && !$this->option('force')) {
+        if (File::exists($path) && ! $this->option('force')) {
             $this->error("File already exists: {$path}");
             $this->line('Use --force to overwrite it.');
 
@@ -49,7 +49,7 @@ class MakeMongoMigration extends Command
 
         File::put(
             $path,
-            json_encode($template, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . PHP_EOL
+            json_encode($template, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL
         );
 
         $this->info("Created Mongo migration spec: {$path}");

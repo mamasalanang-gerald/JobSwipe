@@ -2,10 +2,11 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     public function up(): void
     {
         Schema::create('notifications', function (Blueprint $table) {
@@ -25,16 +26,16 @@ return new class extends Migration {
                 ->onDelete('cascade');
         });
 
-        DB::statement("
+        DB::statement('
             CREATE INDEX idx_notifications_user_unread
             ON notifications (user_id, created_at DESC)
             WHERE read_at IS NULL
-        ");
+        ');
 
-        DB::statement("
+        DB::statement('
             CREATE INDEX idx_notifications_user_all
             ON notifications (user_id, created_at DESC)
-        ");
+        ');
     }
 
     public function down(): void

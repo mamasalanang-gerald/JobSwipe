@@ -31,7 +31,7 @@ class MongoMigrate extends Command
 
         $specPath = database_path('mongomigrations');
 
-        if (!File::isDirectory($specPath)) {
+        if (! File::isDirectory($specPath)) {
             $this->error("Mongo migration directory not found: {$specPath}");
 
             return self::FAILURE;
@@ -88,8 +88,8 @@ class MongoMigrate extends Command
     protected function resolveFiles(string $specPath, ?string $selection): array
     {
         $files = collect(File::files($specPath))
-            ->filter(static fn(SplFileInfo $file): bool => $file->getExtension() === 'json')
-            ->sortBy(static fn(SplFileInfo $file): string => $file->getFilename())
+            ->filter(static fn (SplFileInfo $file): bool => $file->getExtension() === 'json')
+            ->sortBy(static fn (SplFileInfo $file): string => $file->getFilename())
             ->values();
 
         if ($selection === null) {
@@ -103,7 +103,7 @@ class MongoMigrate extends Command
 
         /** @var SplFileInfo|null $match */
         $match = $files->first(
-            static fn(SplFileInfo $file): bool => $file->getFilename() === $normalizedSelection
+            static fn (SplFileInfo $file): bool => $file->getFilename() === $normalizedSelection
             || pathinfo($file->getFilename(), PATHINFO_FILENAME) === $selection
         );
 
@@ -126,24 +126,24 @@ class MongoMigrate extends Command
             throw new \RuntimeException("Invalid JSON in {$file->getFilename()}", 0, $exception);
         }
 
-        if (!is_array($spec)) {
+        if (! is_array($spec)) {
             throw new \RuntimeException("Spec in {$file->getFilename()} must decode to an object.");
         }
 
         $collection = $spec['collection'] ?? null;
 
-        if (!is_string($collection) || trim($collection) === '') {
+        if (! is_string($collection) || trim($collection) === '') {
             throw new \RuntimeException("Spec {$file->getFilename()} must contain a non-empty [collection] string.");
         }
 
         $indexes = $spec['indexes'] ?? [];
         $documents = $spec['documents'] ?? [];
 
-        if (!is_array($indexes)) {
+        if (! is_array($indexes)) {
             throw new \RuntimeException("Spec {$file->getFilename()} must contain an [indexes] array.");
         }
 
-        if (!is_array($documents)) {
+        if (! is_array($documents)) {
             throw new \RuntimeException("Spec {$file->getFilename()} must contain a [documents] array.");
         }
 
@@ -182,8 +182,8 @@ class MongoMigrate extends Command
             $createOptions['validationAction'] = $validationAction;
         }
 
-        if (!$seedOnly) {
-            if (!in_array($collectionName, $collectionNames, true)) {
+        if (! $seedOnly) {
+            if (! in_array($collectionName, $collectionNames, true)) {
                 $database->createCollection($collectionName, $createOptions);
                 $collectionNames[] = $collectionName;
                 $this->info("Created collection: {$collectionName}");
@@ -203,15 +203,15 @@ class MongoMigrate extends Command
 
         $collection = $database->selectCollection($collectionName);
 
-        if (!$seedOnly) {
+        if (! $seedOnly) {
             foreach ($spec['indexes'] as $index) {
-                if (!is_array($index) || !isset($index['keys']) || !is_array($index['keys'])) {
+                if (! is_array($index) || ! isset($index['keys']) || ! is_array($index['keys'])) {
                     throw new \RuntimeException("Each index in {$file->getFilename()} must contain a [keys] object.");
                 }
 
                 $options = $index['options'] ?? [];
 
-                if (!is_array($options)) {
+                if (! is_array($options)) {
                     throw new \RuntimeException("Index options in {$file->getFilename()} must be an object.");
                 }
 
@@ -222,7 +222,7 @@ class MongoMigrate extends Command
             }
         }
 
-        if (!$schemaOnly) {
+        if (! $schemaOnly) {
             foreach ($spec['documents'] ?? [] as $position => $documentSpec) {
                 $this->applyDocument($collection, $collectionName, $documentSpec, $file, $position);
             }
@@ -236,7 +236,7 @@ class MongoMigrate extends Command
      */
     protected function applyDocument($collection, string $collectionName, $documentSpec, SplFileInfo $file, int $position): void
     {
-        if (!is_array($documentSpec)) {
+        if (! is_array($documentSpec)) {
             throw new \RuntimeException("Document entry #{$position} in {$file->getFilename()} must be an object.");
         }
 
@@ -248,11 +248,11 @@ class MongoMigrate extends Command
             $filter = $documentSpec['filter'] ?? null;
             $upsert = (bool) ($documentSpec['upsert'] ?? true);
 
-            if (!is_array($data) || $data === []) {
+            if (! is_array($data) || $data === []) {
                 throw new \RuntimeException("Document operation #{$documentNumber} in {$file->getFilename()} must contain a non-empty [data] object.");
             }
 
-            if ($filter !== null && (!is_array($filter) || $filter === [])) {
+            if ($filter !== null && (! is_array($filter) || $filter === [])) {
                 throw new \RuntimeException("Document operation #{$documentNumber} in {$file->getFilename()} must use a non-empty [filter] object.");
             }
 
@@ -300,7 +300,7 @@ class MongoMigrate extends Command
      */
     protected function normalizeValue($value)
     {
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             return $value;
         }
 
