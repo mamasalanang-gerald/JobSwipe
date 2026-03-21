@@ -43,7 +43,7 @@ export default function Home() {
             </h1>
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               The modern way to find your perfect career match. Swipe right on opportunities that excite you, 
-              swipe left on what doesn't fit. It's job hunting, reimagined.
+              swipe left on what doesn&apos;t fit. It&apos;s job hunting, reimagined.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button className="px-8 py-4 bg-indigo-600 text-white rounded-lg text-lg font-semibold hover:bg-indigo-700 transition shadow-lg">
@@ -152,7 +152,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">Start Swiping</h3>
                 <p className="text-gray-600">
-                  Browse personalized job matches. Swipe right on jobs you love, left on ones you don't.
+                  Browse personalized job matches. Swipe right on jobs you love, left on ones you don&apos;t.
                 </p>
               </div>
               
@@ -200,7 +200,7 @@ export default function Home() {
               Ready to Find Your Dream Job?
             </h2>
             <p className="text-xl text-gray-600 mb-8">
-              Join thousands of professionals who've already found their perfect match
+              Join thousands of professionals who&apos;ve already found their perfect match
             </p>
             <button className="px-8 py-4 bg-indigo-600 text-white rounded-lg text-lg font-semibold hover:bg-indigo-700 transition shadow-lg">
               Get Started Free
