@@ -20,7 +20,7 @@
 
 ### 2. Environment Variables
 - ✅ All 27 environment variables added to Render
-- ✅ APP_KEY generated: `base64:cpjlb8SK+p3oLtaTUONNU8v02JLYL7xgW2YM2qXcI1w=`
+- ✅ APP_KEY generated and configured
 - ✅ Database credentials configured
 - ✅ Redis connection configured
 - ✅ MongoDB credentials configured
@@ -38,10 +38,10 @@ Go to Render Dashboard → JobSwipe → Environment → Add this variable:
 
 ```
 Key: MONGO_DSN
-Value: mongodb+srv://geraldkasan163_db_user:e5OCcrvDVAQsun19@jobswipe-cluster.m0baanc.mongodb.net/jobswipe?retryWrites=true&w=majority
+Value: <YOUR_MONGODB_CONNECTION_STRING_FROM_ATLAS>
 ```
 
-Then click "Save Changes" to trigger a redeploy.
+Get your connection string from MongoDB Atlas dashboard.
 
 ### Step 2: Test Manual Deployment
 
@@ -100,7 +100,7 @@ Add these secrets to GitHub (Settings → Secrets → Actions):
 APP_NAME=JobSwipe
 APP_ENV=production
 APP_DEBUG=false
-APP_KEY=base64:cpjlb8SK+p3oLtaTUONNU8v02JLYL7xgW2YM2qXcI1w=
+APP_KEY=<YOUR_GENERATED_APP_KEY>
 APP_URL=https://jobswipe-eff8.onrender.com
 ```
 
@@ -108,24 +108,24 @@ APP_URL=https://jobswipe-eff8.onrender.com
 ```
 # PostgreSQL
 DB_CONNECTION=pgsql
-DB_HOST=dpg-d6v3477gi27c73eoinpg-a
+DB_HOST=<YOUR_POSTGRES_HOST>
 DB_PORT=5432
-DB_DATABASE=jobswipe_acb5
-DB_USERNAME=jobswipe_acb5_user
-DB_PASSWORD=vpklnROXCJvTWxPbM5SjCnYVKiKci9Bz
+DB_DATABASE=<YOUR_DATABASE_NAME>
+DB_USERNAME=<YOUR_DATABASE_USER>
+DB_PASSWORD=<YOUR_DATABASE_PASSWORD>
 
 # MongoDB Atlas
-MONGO_DSN=mongodb+srv://geraldkasan163_db_user:e5OCcrvDVAQsun19@jobswipe-cluster.m0baanc.mongodb.net/jobswipe?retryWrites=true&w=majority
-MONGO_HOST=jobswipe-cluster.m0baanc.mongodb.net
+MONGO_DSN=<YOUR_MONGODB_CONNECTION_STRING>
+MONGO_HOST=<YOUR_MONGODB_HOST>
 MONGO_PORT=27017
-MONGO_ROOT_USERNAME=geraldkasan163_db_user
-MONGO_ROOT_PASSWORD=e5OCcrvDVAQsun19
+MONGO_ROOT_USERNAME=<YOUR_MONGODB_USER>
+MONGO_ROOT_PASSWORD=<YOUR_MONGODB_PASSWORD>
 MONGO_DATABASE=jobswipe
 
 # Redis
-REDIS_HOST=red-d6v36u6a2pns73ab5h7g
+REDIS_HOST=<YOUR_REDIS_HOST>
 REDIS_PORT=6379
-REDIS_PASSWORD=(empty)
+REDIS_PASSWORD=(empty or your password)
 ```
 
 ### API Configuration
@@ -188,7 +188,7 @@ Before considering deployment complete, verify:
 Add the `MONGO_DSN` environment variable to Render, then test the deployment!
 
 ```
-MONGO_DSN=mongodb+srv://geraldkasan163_db_user:e5OCcrvDVAQsun19@jobswipe-cluster.m0baanc.mongodb.net/jobswipe?retryWrites=true&w=majority
+MONGO_DSN=<YOUR_MONGODB_CONNECTION_STRING_FROM_ATLAS>
 ```
 
 ---

@@ -32,10 +32,10 @@ You need to add ONE more variable for MongoDB Atlas connection:
 Go to Render Dashboard → JobSwipe service → Environment → Add:
 
 ```
-MONGO_DSN=mongodb+srv://geraldkasan163_db_user:e5OCcrvDVAQsun19@jobswipe-cluster.m0baanc.mongodb.net/jobswipe?retryWrites=true&w=majority
+MONGO_DSN=<YOUR_MONGODB_CONNECTION_STRING>
 ```
 
-This is the full connection string that Laravel will use to connect to MongoDB Atlas.
+Get this from MongoDB Atlas dashboard → Connect → Drivers.
 
 ### Step 3: Test Manual Deployment
 

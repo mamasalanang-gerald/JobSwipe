@@ -11,8 +11,9 @@
 5. Add:
    ```
    Key: MONGO_DSN
-   Value: mongodb+srv://geraldkasan163_db_user:e5OCcrvDVAQsun19@jobswipe-cluster.m0baanc.mongodb.net/jobswipe?retryWrites=true&w=majority
+   Value: <YOUR_MONGODB_CONNECTION_STRING>
    ```
+   Get this from MongoDB Atlas → Connect → Drivers
 6. Click **Save Changes**
 
 This will automatically trigger a new deployment.
