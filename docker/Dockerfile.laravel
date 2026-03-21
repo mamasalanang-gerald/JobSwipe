@@ -23,8 +23,8 @@ RUN docker-php-ext-install \
     zip \
     pcntl
 
-# Install MongoDB extension
-RUN pecl install mongodb && docker-php-ext-enable mongodb
+# Install MongoDB extension (version 2.2.0 or higher)
+RUN pecl install mongodb-2.2.0 && docker-php-ext-enable mongodb
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
