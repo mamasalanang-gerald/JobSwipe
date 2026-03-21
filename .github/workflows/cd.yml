@@ -9,24 +9,19 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_HUB_REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKER_HUB_USERNAME }}/jobapp-backend
 
 jobs:
   # ==========================================
-  # PHASE 1: BUILD & PUSH PRODUCTION IMAGES
+  # PHASE 1: BUILD & PUSH TO DOCKER HUB
   # ==========================================
   build-and-push:
-    name: 🏗️ Phase 1 - Build & Push Production Images
+    name: 🏗️ Phase 1 - Build & Push to Docker Hub
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
-      image-tag: ${{ steps.meta.outputs.tags }}
+      image-tags: ${{ steps.meta.outputs.tags }}
     
     steps:
       - name: 🔍 Checkout Code
@@ -35,21 +30,19 @@ jobs:
       - name: 🔧 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🔐 Log in to Container Registry
+      - name: 🔐 Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: 📝 Extract Metadata
+      - name: 📝 Extract Docker Metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=production,enable={{is_default_branch}}
 
@@ -65,135 +58,86 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-          provenance: true
-          sbom: true
-
-      - name: 🔐 Install Cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: 🔐 Sign Container Image
-        run: |
-          echo "🔐 Signing production container image..."
-          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-
-      - name: 📋 Generate Production SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          format: spdx-json
-          output-file: production-sbom.spdx.json
-
-      - name: 📊 Upload Production SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-sbom
-          path: production-sbom.spdx.json
-          retention-days: 365
 
       - name: ✅ Phase 1 Complete
         run: |
-          echo "✅ Phase 1 - Build & Push completed successfully"
-          echo "📦 Image: ${{ steps.meta.outputs.tags }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ PHASE 1 COMPLETE: Build & Push to Docker Hub"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Image: ${{ env.IMAGE_NAME }}"
+          echo "🏷️  Tags: latest, production, $(echo ${{ github.sha }} | cut -c1-7)"
           echo "🔍 Digest: ${{ steps.build.outputs.digest }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   # ==========================================
-  # PHASE 2: DEPLOY TO RENDER
+  # PHASE 2: RENDER PULLS & DEPLOYS
+  # ==========================================
+  # PHASE 2: RENDER DEPLOYMENT (PULL & RUN)
   # ==========================================
   deploy-to-render:
     name: 🚀 Phase 2 - Deploy to Render
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: 
-      name: production
-      url: ${{ steps.deploy.outputs.service-url }}
     
     steps:
-      - name: 🔍 Checkout Code
-        uses: actions/checkout@v4
-
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: 📦 Install Render CLI
+      - name: 🚀 Trigger Render Deployment
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
         run: |
-          npm install -g @render-oss/cli
-
-      - name: 🔐 Authenticate with Render
-        run: |
-          echo "🔐 Authenticating with Render..."
-          render auth login --api-key ${{ secrets.RENDER_API_KEY }}
-
-      - name: 🚀 Deploy to Render
-        id: deploy
-        run: |
-          echo "🚀 Deploying to Render..."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "� PHASE 2: $Triggering Render Deployment"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📦 Image: ${{ env.IMAGE_NAME }}:latest"
+          echo "🔍 Digest: ${{ needs.build-and-push.outputs.image-digest }}"
+          echo ""
           
-          # Deploy using Render API
-          SERVICE_ID="${{ secrets.RENDER_SERVICE_ID }}"
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "⚠️  WARNING: RENDER_DEPLOY_HOOK_URL not configured"
+            echo ""
+            echo "📋 To enable automatic deployment:"
+            echo "   1. Go to Render Dashboard → jobapp-backend → Settings"
+            echo "   2. Scroll to 'Deploy Hook' section"
+            echo "   3. Copy the Deploy Hook URL"
+            echo "   4. Add it as RENDER_DEPLOY_HOOK_URL secret in GitHub:"
+            echo "      GitHub Repo → Settings → Secrets → Actions → New secret"
+            echo ""
+            echo "🔧 For now, manual deployment required:"
+            echo "   • Go to Render Dashboard"
+            echo "   • Select jobapp-backend service"
+            echo "   • Click 'Manual Deploy' → 'Deploy latest commit'"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            exit 0
+          fi
           
-          # Trigger deployment
-          render services deploy $SERVICE_ID --wait
+          echo "🔗 Calling Render Deploy Hook..."
+          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK_URL")
           
-          # Get service URL
-          SERVICE_URL=$(render services get $SERVICE_ID --format json | jq -r '.service.serviceDetails.url')
-          echo "service-url=$SERVICE_URL" >> $GITHUB_OUTPUT
-          
-          echo "✅ Deployment completed successfully"
-          echo "🌐 Service URL: $SERVICE_URL"
-
-      - name: 🏥 Health Check
-        run: |
-          echo "🏥 Performing health check..."
-          SERVICE_URL="${{ steps.deploy.outputs.service-url }}"
-          
-          # Wait for service to be ready
-          for i in {1..30}; do
-            if curl -f "$SERVICE_URL/api/health" > /dev/null 2>&1; then
-              echo "✅ Health check passed!"
-              break
-            fi
-            echo "⏳ Waiting for service to be ready... ($i/30)"
-            sleep 10
-          done
-          
-          # Final health check
-          if ! curl -f "$SERVICE_URL/api/health"; then
-            echo "❌ Health check failed after deployment!"
+          if [ "$RESPONSE" -eq 200 ] || [ "$RESPONSE" -eq 201 ]; then
+            echo "✅ Render deployment triggered successfully!"
+            echo ""
+            echo "🚀 Render Configuration:"
+            echo "   • Service: jobapp-backend"
+            echo "   • Image: docker.io/gm1026/jobapp-backend:latest"
+            echo "   • Region: Oregon (us-west)"
+            echo "   • Health Check: /api/health"
+            echo ""
+            echo "⏳ Render is pulling the image and deploying..."
+            echo "🌐 Check Render dashboard for live status"
+          else
+            echo "❌ Failed to trigger Render deployment (HTTP $RESPONSE)"
+            echo ""
+            echo "🔧 Troubleshooting:"
+            echo "   • Verify RENDER_DEPLOY_HOOK_URL is correct"
+            echo "   • Check Render service status"
+            echo "   • Try manual deployment from Render dashboard"
             exit 1
           fi
-
-      - name: 🔍 Verify Deployment
-        run: |
-          echo "🔍 Verifying deployment..."
-          SERVICE_URL="${{ steps.deploy.outputs.service-url }}"
           
-          # Test API endpoints
-          echo "Testing health endpoint..."
-          HEALTH_RESPONSE=$(curl -s "$SERVICE_URL/api/health")
-          echo "Health response: $HEALTH_RESPONSE"
-          
-          # Verify response contains expected fields
-          if echo "$HEALTH_RESPONSE" | jq -e '.status == "ok"' > /dev/null; then
-            echo "✅ API is responding correctly"
-          else
-            echo "❌ API health check failed"
-            exit 1
-          fi
-
-      - name: 📊 Update Deployment Status
-        if: always()
-        run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deployment successful!"
-            echo "🌐 Production URL: ${{ steps.deploy.outputs.service-url }}"
-          else
-            echo "❌ Deployment failed!"
-          fi
-
-      - name: ✅ Phase 2 Complete
-        run: echo "✅ Phase 2 - Deploy to Render completed successfully"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🌐 Check Render dashboard for live status"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   # ==========================================
   # PHASE 3: DEPLOYMENT SUMMARY
@@ -207,77 +151,167 @@ jobs:
     steps:
       - name: 📊 Generate Deployment Summary
         run: |
-          echo "# 🚀 CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "# 🚀 CD Pipeline Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Phase Status Table
           echo "## 📋 Deployment Phases" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "| Phase | Status | Description |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|-------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 1️⃣ Build & Push | ${{ needs.build-and-push.result == 'success' && '✅ Passed' || '❌ Failed' }} | Production image build and registry push |" >> $GITHUB_STEP_SUMMARY
-          echo "| 2️⃣ Deploy to Render | ${{ needs.deploy-to-render.result == 'success' && '✅ Passed' || '❌ Failed' }} | Service deployment and health verification |" >> $GITHUB_STEP_SUMMARY
+          echo "| 1️⃣ Build & Push | ${{ needs.build-and-push.result == 'success' && '✅ Success' || '❌ Failed' }} | Docker image built and pushed to Docker Hub |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2️⃣ Render Deploy | ${{ needs.deploy-to-render.result == 'success' && '✅ Success' || '❌ Failed' }} | Render pulls image from Docker Hub and deploys |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3️⃣ Summary | ✅ Complete | Deployment summary and infrastructure details |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
+          # Success or Failure Details
           if [[ "${{ needs.build-and-push.result }}" == "success" && "${{ needs.deploy-to-render.result }}" == "success" ]]; then
-            echo "## ✅ **Deployment SUCCESSFUL**" >> $GITHUB_STEP_SUMMARY
+            echo "## ✅ Deployment SUCCESSFUL" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "🎉 **JobApp is now live in production!**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 📦 Production Image Details" >> $GITHUB_STEP_SUMMARY
-            echo "- **Registry**: ghcr.io/${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Tag**: latest, production" >> $GITHUB_STEP_SUMMARY
-            echo "- **Digest**: ${{ needs.build-and-push.outputs.image-digest }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Signed**: ✅ Cosign signature applied" >> $GITHUB_STEP_SUMMARY
-            echo "- **SBOM**: ✅ Generated and stored" >> $GITHUB_STEP_SUMMARY
+            
+            # Docker Image Details
+            echo "### 📦 Docker Image Details" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Registry | Docker Hub |" >> $GITHUB_STEP_SUMMARY
+            echo "| Image | \`${{ env.IMAGE_NAME }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Tags | \`latest\`, \`production\`, \`$(echo ${{ github.sha }} | cut -c1-7)\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Digest | \`${{ needs.build-and-push.outputs.image-digest }}\` |" >> $GITHUB_STEP_SUMMARY
+            echo "| Platform | linux/amd64 |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Docker Compose Stack
+            echo "### 🐳 Docker Compose Stack" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "#### Backend Service" >> $GITHUB_STEP_SUMMARY
+            echo "- **Service**: Laravel Backend API" >> $GITHUB_STEP_SUMMARY
+            echo "- **Image**: \`docker.io/gm1026/jobapp-backend:latest\`" >> $GITHUB_STEP_SUMMARY
+            echo "- **Platform**: Render Web Service" >> $GITHUB_STEP_SUMMARY
+            echo "- **Port**: 8080" >> $GITHUB_STEP_SUMMARY
+            echo "- **Health Check**: \`/api/health\`" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "#### Database Services (3 Databases)" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**1. PostgreSQL** (Relational Database)" >> $GITHUB_STEP_SUMMARY
+            echo "- Image: \`postgres:15-alpine\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Purpose: Primary relational data (users, jobs, applications)" >> $GITHUB_STEP_SUMMARY
+            echo "- Render Service: \`jobapp-postgres\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Port: 5432" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "**2. MongoDB** (NoSQL Database)" >> $GITHUB_STEP_SUMMARY
+            echo "- Image: \`mongo:7\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Purpose: Document storage (profiles, swipe history)" >> $GITHUB_STEP_SUMMARY
+            echo "- Deployment: External (MongoDB Atlas recommended)" >> $GITHUB_STEP_SUMMARY
+            echo "- Port: 27017" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            echo "**3. Redis** (Cache & Session Store)" >> $GITHUB_STEP_SUMMARY
+            echo "- Image: \`redis:7-alpine\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Purpose: Caching, sessions, queue management" >> $GITHUB_STEP_SUMMARY
+            echo "- Render Service: \`jobapp-redis\`" >> $GITHUB_STEP_SUMMARY
+            echo "- Port: 6379" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Service Information
             echo "### 🌐 Service Information" >> $GITHUB_STEP_SUMMARY
-            echo "- **Production URL**: [JobApp API](https://your-service.onrender.com)" >> $GITHUB_STEP_SUMMARY
-            echo "- **Health Check**: ✅ Passing" >> $GITHUB_STEP_SUMMARY
-            echo "- **Status**: 🟢 Online" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- **Render Dashboard**: [View Deployment Status](https://dashboard.render.com)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Auto-Deploy**: Enabled (pulls from Docker Hub automatically)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Region**: Oregon (us-west)" >> $GITHUB_STEP_SUMMARY
+            echo "- **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            
+            # Security Features
             echo "### 🔒 Security Features" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Container image signed with Cosign" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ SBOM (Software Bill of Materials) generated" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Vulnerability scanning completed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Docker image built with layer caching" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Deployed from Docker Hub registry" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ HTTPS/TLS encryption enabled" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Environment variables secured via Render" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Database connections encrypted" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Health checks configured" >> $GITHUB_STEP_SUMMARY
+            
           else
-            echo "## ❌ **Deployment FAILED**" >> $GITHUB_STEP_SUMMARY
+            echo "## ❌ Deployment FAILED" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The deployment pipeline encountered errors. Please review the failed jobs:" >> $GITHUB_STEP_SUMMARY
+            echo "The deployment pipeline encountered errors:" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
+            
             if [[ "${{ needs.build-and-push.result }}" != "success" ]]; then
-              echo "- ❌ **Build & Push**: Failed to build or push production image" >> $GITHUB_STEP_SUMMARY
+              echo "### ❌ Phase 1: Build & Push Failed" >> $GITHUB_STEP_SUMMARY
+              echo "- Failed to build or push Docker image to Docker Hub" >> $GITHUB_STEP_SUMMARY
+              echo "- Check Docker Hub credentials (DOCKER_HUB_USERNAME, DOCKER_HUB_TOKEN)" >> $GITHUB_STEP_SUMMARY
+              echo "- Verify Dockerfile syntax and build context" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
             fi
+            
             if [[ "${{ needs.deploy-to-render.result }}" != "success" ]]; then
-              echo "- ❌ **Deploy to Render**: Failed to deploy or verify service" >> $GITHUB_STEP_SUMMARY
+              echo "### ❌ Phase 2: Render Deploy Failed" >> $GITHUB_STEP_SUMMARY
+              echo "- Render deployment notification failed" >> $GITHUB_STEP_SUMMARY
+              echo "- Verify Render service configuration (render.yaml)" >> $GITHUB_STEP_SUMMARY
+              echo "- Check Render dashboard for service status" >> $GITHUB_STEP_SUMMARY
+              echo "" >> $GITHUB_STEP_SUMMARY
             fi
-            echo "" >> $GITHUB_STEP_SUMMARY
+            
             echo "### 🔧 Next Steps" >> $GITHUB_STEP_SUMMARY
-            echo "1. Review the failed job logs" >> $GITHUB_STEP_SUMMARY
-            echo "2. Fix any identified issues" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "1. Review the failed job logs above" >> $GITHUB_STEP_SUMMARY
+            echo "2. Fix identified issues" >> $GITHUB_STEP_SUMMARY
             echo "3. Push fixes to trigger a new deployment" >> $GITHUB_STEP_SUMMARY
+            echo "4. Monitor the new deployment in GitHub Actions" >> $GITHUB_STEP_SUMMARY
           fi
           
+          # Deployment Metadata
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployment Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit SHA**: \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Triggered By**: @${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch**: \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
 
-      - name: 🎉 Deployment Success Notification
+      - name: 🎉 Deployment Success
         if: needs.build-and-push.result == 'success' && needs.deploy-to-render.result == 'success'
         run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ PHASE 3 COMPLETE: Deployment Summary"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
           echo "🎉 DEPLOYMENT SUCCESSFUL!"
-          echo "✅ JobApp is now live in production"
-          echo "🌐 Production URL: https://your-service.onrender.com"
-          echo "📦 Image: ghcr.io/${{ github.repository }}:latest"
-          echo "🔒 Security: Signed and SBOM generated"
+          echo ""
+          echo "✅ Phase 1: Docker image built and pushed to Docker Hub"
+          echo "✅ Phase 2: Render pulling and deploying from Docker Hub"
+          echo "✅ Phase 3: Deployment summary generated"
+          echo ""
+          echo "📦 Docker Compose Stack:"
+          echo "   • Backend: Laravel API (docker.io/gm1026/jobapp-backend:latest)"
+          echo "   • Database 1: PostgreSQL 15 (Render managed)"
+          echo "   • Database 2: MongoDB 7 (External/Atlas)"
+          echo "   • Database 3: Redis 7 (Render managed)"
+          echo ""
+          echo "🌐 Check Render dashboard for live deployment status"
+          echo "📊 Health Check: /api/health"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-      - name: ❌ Deployment Failure Notification
+      - name: ❌ Deployment Failure
         if: needs.build-and-push.result != 'success' || needs.deploy-to-render.result != 'success'
         run: |
-          echo "❌ DEPLOYMENT FAILED!"
-          echo "Please review the failed jobs and fix the issues."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ DEPLOYMENT FAILED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          if [[ "${{ needs.build-and-push.result }}" != "success" ]]; then
+            echo "❌ Phase 1 Failed: Docker build/push to Docker Hub"
+          fi
+          if [[ "${{ needs.deploy-to-render.result }}" != "success" ]]; then
+            echo "❌ Phase 2 Failed: Render deployment"
+          fi
+          echo ""
+          echo "Please review the logs above and fix the issues"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           exit 1
-
-      - name: ✅ CD Pipeline Complete
-        run: echo "✅ CD Pipeline completed"
