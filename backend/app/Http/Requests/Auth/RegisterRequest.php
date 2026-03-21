@@ -14,8 +14,8 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'role' => ['required', 'string', 'in:applicant, hr, company_admin'],
-            'email' => ['required', 'email:rfc, dns', 'max:255'],
+            'role' => ['required', 'string', 'in:applicant,hr,company_admin'],
+            'email' => ['required', 'email:rfc,dns', 'max:255'],
             'password' => ['required', 'string', 'min:8', 'max:128'],
         ];
     }
@@ -23,7 +23,7 @@ class RegisterRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'role_in' => 'Role must be applicant, hr, or company_admin.',
+            'role.in' => 'Role must be applicant, hr, or company_admin.',
         ];
     }
 }
