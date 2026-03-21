@@ -43,7 +43,7 @@ RUN composer install --optimize-autoloader --no-dev --no-interaction --prefer-di
     php artisan package:discover --ansi
 
 # Create necessary directories and set permissions
-RUN mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache && \
+RUN mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache resources/views && \
     chmod -R 775 storage bootstrap/cache && \
     chown -R www-data:www-data storage bootstrap/cache
 
@@ -132,7 +132,11 @@ php artisan migrate --force
 # Cache configuration for production
 php artisan config:cache
 php artisan route:cache
-php artisan view:cache
+
+# Only cache views if resources/views directory exists
+if [ -d "resources/views" ]; then
+    php artisan view:cache
+fi
 
 # Start supervisor
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
