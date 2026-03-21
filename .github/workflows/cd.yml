@@ -27,10 +27,18 @@ jobs:
     outputs:
       image-digest: ${{ steps.build.outputs.digest }}
       image-tag: ${{ steps.meta.outputs.tags }}
+      image-name-lower: ${{ steps.lowercase.outputs.image-name }}
     
     steps:
       - name: 🔍 Checkout Code
         uses: actions/checkout@v4
+
+      - name: 🔧 Convert Image Name to Lowercase
+        id: lowercase
+        run: |
+          IMAGE_NAME_LOWER=$(echo "${{ env.IMAGE_NAME }}" | tr '[:upper:]' '[:lower:]')
+          echo "image-name=${IMAGE_NAME_LOWER}" >> $GITHUB_OUTPUT
+          echo "Lowercase image name: ${IMAGE_NAME_LOWER}"
 
       - name: 🔧 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -46,7 +54,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.image-name }}
           tags: |
             type=ref,event=branch
             type=sha,prefix={{branch}}-
@@ -74,14 +82,15 @@ jobs:
       - name: 🔐 Sign Container Image
         run: |
           echo "🔐 Signing production container image..."
-          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          cosign sign --yes ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.image-name }}@${{ steps.build.outputs.digest }}
 
       - name: 📋 Generate Production SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          format: spdx-json
-          output-file: production-sbom.spdx.json
+        run: |
+          docker run --rm \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            anchore/syft:latest \
+            ${{ env.REGISTRY }}/${{ steps.lowercase.outputs.image-name }}@${{ steps.build.outputs.digest }} \
+            -o spdx-json > production-sbom.spdx.json
 
       - name: 📊 Upload Production SBOM
         uses: actions/upload-artifact@v4
@@ -223,7 +232,7 @@ jobs:
             echo "🎉 **JobApp is now live in production!**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 📦 Production Image Details" >> $GITHUB_STEP_SUMMARY
-            echo "- **Registry**: ghcr.io/${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Registry**: ghcr.io/${{ needs.build-and-push.outputs.image-name-lower }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Tag**: latest, production" >> $GITHUB_STEP_SUMMARY
             echo "- **Digest**: ${{ needs.build-and-push.outputs.image-digest }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Signed**: ✅ Cosign signature applied" >> $GITHUB_STEP_SUMMARY
@@ -269,7 +278,7 @@ jobs:
           echo "🎉 DEPLOYMENT SUCCESSFUL!"
           echo "✅ JobApp is now live in production"
           echo "🌐 Production URL: https://your-service.onrender.com"
-          echo "📦 Image: ghcr.io/${{ github.repository }}:latest"
+          echo "📦 Image: ghcr.io/${{ needs.build-and-push.outputs.image-name-lower }}:latest"
           echo "🔒 Security: Signed and SBOM generated"
 
       - name: ❌ Deployment Failure Notification
