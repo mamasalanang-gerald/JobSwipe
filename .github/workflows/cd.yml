@@ -9,8 +9,8 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_HUB_REGISTRY: docker.io
+  IMAGE_NAME: ${{ secrets.DOCKER_HUB_USERNAME }}/jobapp-backend
 
 jobs:
   # ==========================================
@@ -35,21 +35,19 @@ jobs:
       - name: 🔧 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🔐 Log in to Container Registry
+      - name: 🔐 Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
       - name: 📝 Extract Metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=production,enable={{is_default_branch}}
 
@@ -65,30 +63,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
-          provenance: true
-          sbom: true
-
-      - name: 🔐 Install Cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: 🔐 Sign Container Image
-        run: |
-          echo "🔐 Signing production container image..."
-          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-
-      - name: 📋 Generate Production SBOM
-        uses: anchore/sbom-action@v0
-        with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          format: spdx-json
-          output-file: production-sbom.spdx.json
-
-      - name: 📊 Upload Production SBOM
-        uses: actions/upload-artifact@v4
-        with:
-          name: production-sbom
-          path: production-sbom.spdx.json
-          retention-days: 365
 
       - name: ✅ Phase 1 Complete
         run: |
@@ -116,32 +90,81 @@ jobs:
         with:
           node-version: '18'
 
-      - name: 📦 Install Render CLI
-        run: |
-          npm install -g @render-oss/cli
-
-      - name: 🔐 Authenticate with Render
-        run: |
-          echo "🔐 Authenticating with Render..."
-          render auth login --api-key ${{ secrets.RENDER_API_KEY }}
-
       - name: 🚀 Deploy to Render
         id: deploy
         run: |
-          echo "🚀 Deploying to Render..."
+          echo "🚀 Deploying to Render via API..."
           
-          # Deploy using Render API
+          # Get the short SHA for the image tag
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          IMAGE_TAG="${{ env.IMAGE_NAME }}:${SHORT_SHA}"
+          
+          echo "📦 Deploying image: ${IMAGE_TAG}"
+          
+          # Trigger deployment using Render API with Docker image
           SERVICE_ID="${{ secrets.RENDER_SERVICE_ID }}"
+          API_KEY="${{ secrets.RENDER_API_KEY }}"
           
-          # Trigger deployment
-          render services deploy $SERVICE_ID --wait
+          # Update service to use the new Docker image
+          UPDATE_RESPONSE=$(curl -X PATCH \
+            "https://api.render.com/v1/services/${SERVICE_ID}" \
+            -H "Authorization: Bearer ${API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"image\": {
+                \"imagePath\": \"${IMAGE_TAG}\"
+              }
+            }")
           
-          # Get service URL
-          SERVICE_URL=$(render services get $SERVICE_ID --format json | jq -r '.service.serviceDetails.url')
-          echo "service-url=$SERVICE_URL" >> $GITHUB_OUTPUT
+          echo "Update response: $UPDATE_RESPONSE"
+          
+          # Trigger a new deploy
+          DEPLOY_RESPONSE=$(curl -X POST \
+            "https://api.render.com/v1/services/${SERVICE_ID}/deploys" \
+            -H "Authorization: Bearer ${API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"clearCache\": false,
+              \"imageUrl\": \"${IMAGE_TAG}\"
+            }")
+          
+          echo "Deploy response: $DEPLOY_RESPONSE"
+          
+          # Extract deploy ID
+          DEPLOY_ID=$(echo "$DEPLOY_RESPONSE" | jq -r '.id')
+          echo "Deploy ID: $DEPLOY_ID"
+          
+          # Wait for deployment to complete
+          echo "⏳ Waiting for deployment to complete..."
+          for i in {1..60}; do
+            DEPLOY_STATUS=$(curl -s \
+              "https://api.render.com/v1/services/${SERVICE_ID}/deploys/${DEPLOY_ID}" \
+              -H "Authorization: Bearer ${API_KEY}" | jq -r '.status')
+            
+            echo "Deployment status: $DEPLOY_STATUS ($i/60)"
+            
+            if [ "$DEPLOY_STATUS" == "live" ]; then
+              echo "✅ Deployment completed successfully!"
+              break
+            elif [ "$DEPLOY_STATUS" == "build_failed" ] || [ "$DEPLOY_STATUS" == "deploy_failed" ]; then
+              echo "❌ Deployment failed with status: $DEPLOY_STATUS"
+              exit 1
+            fi
+            
+            sleep 10
+          done
+          
+          # Get service details
+          SERVICE_DETAILS=$(curl -s \
+            "https://api.render.com/v1/services/${SERVICE_ID}" \
+            -H "Authorization: Bearer ${API_KEY}")
+          
+          SERVICE_URL=$(echo "$SERVICE_DETAILS" | jq -r '.serviceDetails.url')
+          echo "service-url=https://${SERVICE_URL}" >> $GITHUB_OUTPUT
           
           echo "✅ Deployment completed successfully"
-          echo "🌐 Service URL: $SERVICE_URL"
+          echo "🌐 Service URL: https://${SERVICE_URL}"
+          echo "📦 Image deployed: ${IMAGE_TAG}"
 
       - name: 🏥 Health Check
         run: |
@@ -223,11 +246,10 @@ jobs:
             echo "🎉 **JobApp is now live in production!**" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 📦 Production Image Details" >> $GITHUB_STEP_SUMMARY
-            echo "- **Registry**: ghcr.io/${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Tag**: latest, production" >> $GITHUB_STEP_SUMMARY
+            echo "- **Registry**: Docker Hub" >> $GITHUB_STEP_SUMMARY
+            echo "- **Image**: ${{ env.IMAGE_NAME }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Tag**: latest, production, $(echo ${{ github.sha }} | cut -c1-7)" >> $GITHUB_STEP_SUMMARY
             echo "- **Digest**: ${{ needs.build-and-push.outputs.image-digest }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Signed**: ✅ Cosign signature applied" >> $GITHUB_STEP_SUMMARY
-            echo "- **SBOM**: ✅ Generated and stored" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🌐 Service Information" >> $GITHUB_STEP_SUMMARY
             echo "- **Production URL**: [JobApp API](https://your-service.onrender.com)" >> $GITHUB_STEP_SUMMARY
@@ -235,9 +257,8 @@ jobs:
             echo "- **Status**: 🟢 Online" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🔒 Security Features" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Container image signed with Cosign" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ SBOM (Software Bill of Materials) generated" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Vulnerability scanning completed" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Docker image built with layer caching" >> $GITHUB_STEP_SUMMARY
+            echo "- ✅ Deployed from Docker Hub registry" >> $GITHUB_STEP_SUMMARY
             echo "- ✅ HTTPS/TLS encryption enabled" >> $GITHUB_STEP_SUMMARY
           else
             echo "## ❌ **Deployment FAILED**" >> $GITHUB_STEP_SUMMARY
@@ -269,8 +290,8 @@ jobs:
           echo "🎉 DEPLOYMENT SUCCESSFUL!"
           echo "✅ JobApp is now live in production"
           echo "🌐 Production URL: https://your-service.onrender.com"
-          echo "📦 Image: ghcr.io/${{ github.repository }}:latest"
-          echo "🔒 Security: Signed and SBOM generated"
+          echo "📦 Image: ${{ env.IMAGE_NAME }}:latest"
+          echo "� Deployed from Docker Hub" 
 
       - name: ❌ Deployment Failure Notification
         if: needs.build-and-push.result != 'success' || needs.deploy-to-render.result != 'success'
