@@ -1,4 +1,5 @@
 name: 🚀 CD Pipeline
+# Docker Hub deployment - builds and pushes to gm1026/jobapp-backend
 
 on:
   push:
