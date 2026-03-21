@@ -121,11 +121,13 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
-# Generate Laravel app key
-php artisan key:generate --force
+# Generate Laravel app key if not set
+if [ -z "\$APP_KEY" ]; then
+    php artisan key:generate --force
+fi
 
-# Generate JWT secret
-php artisan jwt:secret --force
+# Run database migrations
+php artisan migrate --force
 
 # Cache configuration for production
 php artisan config:cache
