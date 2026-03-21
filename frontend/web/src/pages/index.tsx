@@ -142,7 +142,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-3">Create Your Profile</h3>
                 <p className="text-gray-600">
-                  Sign up in minutes. Add your skills, experience, and what you're looking for.
+                  Sign up in minutes. Add your skills, experience, and what you&apos;re looking for.
                 </p>
               </div>
               
