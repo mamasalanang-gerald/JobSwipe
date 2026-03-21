@@ -3,11 +3,10 @@ services:
   - type: web
     name: jobapp-backend
     env: docker
-    dockerfilePath: ./Dockerfile
-    rootDir: .
+    image:
+      url: docker.io/gm1026/jobapp-backend:latest
     plan: starter
     region: oregon
-    branch: main
     healthCheckPath: /api/health
     envVars:
       - key: APP_NAME
