@@ -2,8 +2,8 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -24,11 +24,11 @@ return new class extends Migration
                 ->on('applicant_profiles');
         });
 
-        DB::statement("
+        DB::statement('
             ALTER TABLE swipe_packs
             ADD CONSTRAINT swipe_packs_quantity_check
             CHECK (quantity IN (5, 10, 15))
-        ");
+        ');
 
         DB::statement("
             ALTER TABLE swipe_packs
