@@ -38,6 +38,8 @@ class AppServiceProvider extends ServiceProvider
         // $this->app->singleton(\App\Repositories\Mongo\SwipeHistoryRepository::class);
         // $this->app->singleton(\App\Repositories\Postgres\ApplicationRepository::class);
         // $this->app->singleton(\App\Repositories\Postgres\ApplicantProfileRepository::class);
+        $this->app->singleton(\App\Repositories\Redis\OTPCacheRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\UserRepository::class);
 
         // -----------------------------------------------------------------
         // Services
