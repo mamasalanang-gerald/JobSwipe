@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Models\Mongo;
+namespace App\Models\MongoDB;
 
 use MongoDB\Laravel\Eloquent\Model;
 
 class ApplicantProfileDocument extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'applicant_profiles';
 
     protected $fillable = [

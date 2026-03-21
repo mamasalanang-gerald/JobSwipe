@@ -1,18 +1,19 @@
 <?php
 
-namespace App\Models\Mongo;
+namespace App\Models\MongoDB;
 
 use MongoDB\Laravel\Eloquent\Model;
 
 class SwipeHistory extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'swipe_history';
 
     protected $fillable = [
         'user_id',
         'actor_type',
-        'swipe_direction',
+        'direction',
         'target_id',
         'target_type',
         'job_posting_id',
