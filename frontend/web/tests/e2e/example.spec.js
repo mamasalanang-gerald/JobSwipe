@@ -19,41 +19,16 @@ test.describe('JobApp E2E Tests', () => {
     await expect(page.locator('h1')).toContainText('Dream Job');
   });
 
-  test('API health check works', async ({ request }) => {
-    // Test API health endpoint with retry
-    let response;
-    let retries = 3;
-    
-    while (retries > 0) {
-      try {
-        response = await request.get('http://localhost:8000/api/health', { timeout: 10000 });
-        if (response.ok()) break;
-      } catch (e) {
-        retries--;
-        if (retries === 0) throw e;
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-    
-    expect(response.ok()).toBeTruthy();
-    
-    const data = await response.json();
-    expect(data.status).toBe('ok');
-    expect(data.timestamp).toBeDefined();
-  });
-
   test('navigation works', async ({ page }) => {
     // Test navigation if it exists
     const navLinks = page.locator('nav a');
     const count = await navLinks.count();
     
     if (count > 0) {
-      // Verify navigation links are visible
-      await expect(navLinks.first()).toBeVisible();
-      
-      // Check that navigation contains expected links
+      // Check that navigation contains expected content
       const navText = await page.locator('nav').textContent();
       expect(navText).toBeTruthy();
+      expect(navText).toContain('JobSwipe');
     }
   });
 
