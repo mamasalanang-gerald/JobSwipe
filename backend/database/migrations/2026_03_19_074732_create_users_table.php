@@ -4,7 +4,8 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     protected $connection = 'pgsql';
 
     public function up(): void
@@ -17,7 +18,7 @@ return new class extends Migration {
             $table->boolean('is_active')->default(true);
             $table->boolean('is_banned')->default(false);
             $table->timestampTz('email_verified_at')->nullable();
-            $table->timestampTz();
+            $table->timestampsTz();
         });
 
         DB::statement("ALTER TABLE users ADD CONSTRAINT users_role_check CHECK (role IN ('applicant','hr','company_admin','moderator','super_admin'))");

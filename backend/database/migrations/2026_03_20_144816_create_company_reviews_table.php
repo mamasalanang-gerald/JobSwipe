@@ -27,8 +27,8 @@ return new class extends Migration
             $table->foreign('company_id')->references('id')->on('company_profiles');
         });
 
-        DB::statement("ALTER TABLE company_reviews ADD CONSTRAINT company_reviews_rating_check CHECK (rating >= 1 AND rating <= 5)");
-        DB::statement("CREATE UNIQUE INDEX idx_company_reviews_unique ON company_reviews (applicant_id, company_id)");
+        DB::statement('ALTER TABLE company_reviews ADD CONSTRAINT company_reviews_rating_check CHECK (rating >= 1 AND rating <= 5)');
+        DB::statement('CREATE UNIQUE INDEX idx_company_reviews_unique ON company_reviews (applicant_id, company_id)');
         DB::statement('CREATE INDEX idx_company_reviews_company_visible ON company_reviews(company_id, is_visible) WHERE is_visible = TRUE');
         DB::statement('CREATE INDEX idx_company_reviews_flagged ON company_reviews(is_flagged) WHERE is_flagged = TRUE');
     }
