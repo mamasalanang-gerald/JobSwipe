@@ -88,8 +88,8 @@ class MongoMigrate extends Command
     protected function resolveFiles(string $specPath, ?string $selection): array
     {
         $files = collect(File::files($specPath))
-            ->filter(static fn(SplFileInfo $file): bool => $file->getExtension() === 'json')
-            ->sortBy(static fn(SplFileInfo $file): string => $file->getFilename())
+            ->filter(static fn (SplFileInfo $file): bool => $file->getExtension() === 'json')
+            ->sortBy(static fn (SplFileInfo $file): string => $file->getFilename())
             ->values();
 
         if ($selection === null) {
@@ -103,7 +103,7 @@ class MongoMigrate extends Command
 
         /** @var SplFileInfo|null $match */
         $match = $files->first(
-            static fn(SplFileInfo $file): bool => $file->getFilename() === $normalizedSelection
+            static fn (SplFileInfo $file): bool => $file->getFilename() === $normalizedSelection
             || pathinfo($file->getFilename(), PATHINFO_FILENAME) === $selection
         );
 

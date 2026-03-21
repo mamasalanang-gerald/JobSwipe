@@ -26,16 +26,16 @@ return new class extends Migration
                 ->onDelete('cascade');
         });
 
-        DB::statement("
+        DB::statement('
             CREATE INDEX idx_notifications_user_unread
             ON notifications (user_id, created_at DESC)
             WHERE read_at IS NULL
-        ");
+        ');
 
-        DB::statement("
+        DB::statement('
             CREATE INDEX idx_notifications_user_all
             ON notifications (user_id, created_at DESC)
-        ");
+        ');
     }
 
     public function down(): void
