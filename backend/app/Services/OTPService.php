@@ -12,9 +12,8 @@ class OTPService
 
     public function __construct(private OTPCacheRepository $otpCache) {}
 
-    public function sendOTP(string $email): void
+    public function sendOtp(string $email): void
     {
-
         $code = $this->generateCode();
         $codeHash = $this->hashCode($code);
 
@@ -25,7 +24,6 @@ class OTPService
 
     public function verify(string $email, string $submittedCode): string
     {
-
         $stored = $this->otpCache->get($email);
 
         if ($stored == null) {
@@ -38,7 +36,7 @@ class OTPService
             return 'max_attempts';
         }
 
-        $submittedHash = $this->hashcCode($submittedCode);
+        $submittedHash = $this->hashCode($submittedCode);
 
         if (! hash_equals($stored['code_hash'], $submittedHash)) {
             $this->otpCache->incrementAttempts($email);

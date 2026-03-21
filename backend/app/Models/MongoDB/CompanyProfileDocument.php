@@ -7,6 +7,7 @@ use MongoDB\Laravel\Eloquent\Model;
 class CompanyProfileDocument extends Model
 {
     protected $connection = 'mongodb';
+
     protected $collection = 'company_profiles';
 
     protected $fillable = [

@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Mongo\ApplicantProfileDocument;
-use App\Models\Postgres\CompanyProfile;
-use App\Repositories\Postgres\UserRepository;
+use App\Models\MongoDB\ApplicantProfileDocument;
+use App\Models\PostgreSQL\CompanyProfile;
+use App\Repositories\PostgreSQL\UserRepository;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 
@@ -12,7 +12,7 @@ class AuthService
 {
     public function __construct(
         private UserRepository $users,
-        private OtpService $otp,
+        private OTPService $otp,
     ) {}
 
     public function initiateRegistration(string $email, string $role): string
@@ -111,11 +111,19 @@ class AuthService
         // Check if they already have an account linked to this Google ID
         $user = $this->users->findByGoogleId($googleUser->getId());
 
+        if ($user && $user->role !== 'applicant') {
+            return ['status' => 'role_not_allowed'];
+        }
+
         if (! $user) {
 
             $user = $this->users->findByEmail($googleUser->getEmail());
 
             if ($user) {
+                if ($user->role !== 'applicant') {
+                    return ['status' => 'role_not_allowed'];
+                }
+
                 $this->users->update($user, [
                     'google_id' => $googleUser->getId(),
                 ]);

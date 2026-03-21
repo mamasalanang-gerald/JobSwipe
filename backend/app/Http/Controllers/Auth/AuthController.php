@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\VerifyEmailRequest;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
@@ -14,7 +16,7 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        if (in_array($request->input('role'), ['hr', 'company_admin']) && $request->has('oauth_provider')) {
+        if (in_array($request->input('role'), ['hr', 'company_admin'], true) && $request->has('oauth_provider')) {
             return $this->error(
                 'OAUTH_NOT_PERMITTED',
                 'HR/Company accounts must register with email and password.',

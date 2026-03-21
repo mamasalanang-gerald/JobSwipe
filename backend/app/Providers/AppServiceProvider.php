@@ -18,8 +18,8 @@ class AppServiceProvider extends ServiceProvider
      * Phase 1 — Repositories (add as you build them):
      *   \App\Repositories\Redis\SwipeCacheRepository::class
      *   \App\Repositories\Mongo\SwipeHistoryRepository::class
-     *   \App\Repositories\Postgres\ApplicationRepository::class
-     *   \App\Repositories\Postgres\ApplicantProfileRepository::class
+     *   \App\Repositories\PostgreSQL\ApplicationRepository::class
+     *   \App\Repositories\PostgreSQL\ApplicantProfileRepository::class
      *
      * Phase 2 — Services (add after their repository dependencies exist):
      *   \App\Services\SwipeService::class
@@ -36,8 +36,8 @@ class AppServiceProvider extends ServiceProvider
 
         // $this->app->singleton(\App\Repositories\Redis\SwipeCacheRepository::class);
         // $this->app->singleton(\App\Repositories\Mongo\SwipeHistoryRepository::class);
-        // $this->app->singleton(\App\Repositories\Postgres\ApplicationRepository::class);
-        // $this->app->singleton(\App\Repositories\Postgres\ApplicantProfileRepository::class);
+        // $this->app->singleton(\App\Repositories\PostgreSQL\ApplicationRepository::class);
+        // $this->app->singleton(\App\Repositories\PostgreSQL\ApplicantProfileRepository::class);
         $this->app->singleton(\App\Repositories\Redis\OTPCacheRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\UserRepository::class);
 
