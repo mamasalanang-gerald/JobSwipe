@@ -48,6 +48,14 @@ class OAuthController extends Controller
             ], 403);
         }
 
+        if ($result['status'] === 'role_not_allowed') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Google OAuth is only available for applicant accounts.',
+                'code' => 'OAUTH_NOT_PERMITTED',
+            ], 403);
+        }
+
         return response()->json([
             'success' => true,
             'data' => [

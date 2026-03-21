@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Models\Postgres;
+namespace App\Models\PostgreSQL;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
@@ -37,7 +37,7 @@ class User extends Authenticatable
 
     public function getAuthPassword(): string
     {
-        return this->password_hash;
+        return $this->password_hash;
     }
 
     public function applicantProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
@@ -57,7 +57,7 @@ class User extends Authenticatable
 
     public function isHr(): bool
     {
-        return in_array($this->role, ['hr', 'company_admin']);
+        return in_array($this->role, ['hr', 'company_admin'], true);
     }
 
     public function hasVerifiedEmail(): bool

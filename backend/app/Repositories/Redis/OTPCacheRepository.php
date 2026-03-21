@@ -10,15 +10,13 @@ class OTPCacheRepository
     private function key(string $email): string
     {
         return 'otp:'.hash('sha256', strtolower(trim($email)));
-
     }
 
-    public function store(string $email, string $codehash): void
+    public function store(string $email, string $codeHash): void
     {
-
         $key = $this->key($email);
 
-        Redis::hset($key, 'code_hash', $codehash);
+        Redis::hset($key, 'code_hash', $codeHash);
         Redis::hset($key, 'attempts', 0);
         Redis::hset($key, 'created_at', Carbon::now()->timestamp);
         Redis::expire($key, 600);
@@ -33,7 +31,7 @@ class OTPCacheRepository
             return null;
         }
 
-        return Redis::hgetall($key);
+        return $data;
     }
 
     public function incrementAttempts(string $email): int
