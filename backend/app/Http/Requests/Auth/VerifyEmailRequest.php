@@ -15,7 +15,14 @@ class VerifyEmailRequest extends FormRequest
     {
         return [
             'email' => ['required', 'email'],
-            'code' => ['required', 'string', 'digits:6'],
+            'code' => ['required', 'string', 'size:6'],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'code.size' => 'Verification code must be exactly 6 characters.',
         ];
     }
 }

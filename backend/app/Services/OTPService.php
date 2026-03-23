@@ -12,14 +12,14 @@ class OTPService
 
     public function __construct(private OTPCacheRepository $otpCache) {}
 
-    public function sendOtp(string $email): void
+    public function sendOtp(string $email, string $passwordHash, string $role): void
     {
         $code = $this->generateCode();
         $codeHash = $this->hashCode($code);
 
-        $this->otpCache->store($email, $codeHash);
+        $this->otpCache->store($email, $codeHash, $passwordHash, $role);
 
-        Mail::to($email)->send(new EmailVerificationMail($code));
+        Mail::to($email)->queue(new EmailVerificationMail($code));
     }
 
     public function verify(string $email, string $submittedCode): string
@@ -44,9 +44,18 @@ class OTPService
             return 'invalid';
         }
 
-        $this->otpCache->delete($email);
-
+        // Don't delete yet - we need the stored data for registration
         return 'valid';
+    }
+
+    public function getStoredData(string $email): ?array
+    {
+        return $this->otpCache->get($email);
+    }
+
+    public function clearStoredData(string $email): void
+    {
+        $this->otpCache->delete($email);
     }
 
     public function hasActiveOTP(string $email): bool

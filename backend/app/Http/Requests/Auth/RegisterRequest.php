@@ -24,6 +24,7 @@ class RegisterRequest extends FormRequest
     {
         return [
             'role.in' => 'Role must be applicant, hr, or company_admin.',
+            'password.min' => 'Password must be at least 8 characters.',
         ];
     }
 }
