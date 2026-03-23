@@ -22,11 +22,11 @@ class AuthController extends Controller
                 'HR/Company accounts must register with email and password.',
                 422
             );
-
         }
 
         $result = $this->auth->initiateRegistration(
             email: $request->input('email'),
+            password: $request->input('password'),
             role: $request->input('role'),
         );
 
@@ -42,15 +42,8 @@ class AuthController extends Controller
 
     public function verifyEmail(VerifyEmailRequest $request): JsonResponse
     {
-        $request->validate([
-            'password' => ['required', 'string', 'min:8'],
-            'role' => ['required', 'string', 'in:applicant,hr,company_admin'],
-        ]);
-
         $result = $this->auth->completeRegistration(
             email: $request->email,
-            password: $request->password,
-            role: $request->role,
             code: $request->code,
         );
 
@@ -103,26 +96,15 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        $user = $request->user()->load(['applicantProfile', 'companyProfile']);
+        $user = $request->user();
+
+        match ($user->role) {
+            'applicant' => $user->load('applicantProfile'),
+            'hr', 'company_admin' => $user->load('companyProfile'),
+            'moderator', 'super_admin' => null, // no profile to load
+            default => null,
+        };
 
         return $this->success(data: $user);
-    }
-
-    private function success(mixed $data = null, string $message = 'OK', int $status = 200): JsonResponse
-    {
-        return response()->json([
-            'success' => true,
-            'data' => $data,
-            'message' => $message,
-        ], $status);
-    }
-
-    private function error(string $code, string $message, int $status): JsonResponse
-    {
-        return response()->json([
-            'success' => false,
-            'message' => $message,
-            'code' => $code,
-        ], $status);
     }
 }

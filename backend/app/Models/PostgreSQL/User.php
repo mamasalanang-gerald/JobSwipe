@@ -3,6 +3,7 @@
 namespace App\Models\PostgreSQL;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Support\Str;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -34,6 +35,17 @@ class User extends Authenticatable
         'is_banned' => 'boolean',
         'email_verified_at' => 'datetime',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (empty($model->id)) {
+                $model->id = (string) Str::uuid();
+            }
+        });
+    }
 
     public function getAuthPassword(): string
     {
