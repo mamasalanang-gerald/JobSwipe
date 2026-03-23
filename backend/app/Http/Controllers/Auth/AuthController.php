@@ -99,13 +99,12 @@ class AuthController extends Controller
         $user = $request->user();
 
         match ($user->role) {
-        'applicant'                    => $user->load('applicantProfile'),
-        'hr', 'company_admin'          => $user->load('companyProfile'),
-        'moderator', 'super_admin'     => null, // no profile to load
-        default                        => null,
-    };
-        
+            'applicant' => $user->load('applicantProfile'),
+            'hr', 'company_admin' => $user->load('companyProfile'),
+            'moderator', 'super_admin' => null, // no profile to load
+            default => null,
+        };
+
         return $this->success(data: $user);
     }
-
 }

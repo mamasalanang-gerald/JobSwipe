@@ -38,8 +38,8 @@ class AuthService
 
         // Get stored registration data from Redis
         $storedData = $this->otp->getStoredData($email);
-        
-        if (!$storedData || !isset($storedData['password_hash'], $storedData['role'])) {
+
+        if (! $storedData || ! isset($storedData['password_hash'], $storedData['role'])) {
             return ['status' => 'expired'];
         }
 
