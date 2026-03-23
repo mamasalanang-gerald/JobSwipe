@@ -2,9 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\MongoDB\ApplicantProfileDocument;
-use App\Models\PostgreSQL\CompanyProfile;
 use App\Repositories\PostgreSQL\UserRepository;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 
@@ -13,43 +12,53 @@ class AuthService
     public function __construct(
         private UserRepository $users,
         private OTPService $otp,
+        private ProfileService $profiles,
+        private TokenService $tokens,
     ) {}
 
-    public function initiateRegistration(string $email, string $role): string
+    public function initiateRegistration(string $email, string $password, string $role): string
     {
         if ($this->users->emailExists($email)) {
             return 'email_taken';
         }
 
-        $this->otp->sendOtp($email);
+        $passwordHash = Hash::make($password, ['rounds' => config('hashing.bcrypt.rounds', 10)]);
+        $this->otp->sendOtp($email, $passwordHash, $role);
 
         return 'otp_sent';
     }
 
-    public function completeRegistration(
-        string $email,
-        string $password,
-        string $role,
-        string $code
-    ): array {
+    public function completeRegistration(string $email, string $code): array
+    {
         $result = $this->otp->verify($email, $code);
 
         if ($result !== 'valid') {
             return ['status' => $result];
         }
 
-        // Create the user record
-        $user = $this->users->create([
-            'email' => strtolower(trim($email)),
-            'password_hash' => Hash::make($password),
-            'role' => $role,
-            'email_verified_at' => now(),
-        ]);
+        // Get stored registration data from Redis
+        $storedData = $this->otp->getStoredData($email);
+        
+        if (!$storedData || !isset($storedData['password_hash'], $storedData['role'])) {
+            return ['status' => 'expired'];
+        }
 
-        // Create the matching profile record based on role
-        $this->createProfileForRole($user, $role);
+        // Use transaction to ensure atomicity
+        DB::transaction(function () use ($email, $storedData, &$user, &$token) {
+            // Create user with stored password hash
+            $user = $this->users->create([
+                'email' => strtolower(trim($email)),
+                'password_hash' => $storedData['password_hash'],
+                'role' => $storedData['role'],
+                'email_verified_at' => now(),
+            ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+            // Create profile
+            $this->profiles->createProfileForUser($user);
+
+            // Generate token
+            $token = $this->tokens->generateToken($user);
+        });
 
         return [
             'status' => 'verified',
@@ -71,17 +80,12 @@ class AuthService
         }
 
         if (! $user->hasVerifiedEmail()) {
-            // Resend OTP so they can complete verification
             $this->otp->sendOtp($email);
 
             return ['status' => 'unverified'];
         }
 
-        // Revoke old tokens to enforce single-session (optional — remove if you
-        // want to support multiple devices simultaneously)
-        // $user->tokens()->delete();
-
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $this->tokens->generateToken($user);
 
         return [
             'status' => 'success',
@@ -90,25 +94,13 @@ class AuthService
         ];
     }
 
-    // ── Logout ──────────────────────────────────────────────────────────────
-
     public function logout($user): void
     {
-        // Revoke only the current token, not all tokens
-        $user->currentAccessToken()->delete();
+        $this->tokens->revokeCurrentToken($user);
     }
 
-    // ── Google OAuth ────────────────────────────────────────────────────────
-
-    /**
-     * Called after Google redirects back with user data.
-     * Creates the account if new, logs in if existing.
-     *
-     * Only applicants may use Google OAuth.
-     */
     public function handleGoogleCallback(SocialiteUser $googleUser): array
     {
-        // Check if they already have an account linked to this Google ID
         $user = $this->users->findByGoogleId($googleUser->getId());
 
         if ($user && $user->role !== 'applicant') {
@@ -116,7 +108,6 @@ class AuthService
         }
 
         if (! $user) {
-
             $user = $this->users->findByEmail($googleUser->getEmail());
 
             if ($user) {
@@ -124,27 +115,26 @@ class AuthService
                     return ['status' => 'role_not_allowed'];
                 }
 
+                // Link Google account
                 $this->users->update($user, [
                     'google_id' => $googleUser->getId(),
                 ]);
 
-                $profileDoc = ApplicantProfileDocument::where('user_id', $user->id)->first();
-
-                if ($profileDoc && empty($profileDoc->profile_photo_url)) {
-                    $profileDoc->update(['profile_photo_url' => $googleUser->getAvatar()]);
-                }
+                // Update profile photo if empty
+                $this->profiles->updateApplicantPhoto($user->id, $googleUser->getAvatar());
             } else {
+                // Create new user with transaction
+                DB::transaction(function () use ($googleUser, &$user) {
+                    $user = $this->users->create([
+                        'email' => strtolower(trim($googleUser->getEmail())),
+                        'password_hash' => Hash::make(str()->random(40)),
+                        'role' => 'applicant',
+                        'google_id' => $googleUser->getId(),
+                        'email_verified_at' => now(),
+                    ]);
 
-                $user = $this->users->create([
-                    'email' => strtolower(trim($googleUser->getEmail())),
-                    'password_hash' => Hash::make(str()->random(40)),
-                    'role' => 'applicant',
-                    'google_id' => $googleUser->getId(),
-                    'email_verified_at' => now(),
-                ]);
-
-                $this->createProfileForRole($user, 'applicant', $googleUser->getAvatar());
-
+                    $this->profiles->createProfileForUser($user, $googleUser->getAvatar());
+                });
             }
         }
 
@@ -152,7 +142,7 @@ class AuthService
             return ['status' => 'banned'];
         }
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $token = $this->tokens->generateToken($user);
 
         return [
             'status' => 'success',
@@ -165,29 +155,5 @@ class AuthService
     public function resendOtp(string $email): void
     {
         $this->otp->sendOtp($email);
-    }
-
-    // ── Internal Helpers ────────────────────────────────────────────────────
-
-    private function createProfileForRole($user, string $role, ?string $avatarUrl = null): void
-    {
-        match ($role) {
-            'applicant' => ApplicantProfileDocument::create([
-                'user_id' => $user->id,
-                'first_name' => '',
-                'last_name' => '',
-                'profile_photo_url' => $avatarUrl, // null for email/password reg
-                'skills' => [],
-                'work_experience' => [],
-                'education' => [],
-                'social_links' => [],
-                'completed_profile_fields' => [],
-            ]),
-            'hr', 'company_admin' => CompanyProfile::create([
-                'user_id' => $user->id,
-                'company_name' => '',
-            ]),
-            default => null,
-        };
     }
 }
