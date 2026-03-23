@@ -7,13 +7,13 @@ const { defineConfig, devices } = require('@playwright/test');
 module.exports = defineConfig({
   testDir: './tests/e2e',
   /* Run tests in files in parallel */
-  fullyParallel: false,
+  fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
   forbidOnly: !!process.env.CI,
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: 1,
+  workers: process.env.CI ? 5 : 5,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [
     ['html'],
@@ -23,7 +23,7 @@ module.exports = defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://127.0.0.1:3000',
+    baseURL: 'http://127.0.0.1:3001',
     /* API base URL for API testing */
     apiURL: 'http://127.0.0.1:8000/api',
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
@@ -73,22 +73,12 @@ module.exports = defineConfig({
   ],
 
   /* Run your local dev server before starting the tests */
-  webServer: [
-    {
-      command: 'npm run dev',
-      url: 'http://127.0.0.1:3000',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-      stdout: 'ignore',
-      stderr: 'pipe',
-    },
-    {
-      command: 'cd ../../backend && php artisan serve --host=127.0.0.1 --port=8000',
-      url: 'http://127.0.0.1:8000/api/health',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120 * 1000,
-      stdout: 'ignore',
-      stderr: 'pipe',
-    }
-  ],
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://127.0.0.1:3001',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000,
+    stdout: 'pipe',
+    stderr: 'pipe',
+  },
 });
