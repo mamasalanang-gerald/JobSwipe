@@ -16,6 +16,7 @@ class MongoSetup extends Command
         try {
             $this->info('Setting up MongoDB collections...');
 
+<<<<<<< Updated upstream
             // Build MongoDB connection string for Atlas
             $host = config('database.connections.mongodb.host');
             $username = config('database.connections.mongodb.username');
@@ -46,6 +47,18 @@ class MongoSetup extends Command
 
             $this->info('Connecting to MongoDB...');
             $client = new Client($connectionString);
+=======
+            $client = new Client(
+                sprintf(
+                    'mongodb://%s:%s@%s:%s/%s?authSource=admin',
+                    config('database.connections.mongodb.username'),
+                    config('database.connections.mongodb.password'),
+                    config('database.connections.mongodb.host'),
+                    config('database.connections.mongodb.port'),
+                    config('database.connections.mongodb.database')
+                )
+            );
+>>>>>>> Stashed changes
 
             $database = $client->selectDatabase(config('database.connections.mongodb.database'));
 
