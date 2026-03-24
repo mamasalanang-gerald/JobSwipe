@@ -27,7 +27,7 @@ const EXPERIENCE = [
 
 const PREFS = [
   { key: 'remote',    label: 'Remote only',        icon: 'home-outline'     },
-  { key: 'relocate',  label: 'Open to relocation', icon: 'airplane-outline' },
+  { key: 'relocate',  label: 'Open to relocation', icon: 'airplane' },
   { key: 'contract',  label: 'Open to contract',   icon: 'file-sign'        },
 ];
 
