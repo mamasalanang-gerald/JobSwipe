@@ -8,6 +8,7 @@ use MongoDB\Client;
 class MongoSetup extends Command
 {
     protected $signature = 'mongo:setup';
+
     protected $description = 'Setup MongoDB collections and indexes';
 
     public function handle(): int
@@ -59,10 +60,12 @@ class MongoSetup extends Command
             $database->swipe_history->createIndex(['created_at' => -1]);
 
             $this->info('MongoDB setup completed successfully!');
+
             return Command::SUCCESS;
 
         } catch (\Exception $e) {
-            $this->error('MongoDB setup failed: ' . $e->getMessage());
+            $this->error('MongoDB setup failed: '.$e->getMessage());
+
             return Command::FAILURE;
         }
     }
