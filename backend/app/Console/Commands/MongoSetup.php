@@ -21,7 +21,7 @@ class MongoSetup extends Command
             $username = config('database.connections.mongodb.username');
             $password = config('database.connections.mongodb.password');
             $database = config('database.connections.mongodb.database');
-            
+
             // Check if it's MongoDB Atlas (contains mongodb.net)
             if (str_contains($host, 'mongodb.net')) {
                 $connectionString = sprintf(
