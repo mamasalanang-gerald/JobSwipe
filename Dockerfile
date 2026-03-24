@@ -1,71 +1,47 @@
 # Production Dockerfile for Render deployment
 FROM php:8.2-fpm-alpine
 
-# Install system dependencies
 RUN apk add --no-cache \
-    curl \
-    git \
-    zip \
-    unzip \
-    postgresql-dev \
-    libpq \
-    libzip-dev \
-    oniguruma-dev \
-    autoconf \
-    g++ \
-    make \
-    nginx \
-    supervisor
+    curl git zip unzip postgresql-dev libpq libzip-dev \
+    oniguruma-dev autoconf g++ make nginx supervisor
 
-# Install PHP extensions
-RUN docker-php-ext-install \
-    pdo \
-    pdo_pgsql \
-    bcmath \
-    mbstring \
-    zip \
-    pcntl
+RUN docker-php-ext-install pdo pdo_pgsql bcmath mbstring zip pcntl
 
-# Install MongoDB extension
 RUN pecl install mongodb && docker-php-ext-enable mongodb
 
-# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Set working directory
 WORKDIR /var/www/html
 
-# Copy backend files
 COPY backend/ .
 
-# Install PHP dependencies for production
 RUN composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist && \
     php artisan package:discover --ansi
 
-# Create necessary directories and set permissions
-RUN mkdir -p storage/logs storage/framework/cache/data storage/framework/sessions storage/framework/views bootstrap/cache resources/views && \
+# Write a flag file that survives into the running container.
+# ClearStaleRouteCache middleware checks for this on the first request and
+# nukes any route cache that Render wrote before our ENTRYPOINT ran.
+RUN touch /tmp/render_precached_routes
+
+RUN mkdir -p storage/logs storage/framework/cache/data \
+    storage/framework/sessions storage/framework/views \
+    bootstrap/cache resources/views && \
     chmod -R 775 storage bootstrap/cache && \
     chown -R www-data:www-data storage bootstrap/cache
 
-# Copy Nginx configuration
 COPY <<EOF /etc/nginx/nginx.conf
 user www-data;
 worker_processes auto;
 pid /run/nginx.pid;
 
-events {
-    worker_connections 1024;
-}
+events { worker_connections 1024; }
 
 http {
     include /etc/nginx/mime.types;
     default_type application/octet-stream;
     
-    sendfile on;
-    tcp_nopush on;
-    tcp_nodelay on;
-    keepalive_timeout 65;
-    types_hash_max_size 2048;
+    sendfile on; tcp_nopush on; tcp_nodelay on;
+    keepalive_timeout 65; types_hash_max_size 2048;
     
     server {
         listen 8080;
@@ -84,14 +60,11 @@ http {
             include fastcgi_params;
         }
         
-        location ~ /\.ht {
-            deny all;
-        }
+        location ~ /\.ht { deny all; }
     }
 }
 EOF
 
-# Copy Supervisor configuration
 COPY <<EOF /etc/supervisor/conf.d/supervisord.conf
 [supervisord]
 nodaemon=true
@@ -112,100 +85,66 @@ stderr_logfile=/var/log/nginx.err.log
 stdout_logfile=/var/log/nginx.out.log
 EOF
 
-# Create startup script that runs BEFORE the main process
 COPY <<EOF /start.sh
 #!/bin/sh
 set -e
 
 echo "=== Starting JobApp Backend ==="
 
-# Only run migrations if not in CI test mode
+# Remove stale caches from Render's pre-start hook.
+# The middleware also handles this on first request as a fallback,
+# but clearing here means even the health check gets clean routes.
+echo "Clearing Render pre-cached routes..."
+rm -f /var/www/html/bootstrap/cache/routes-*.php
+rm -f /var/www/html/bootstrap/cache/config.php
+
 if [ "\$SKIP_MIGRATIONS" != "true" ]; then
-    # Wait for PostgreSQL to be ready (with timeout)
     echo "Waiting for PostgreSQL..."
-    RETRY_COUNT=0
-    MAX_RETRIES=30
+    RETRY_COUNT=0; MAX_RETRIES=30
     until php artisan db:show 2>/dev/null || [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; do
-        echo "PostgreSQL is unavailable - sleeping (\$RETRY_COUNT/\$MAX_RETRIES)"
-        sleep 2
-        RETRY_COUNT=\$((RETRY_COUNT + 1))
+        echo "  not ready (\$RETRY_COUNT/\$MAX_RETRIES)..."
+        sleep 2; RETRY_COUNT=\$((RETRY_COUNT + 1))
     done
     
     if [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; then
-        echo "PostgreSQL connection timeout - skipping migrations"
+        echo "WARNING: PostgreSQL timeout, skipping migrations"
     else
-        echo "PostgreSQL is ready!"
+        echo "PostgreSQL ready."
         
-        # Clear all caches first (CRITICAL - must happen before caching)
-        echo "Clearing all caches..."
-        php artisan config:clear || true
-        php artisan cache:clear || true
-        php artisan route:clear || true
-        php artisan view:clear || true
-
-        # Run database migrations
-        echo "Running PostgreSQL migrations..."
-        php artisan migrate --force || {
-            echo "Migration failed! Checking database connection..."
-            php artisan db:show
-            exit 1
-        }
-
-        # Setup MongoDB collections (CRITICAL - must run before app starts)
-        echo "Setting up MongoDB collections..."
-        php artisan mongo:setup || echo "MongoDB setup failed (non-critical)"
-
-        # Cache configuration for production (AFTER clearing)
-        echo "Caching configuration..."
+        php artisan config:clear 2>/dev/null || true
+        php artisan cache:clear  2>/dev/null || true
+        php artisan route:clear  2>/dev/null || true
+        php artisan view:clear   2>/dev/null || true
+        
+        echo "Running migrations..."
+        php artisan migrate --force || { php artisan db:show; exit 1; }
+        
+        echo "Setting up MongoDB..."
+        php artisan mongo:setup || echo "WARNING: MongoDB setup non-critical, continuing"
+        
+        echo "Re-caching with correct routes..."
         php artisan config:cache
-        
-        echo "Caching routes..."
         php artisan route:cache
-
-        # Only cache views if resources/views directory exists
-        if [ -d "resources/views" ]; then
-            echo "Caching views..."
-            php artisan view:cache
-        fi
         
-        echo "All caches rebuilt successfully!"
+        ls -la /var/www/html/bootstrap/cache/routes-*.php 2>/dev/null \
+            && echo "Route cache OK." || echo "WARNING: No route cache written"
+        
+        [ -d resources/views ] && php artisan view:cache || true
+        
+        # Clear the poison flag — middleware won't need to intervene
+        rm -f /tmp/render_precached_routes
+        echo "Cleared render_precached_routes flag."
     fi
 else
-    echo "Skipping migrations (CI test mode)"
+    echo "SKIP_MIGRATIONS=true — skipping."
 fi
 
-echo "=== Startup complete, starting services ==="
-
-# Start supervisor
+echo "=== Startup complete ==="
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
 EOF
 
 RUN chmod +x /start.sh
 
-# Create a pre-deploy script for Render (if they're using pre-deploy hooks)
-COPY <<EOF /pre-deploy.sh
-#!/bin/sh
-set -e
-
-echo "=== Pre-Deploy: Clearing caches ==="
-php artisan config:clear || true
-php artisan cache:clear || true
-php artisan route:clear || true
-php artisan view:clear || true
-
-echo "=== Pre-Deploy: Running migrations ==="
-php artisan migrate --force
-
-echo "=== Pre-Deploy: Setting up MongoDB ==="
-php artisan mongo:setup || echo "MongoDB setup failed"
-
-echo "=== Pre-Deploy: Complete ==="
-EOF
-
-RUN chmod +x /pre-deploy.sh
-
-# Expose port 8080 (required by Render)
 EXPOSE 8080
 
-# Start the application
-CMD ["/start.sh"]
+ENTRYPOINT ["/start.sh"]

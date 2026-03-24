@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // CRITICAL: Must run first to clear stale route cache from Render's pre-start hooks
+        $middleware->prepend(\App\Http\Middleware\ClearStaleRouteCache::class);
+        
         $middleware->alias([
             'swipe.limit' => \App\Http\Middleware\CheckSwipeLimit::class,
         ]);
