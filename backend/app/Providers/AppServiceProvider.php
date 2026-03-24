@@ -64,6 +64,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // CRITICAL FIX: Disable route caching on Render.com
+        // Render runs `php artisan route:cache` before our container starts,
+        // caching routes before api.php is loaded. This causes all API routes to 404.
+        // By setting routesAreCached to always return false, we force Laravel to
+        // load routes from files on every request (negligible performance impact).
+        if (app()->environment('production')) {
+            app()->bind('router', function ($app) {
+                $router = new \Illuminate\Routing\Router($app['events'], $app);
+                
+                // Override the routesAreCached method to always return false
+                $router->macro('routesAreCached', function () {
+                    return false;
+                });
+                
+                return $router;
+            });
+        }
     }
 }
