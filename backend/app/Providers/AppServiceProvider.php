@@ -50,6 +50,10 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(\App\Services\SwipeService::class);
         $this->app->singleton(\App\Services\DeckService::class);
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
         // $this->app->singleton(\App\Services\PointService::class);
         // $this->app->singleton(\App\Services\InvitationService::class);
 
