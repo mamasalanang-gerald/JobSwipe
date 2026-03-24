@@ -14,11 +14,39 @@ class SwipeHistoryRepository
         ]));
     }
 
-    public function hasSwipedOn(string $userId, string $targetId): bool
+    public function hasSwipedOn(string $userId, string $targetId, string $targetType): bool
     {
         return SwipeHistory::where('user_id', $userId)
             ->where('target_id', $targetId)
+            ->where('target_type', $targetType)
             ->exists();
+    }
+
+    public function hasHrSwipedOn(string $hrUserId, string $jobPostingId, string $applicantId): bool
+    {
+        return SwipeHistory::where('user_id', $hrUserId)
+            ->where('actor_type', 'hr')
+            ->where('job_posting_id', $jobPostingId)
+            ->where('target_id', $applicantId)
+            ->exists();
+    }
+
+    public function getSeenJobIds(string $userId): array
+    {
+        return SwipeHistory::where('user_id', $userId)
+            ->where('actor_type', 'applicant')
+            ->where('target_type', 'job_posting')
+            ->pluck('target_id')
+            ->toArray();
+    }
+
+    public function getSeenApplicantIds(string $hrUserId, string $jobPostingId): array
+    {
+        return SwipeHistory::where('user_id', $hrUserId)
+            ->where('actor_type', 'hr')
+            ->where('job_posting_id', $jobPostingId)
+            ->pluck('target_id')
+            ->toArray();
     }
 
     public function getUserHistory(string $userId, int $limit = 100): \Illuminate\Support\Collection
