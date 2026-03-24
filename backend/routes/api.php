@@ -1,14 +1,16 @@
 <?php
 
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\OAuthController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Redis;
 
-Route::get('/user', function (Request $request) {
-    return $request->user();
-})->middleware('auth:sanctum');
+Route::get('/health', function (Request $request) {
+    return ['status' => 'ok', 'timestamp' => now()];
+});
 
 // Debug endpoint to check database and Redis
 Route::get('/debug/database', function () {
@@ -50,4 +52,20 @@ Route::get('/debug/database', function () {
             'message' => $e->getMessage(),
         ], 500);
     }
+});
+
+Route::prefix('v1')->group(function () {
+    Route::post('auth/register', [AuthController::class, 'register']);
+    Route::post('auth/login', [AuthController::class, 'login']);
+    Route::post('auth/verify-email', [AuthController::class, 'verifyEmail']);
+    Route::post('auth/resend-verification', [AuthController::class, 'resendVerification']);
+
+    Route::get('auth/google/redirect', [OAuthController::class, 'redirectToGoogle']);
+    Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback']);
+
+    Route::middleware('auth:sanctum')->group(function () {
+
+        Route::post('auth/logout', [AuthController::class, 'logout']);
+        Route::get('auth/me', [AuthController::class, 'me']);
+    });
 });

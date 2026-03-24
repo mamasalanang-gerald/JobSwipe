@@ -34,12 +34,13 @@ class AppServiceProvider extends ServiceProvider
         // Uncomment each line only after you have created the class file.
         // -----------------------------------------------------------------
 
-        // $this->app->singleton(\App\Repositories\Redis\SwipeCacheRepository::class);
+        $this->app->singleton(\App\Repositories\Redis\SwipeCacheRepository::class);
         $this->app->singleton(\App\Repositories\MongoDB\SwipeHistoryRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\ApplicationRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\ApplicantProfileRepository::class);
         $this->app->singleton(\App\Repositories\Redis\OTPCacheRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\UserRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\JobPostingRepository::class);
 
         // -----------------------------------------------------------------
         // Services
@@ -47,9 +48,9 @@ class AppServiceProvider extends ServiceProvider
         // are already registered as singletons.
         // -----------------------------------------------------------------
 
-        // $this->app->singleton(\App\Services\SwipeService::class);
+        $this->app->singleton(\App\Services\SwipeService::class);
+        $this->app->singleton(\App\Services\DeckService::class);
         // $this->app->singleton(\App\Services\PointService::class);
-        // $this->app->singleton(\App\Services\DeckService::class);
         // $this->app->singleton(\App\Services\InvitationService::class);
 
         $this->app->singleton(\App\Services\OTPService::class);
