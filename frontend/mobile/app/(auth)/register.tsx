@@ -8,31 +8,39 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import {
+  PageHeader,
+  SectionCard,
+  Divider,
+  Spacer,
+  Colors,
+  Typography,
+  Spacing,
+  Radii,
+  Shadows,
+} from '../../components/ui';
 
 type Role = 'applicant' | 'hr';
 
 function ApplicantIcon({ active }: { active: boolean }) {
-  const color = active ? '#1A1A2E' : '#9CA3AF';
+  const color = active ? Colors.primaryDark : Colors.gray400;
   return (
     <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth="1.8" />
-      <Path
-        d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
-        stroke={color}
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
+      <Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
     </Svg>
   );
 }
 
 function HRIcon({ active }: { active: boolean }) {
-  const color = active ? '#1A1A2E' : '#9CA3AF';
+  const color = active ? Colors.primaryDark : Colors.gray400;
   return (
     <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
       <Rect x="3" y="6" width="18" height="14" rx="2" stroke={color} strokeWidth="1.8" />
@@ -41,20 +49,6 @@ function HRIcon({ active }: { active: boolean }) {
       <Path d="M16 6V4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
       <Circle cx="9" cy="15" r="1.5" fill={color} />
       <Circle cx="15" cy="15" r="1.5" fill={color} />
-    </Svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <Svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-      <Path
-        d="M2 5l2.5 2.5L8 3"
-        stroke="#fff"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
     </Svg>
   );
 }
@@ -71,32 +65,22 @@ export default function RegisterScreen() {
   const [error, setError] = useState('');
   const setToken = useAuthStore((s) => s.setToken);
 
+  const strengthLevel = password.length === 0 ? null : password.length < 8 ? 'weak' : password.length < 12 ? 'good' : 'strong';
+  const strengthColor = strengthLevel === 'weak' ? Colors.danger : strengthLevel === 'good' ? Colors.warning : Colors.success;
+
   const handleRegister = async () => {
     if (!firstName || !lastName || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields.');
-      return;
+      setError('Please fill in all fields.'); return;
     }
-    if (password !== confirmPassword) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
+    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setError('');
     setLoading(true);
     try {
       const response = await fetch('http://localhost:8000/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          first_name: firstName,
-          last_name: lastName,
-          email,
-          password,
-          role,
-        }),
+        body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password, role }),
       });
       const data = await response.json();
       if (data.success) {
@@ -105,7 +89,7 @@ export default function RegisterScreen() {
       } else {
         setError(data.message || 'Registration failed. Please try again.');
       }
-    } catch (e) {
+    } catch {
       setError('Could not connect to server. Please try again.');
     } finally {
       setLoading(false);
@@ -113,258 +97,200 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Brand */}
-        <View style={styles.brandRow}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoLetter}>J</Text>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <StatusBar barStyle="dark-content" />
+
+      <PageHeader title="Create Account" subtitle="Start your job search today" />
+
+      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+        {/* ── Brand ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['4'] }}>
+          <View style={{ width: 44, height: 44, borderRadius: Radii.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', ...Shadows.colored(Colors.primary) }}>
+            <Text style={{ color: Colors.white, fontSize: Typography['2xl'], fontWeight: Typography.bold }}>J</Text>
           </View>
-          <Text style={styles.brandName}>JobSwipe</Text>
+          <View>
+            <Text style={{ fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.gray900, letterSpacing: -0.3 }}>JobSwipe</Text>
+            <Text style={{ fontSize: Typography.sm, color: Colors.gray400, marginTop: 1 }}>Your next role is one swipe away</Text>
+          </View>
         </View>
 
-        {/* Heading */}
-        <View style={styles.headingBlock}>
-          <Text style={styles.heading}>Create account</Text>
-          <Text style={styles.subheading}>Start your job search today</Text>
-        </View>
-
-        {/* Error */}
+        {/* ── Error banner ── */}
         {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: Colors.dangerLight, borderWidth: 1, borderColor: Colors.dangerMid, borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={Colors.danger} />
+            <Text style={{ flex: 1, color: Colors.danger, fontSize: Typography.base }}>{error}</Text>
           </View>
         ) : null}
 
-        <View style={styles.form}>
-
-          {/* Role selector */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>I am a...</Text>
-            <View style={styles.roleRow}>
-              <TouchableOpacity
-                style={[styles.roleCard, role === 'applicant' && styles.roleCardActive]}
-                onPress={() => setRole('applicant')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.roleIconBox, role === 'applicant' && styles.roleIconBoxActive]}>
-                  <ApplicantIcon active={role === 'applicant'} />
-                </View>
-                <Text style={[styles.roleTitle, role === 'applicant' && styles.roleTitleActive]}>
-                  Job Seeker
-                </Text>
-                <Text style={[styles.roleDesc, role === 'applicant' && styles.roleDescActive]}>
-                  Browse and apply to jobs
-                </Text>
-                {role === 'applicant' && (
-                  <View style={styles.roleCheck}>
-                    <CheckIcon />
+        {/* ── Role selector ── */}
+        <SectionCard title="I am a...">
+          <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
+            {([
+              { key: 'applicant', title: 'Job Seeker',   desc: 'Browse and apply to jobs', Icon: ApplicantIcon },
+              { key: 'hr',        title: 'HR / Company', desc: 'Post jobs and find talent',  Icon: HRIcon },
+            ] as const).map(({ key, title, desc, Icon }) => {
+              const active = role === key;
+              return (
+                <TouchableOpacity
+                  key={key}
+                  onPress={() => setRole(key)}
+                  activeOpacity={0.8}
+                  style={{ flex: 1, backgroundColor: active ? Colors.primaryLight : Colors.white, borderWidth: 1.5, borderColor: active ? Colors.primary : Colors.gray200, borderRadius: Radii.lg, padding: Spacing['4'], alignItems: 'center', gap: Spacing['1'], position: 'relative' }}
+                >
+                  <View style={{ width: 48, height: 48, borderRadius: Radii.md, backgroundColor: active ? Colors.primaryMid : Colors.gray100, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing['1'] }}>
+                    <Icon active={active} />
                   </View>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.roleCard, role === 'hr' && styles.roleCardActive]}
-                onPress={() => setRole('hr')}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.roleIconBox, role === 'hr' && styles.roleIconBoxActive]}>
-                  <HRIcon active={role === 'hr'} />
-                </View>
-                <Text style={[styles.roleTitle, role === 'hr' && styles.roleTitleActive]}>
-                  HR / Company
-                </Text>
-                <Text style={[styles.roleDesc, role === 'hr' && styles.roleDescActive]}>
-                  Post jobs and find talent
-                </Text>
-                {role === 'hr' && (
-                  <View style={styles.roleCheck}>
-                    <CheckIcon />
-                  </View>
-                )}
-              </TouchableOpacity>
-            </View>
+                  <Text style={{ fontSize: Typography.base, fontWeight: Typography.semibold, color: active ? Colors.primaryDark : Colors.gray500, textAlign: 'center' }}>{title}</Text>
+                  <Text style={{ fontSize: Typography.xs, color: active ? Colors.primary : Colors.gray400, textAlign: 'center', lineHeight: 15 }}>{desc}</Text>
+                  {active && (
+                    <View style={{ position: 'absolute', top: Spacing['2'], right: Spacing['2'], width: 18, height: 18, borderRadius: Radii.full, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}>
+                      <MaterialCommunityIcons name="check" size={11} color={Colors.white} />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
           </View>
+        </SectionCard>
+
+        {/* ── Personal info ── */}
+        <SectionCard title="Personal info">
 
           {/* Name row */}
-          <View style={styles.nameRow}>
-            <View style={[styles.fieldGroup, styles.nameField]}>
-              <Text style={styles.label}>First name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="John"
-                placeholderTextColor="#A0A0A0"
-                value={firstName}
-                onChangeText={setFirstName}
-                autoCapitalize="words"
-              />
+          <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
+            <View style={{ flex: 1, gap: Spacing['2'] }}>
+              <Text style={s.fieldLabel}>First name</Text>
+              <View style={s.inputRow}>
+                <TextInput style={s.input} placeholder="John" placeholderTextColor={Colors.gray300} value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
+              </View>
             </View>
-            <View style={[styles.fieldGroup, styles.nameField]}>
-              <Text style={styles.label}>Last name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Doe"
-                placeholderTextColor="#A0A0A0"
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-              />
+            <View style={{ flex: 1, gap: Spacing['2'] }}>
+              <Text style={s.fieldLabel}>Last name</Text>
+              <View style={s.inputRow}>
+                <TextInput style={s.input} placeholder="Doe" placeholderTextColor={Colors.gray300} value={lastName} onChangeText={setLastName} autoCapitalize="words" />
+              </View>
             </View>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              placeholderTextColor="#A0A0A0"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+          <Divider spacing={Spacing['4']} />
+
+          <View style={{ gap: Spacing['2'] }}>
+            <Text style={s.fieldLabel}>Email</Text>
+            <View style={s.inputRow}>
+              <MaterialCommunityIcons name="email-outline" size={16} color={Colors.gray400} />
+              <TextInput style={s.input} placeholder="you@example.com" placeholderTextColor={Colors.gray300} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+            </View>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.passwordWrapper}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="Min. 8 characters"
-                placeholderTextColor="#A0A0A0"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeBtn}
-              >
-                <Text style={styles.eyeText}>{showPassword ? 'Hide' : 'Show'}</Text>
+        </SectionCard>
+
+        {/* ── Password ── */}
+        <SectionCard title="Password">
+
+          <View style={{ gap: Spacing['2'] }}>
+            <Text style={s.fieldLabel}>Password</Text>
+            <View style={s.inputRow}>
+              <MaterialCommunityIcons name="lock-outline" size={16} color={Colors.gray400} />
+              <TextInput style={[s.input, { flex: 1 }]} placeholder="Min. 8 characters" placeholderTextColor={Colors.gray300} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: Spacing['1'] }}>
+                <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.gray400} />
               </TouchableOpacity>
             </View>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Confirm password</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Re-enter your password"
-              placeholderTextColor="#A0A0A0"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-            />
-          </View>
-
-          {/* Password strength */}
-          {password.length > 0 && (
-            <View style={styles.strengthRow}>
-              <View style={[
-                styles.strengthBar,
-                password.length >= 8 ? styles.strengthGood : styles.strengthWeak,
-              ]} />
-              <Text style={styles.strengthText}>
-                {password.length < 8 ? 'Too short' : password.length < 12 ? 'Good' : 'Strong'}
+          {/* Strength bar */}
+          {strengthLevel && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], marginTop: Spacing['2'] }}>
+              <View style={{ flex: 1, height: 3, backgroundColor: Colors.gray100, borderRadius: Radii.full, overflow: 'hidden' }}>
+                <View style={{ height: '100%', borderRadius: Radii.full, backgroundColor: strengthColor, width: strengthLevel === 'weak' ? '33%' : strengthLevel === 'good' ? '66%' : '100%' }} />
+              </View>
+              <Text style={{ fontSize: Typography.xs, color: strengthColor, fontWeight: Typography.semibold, minWidth: 36 }}>
+                {strengthLevel === 'weak' ? 'Weak' : strengthLevel === 'good' ? 'Good' : 'Strong'}
               </Text>
             </View>
           )}
 
-          <TouchableOpacity
-            style={[styles.registerBtn, loading && styles.registerBtnDisabled]}
-            onPress={handleRegister}
-            activeOpacity={0.85}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.registerBtnText}>Create account</Text>
-            )}
-          </TouchableOpacity>
+          <Divider spacing={Spacing['4']} />
 
-          <Text style={styles.termsText}>
-            By creating an account, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms of Service</Text>
-            {' '}and{' '}
-            <Text style={styles.termsLink}>Privacy Policy</Text>.
-          </Text>
+          <View style={{ gap: Spacing['2'] }}>
+            <Text style={s.fieldLabel}>Confirm password</Text>
+            <View style={s.inputRow}>
+              <MaterialCommunityIcons name="lock-check-outline" size={16} color={Colors.gray400} />
+              <TextInput style={s.input} placeholder="Re-enter your password" placeholderTextColor={Colors.gray300} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showPassword} autoCapitalize="none" />
+            </View>
+          </View>
+
+        </SectionCard>
+
+        {/* ── Create account button ── */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing['2'], backgroundColor: Colors.primary, borderRadius: Radii.lg, paddingVertical: Spacing['4'], opacity: loading ? 0.6 : 1, ...Shadows.colored(Colors.primary) }}
+          onPress={handleRegister}
+          activeOpacity={0.85}
+          disabled={loading}
+        >
+          {loading
+            ? <ActivityIndicator color={Colors.white} />
+            : <><Text style={{ color: Colors.white, fontSize: Typography.lg, fontWeight: Typography.semibold }}>Create account</Text><MaterialCommunityIcons name="arrow-right" size={18} color={Colors.white} /></>
+          }
+        </TouchableOpacity>
+
+        {/* ── Terms ── */}
+        <Text style={{ fontSize: Typography.xs, color: Colors.gray400, textAlign: 'center', lineHeight: 18 }}>
+          By creating an account, you agree to our{' '}
+          <Text style={{ color: Colors.primary, fontWeight: Typography.medium }}>Terms of Service</Text>
+          {' '}and{' '}
+          <Text style={{ color: Colors.primary, fontWeight: Typography.medium }}>Privacy Policy</Text>.
+        </Text>
+
+        {/* ── OR divider ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: Colors.gray200 }} />
+          <Text style={{ fontSize: Typography.sm, color: Colors.gray400 }}>or</Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: Colors.gray200 }} />
         </View>
 
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
+        {/* ── Login link ── */}
+        <SectionCard>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing['2'] }}>
+            <Text style={{ fontSize: Typography.md, color: Colors.gray400 }}>Already have an account?</Text>
+            <Link href="/(auth)/login" asChild>
+              <TouchableOpacity>
+                <Text style={{ fontSize: Typography.md, color: Colors.primary, fontWeight: Typography.semibold }}>Sign in</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </SectionCard>
 
-        <View style={styles.loginRow}>
-          <Text style={styles.loginPrompt}>Already have an account? </Text>
-          <Link href="/(auth)/login" asChild>
-            <TouchableOpacity>
-              <Text style={styles.loginLink}>Sign in</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
+        <Spacer size="xl" />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F8F7F4' },
-  container: { flexGrow: 1, paddingHorizontal: 28, paddingTop: 72, paddingBottom: 40 },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 48 },
-  logoBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center' },
-  logoLetter: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  brandName: { fontSize: 20, fontWeight: '600', color: '#1A1A2E', letterSpacing: -0.3 },
-  headingBlock: { marginBottom: 32 },
-  heading: { fontSize: 30, fontWeight: '700', color: '#1A1A2E', letterSpacing: -0.5, marginBottom: 6 },
-  subheading: { fontSize: 15, color: '#6B7280' },
-  errorBox: { backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 20 },
-  errorText: { color: '#DC2626', fontSize: 13 },
-  form: { gap: 20 },
-  fieldGroup: { gap: 6 },
-  label: { fontSize: 13, fontWeight: '500', color: '#374151', letterSpacing: 0.1 },
-  roleRow: { flexDirection: 'row', gap: 12 },
-  roleCard: { flex: 1, backgroundColor: '#FFFFFF', borderWidth: 1.5, borderColor: '#E5E7EB', borderRadius: 14, padding: 16, alignItems: 'center', gap: 6, position: 'relative' },
-  roleCardActive: { borderColor: '#1A1A2E', backgroundColor: '#F8F7FF' },
-  roleIconBox: { width: 48, height: 48, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
-  roleIconBoxActive: { backgroundColor: '#E8E8F0' },
-  roleTitle: { fontSize: 13, fontWeight: '600', color: '#6B7280', textAlign: 'center' },
-  roleTitleActive: { color: '#1A1A2E' },
-  roleDesc: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', lineHeight: 15 },
-  roleDescActive: { color: '#6B7280' },
-  roleCheck: { position: 'absolute', top: 8, right: 8, width: 18, height: 18, borderRadius: 9, backgroundColor: '#1A1A2E', alignItems: 'center', justifyContent: 'center' },
-  nameRow: { flexDirection: 'row', gap: 12 },
-  nameField: { flex: 1 },
-  input: { backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#1A1A2E' },
-  passwordWrapper: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, paddingRight: 16 },
-  passwordInput: { flex: 1, paddingHorizontal: 16, paddingVertical: 14, fontSize: 15, color: '#1A1A2E' },
-  eyeBtn: { paddingLeft: 8 },
-  eyeText: { fontSize: 13, color: '#6B7280', fontWeight: '500' },
-  strengthRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: -8 },
-  strengthBar: { height: 3, flex: 1, borderRadius: 2 },
-  strengthWeak: { backgroundColor: '#FCA5A5' },
-  strengthGood: { backgroundColor: '#6EE7B7' },
-  strengthText: { fontSize: 12, color: '#6B7280', minWidth: 48 },
-  registerBtn: { backgroundColor: '#1A1A2E', borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 4 },
-  registerBtnDisabled: { opacity: 0.6 },
-  registerBtnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600', letterSpacing: 0.2 },
-  termsText: { fontSize: 12, color: '#9CA3AF', textAlign: 'center', lineHeight: 18, marginTop: -8 },
-  termsLink: { color: '#1A1A2E', fontWeight: '500' },
-  dividerRow: { flexDirection: 'row', alignItems: 'center', marginVertical: 28, gap: 12 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#E5E7EB' },
-  dividerText: { fontSize: 13, color: '#9CA3AF' },
-  loginRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  loginPrompt: { fontSize: 14, color: '#6B7280' },
-  loginLink: { fontSize: 14, color: '#1A1A2E', fontWeight: '600' },
+// Only styles reused across multiple elements live here
+const s = StyleSheet.create({
+  fieldLabel: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    color: Colors.gray600,
+    letterSpacing: 0.2,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing['2'],
+    backgroundColor: Colors.gray50,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing['3'],
+  },
+  input: {
+    flex: 1,
+    paddingVertical: Spacing['3'],
+    fontSize: Typography.md,
+    color: Colors.gray900,
+  },
 });
