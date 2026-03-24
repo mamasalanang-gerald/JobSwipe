@@ -3,6 +3,7 @@ services:
   - type: web
     name: jobapp-backend
     env: docker
+    dockerCommand: /start.sh
     image:
       url: docker.io/gm1026/jobapp-backend:latest
     plan: starter
