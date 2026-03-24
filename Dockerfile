@@ -112,7 +112,7 @@ stderr_logfile=/var/log/nginx.err.log
 stdout_logfile=/var/log/nginx.out.log
 EOF
 
-# Create startup script
+# Create startup script that runs BEFORE the main process
 COPY <<EOF /start.sh
 #!/bin/sh
 set -e
@@ -136,12 +136,12 @@ if [ "\$SKIP_MIGRATIONS" != "true" ]; then
     else
         echo "PostgreSQL is ready!"
         
-        # Clear all caches first
-        echo "Clearing caches..."
-        php artisan config:clear
-        php artisan cache:clear
-        php artisan route:clear
-        php artisan view:clear
+        # Clear all caches first (CRITICAL - must happen before caching)
+        echo "Clearing all caches..."
+        php artisan config:clear || true
+        php artisan cache:clear || true
+        php artisan route:clear || true
+        php artisan view:clear || true
 
         # Run database migrations
         echo "Running PostgreSQL migrations..."
@@ -151,19 +151,24 @@ if [ "\$SKIP_MIGRATIONS" != "true" ]; then
             exit 1
         }
 
-        # Setup MongoDB collections
+        # Setup MongoDB collections (CRITICAL - must run before app starts)
         echo "Setting up MongoDB collections..."
-        php artisan mongo:setup || echo "MongoDB setup skipped (non-critical)"
+        php artisan mongo:setup || echo "MongoDB setup failed (non-critical)"
 
-        # Cache configuration for production
+        # Cache configuration for production (AFTER clearing)
         echo "Caching configuration..."
         php artisan config:cache
+        
+        echo "Caching routes..."
         php artisan route:cache
 
         # Only cache views if resources/views directory exists
         if [ -d "resources/views" ]; then
+            echo "Caching views..."
             php artisan view:cache
         fi
+        
+        echo "All caches rebuilt successfully!"
     fi
 else
     echo "Skipping migrations (CI test mode)"
@@ -176,6 +181,28 @@ exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
 EOF
 
 RUN chmod +x /start.sh
+
+# Create a pre-deploy script for Render (if they're using pre-deploy hooks)
+COPY <<EOF /pre-deploy.sh
+#!/bin/sh
+set -e
+
+echo "=== Pre-Deploy: Clearing caches ==="
+php artisan config:clear || true
+php artisan cache:clear || true
+php artisan route:clear || true
+php artisan view:clear || true
+
+echo "=== Pre-Deploy: Running migrations ==="
+php artisan migrate --force
+
+echo "=== Pre-Deploy: Setting up MongoDB ==="
+php artisan mongo:setup || echo "MongoDB setup failed"
+
+echo "=== Pre-Deploy: Complete ==="
+EOF
+
+RUN chmod +x /pre-deploy.sh
 
 # Expose port 8080 (required by Render)
 EXPOSE 8080
