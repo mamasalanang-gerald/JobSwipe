@@ -12,9 +12,24 @@ class ApplicationRepository
         return Application::find($id);
     }
 
-    public function create(array $data): Application
+    public function create(string $applicantId, string $jobPostingId): Application
     {
-        return Application::create($data);
+        return Application::create([
+            'applicant_id' => $applicantId,
+            'job_posting_id' => $jobPostingId,
+            'status' => 'applied',
+        ]);
+    }
+
+    public function markInvited(string $applicantId, string $jobPostingId, string $message): void
+    {
+        Application::where('applicant_id', $applicantId)
+            ->where('job_posting_id', $jobPostingId)
+            ->update([
+                'status' => 'invited',
+                'invitation_message' => $message,
+                'invited_at' => now(),
+            ]);
     }
 
     public function update(Application $application, array $data): Application
