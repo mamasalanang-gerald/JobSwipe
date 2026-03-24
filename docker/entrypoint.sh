@@ -26,6 +26,12 @@ php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
 
-
-# Run Laravel development server
-php artisan serve --host=0.0.0.0
+# Check if we should run Horizon (for background worker service)
+if [ "$RUN_HORIZON" = "true" ]; then
+    echo "Starting Laravel Horizon..."
+    php artisan horizon
+else
+    # Run Laravel development server (for web service)
+    echo "Starting Laravel web server..."
+    php artisan serve --host=0.0.0.0
+fi
