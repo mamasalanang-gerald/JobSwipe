@@ -3,10 +3,10 @@
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\OAuthController;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Redis;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 Route::get('/health', function (Request $request) {
     return ['status' => 'ok', 'timestamp' => now()];
@@ -16,25 +16,25 @@ Route::get('/health', function (Request $request) {
 Route::get('/debug/database', function () {
     try {
         $tables = Schema::getTableListing();
-        
+
         $tableCounts = [];
         foreach ($tables as $table) {
             try {
                 $tableCounts[$table] = DB::table($table)->count();
             } catch (\Exception $e) {
-                $tableCounts[$table] = 'Error: ' . $e->getMessage();
+                $tableCounts[$table] = 'Error: '.$e->getMessage();
             }
         }
-        
+
         $redisKeys = [];
         try {
             $redisKeys = Redis::keys('*');
             $redisSize = Redis::dbSize();
         } catch (\Exception $e) {
-            $redisKeys = ['Error: ' . $e->getMessage()];
+            $redisKeys = ['Error: '.$e->getMessage()];
             $redisSize = 0;
         }
-        
+
         return response()->json([
             'status' => 'success',
             'database' => [
