@@ -464,8 +464,11 @@ jobs:
       - name: 🧪 Test Docker Image
         run: |
           echo "🧪 Testing Docker image..."
-          docker run --rm -d --name jobapp-test -p 8080:8080 jobapp-test:latest
-          sleep 30
+          docker run --rm -d --name jobapp-test -p 8080:8080 \
+            -e SKIP_MIGRATIONS=true \
+            -e APP_KEY=base64:test-key-for-ci \
+            jobapp-test:latest
+          sleep 10
           
           # Test health endpoint
           curl -f http://localhost:8080/api/health || {
