@@ -115,21 +115,39 @@ EOF
 # Create startup script
 COPY <<EOF /start.sh
 #!/bin/sh
+set -e
 
-# Generate app key if not exists
-if [ ! -f .env ]; then
-    cp .env.example .env
-fi
+echo "=== Starting JobApp Backend ==="
 
-# Generate Laravel app key if not set
-if [ -z "\$APP_KEY" ]; then
-    php artisan key:generate --force
-fi
+# Wait for PostgreSQL to be ready
+echo "Waiting for PostgreSQL..."
+until php artisan db:show 2>/dev/null; do
+    echo "PostgreSQL is unavailable - sleeping"
+    sleep 2
+done
+echo "PostgreSQL is ready!"
+
+# Clear all caches first
+echo "Clearing caches..."
+php artisan config:clear
+php artisan cache:clear
+php artisan route:clear
+php artisan view:clear
 
 # Run database migrations
-php artisan migrate --force
+echo "Running PostgreSQL migrations..."
+php artisan migrate --force || {
+    echo "Migration failed! Checking database connection..."
+    php artisan db:show
+    exit 1
+}
+
+# Setup MongoDB collections
+echo "Setting up MongoDB collections..."
+php artisan mongo:setup || echo "MongoDB setup skipped (non-critical)"
 
 # Cache configuration for production
+echo "Caching configuration..."
 php artisan config:cache
 php artisan route:cache
 
@@ -137,6 +155,8 @@ php artisan route:cache
 if [ -d "resources/views" ]; then
     php artisan view:cache
 fi
+
+echo "=== Startup complete, starting services ==="
 
 # Start supervisor
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf
