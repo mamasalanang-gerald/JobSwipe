@@ -8,10 +8,23 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  StatusBar,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import {
+  PageHeader,
+  SectionCard,
+  Divider,
+  Spacer,
+  Colors,
+  Typography,
+  Spacing,
+  Radii,
+  Shadows,
+} from '../../components/ui';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -22,10 +35,7 @@ export default function LoginScreen() {
   const setToken = useAuthStore((s) => s.setToken);
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      setError('Please fill in all fields.');
-      return;
-    }
+    if (!email || !password) { setError('Please fill in all fields.'); return; }
     setError('');
     setLoading(true);
     try {
@@ -41,7 +51,7 @@ export default function LoginScreen() {
       } else {
         setError(data.message || 'Invalid email or password.');
       }
-    } catch (e) {
+    } catch {
       setError('Could not connect to server. Please try again.');
     } finally {
       setLoading(false);
@@ -49,276 +59,123 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.container}
-        keyboardShouldPersistTaps="handled"
-      >
-        {/* Logo / Brand */}
-        <View style={styles.brandRow}>
-          <View style={styles.logoBox}>
-            <Text style={styles.logoLetter}>J</Text>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <StatusBar barStyle="dark-content" />
+
+      <PageHeader title="Sign In" subtitle="Welcome back to JobSwipe" />
+
+      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+
+        {/* ── Brand ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['4'] }}>
+          <View style={{ width: 44, height: 44, borderRadius: Radii.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', ...Shadows.colored(Colors.primary) }}>
+            <Text style={{ color: Colors.white, fontSize: Typography['2xl'], fontWeight: Typography.bold }}>J</Text>
           </View>
-          <Text style={styles.brandName}>JobSwipe</Text>
+          <View>
+            <Text style={{ fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.gray900, letterSpacing: -0.3 }}>JobSwipe</Text>
+            <Text style={{ fontSize: Typography.sm, color: Colors.gray400, marginTop: 1 }}>Your next role is one swipe away</Text>
+          </View>
         </View>
 
-        {/* Heading */}
-        <View style={styles.headingBlock}>
-          <Text style={styles.heading}>Welcome back</Text>
-          <Text style={styles.subheading}>Sign in to your account</Text>
-        </View>
-
-        {/* Error */}
+        {/* ── Error banner ── */}
         {error ? (
-          <View style={styles.errorBox}>
-            <Text style={styles.errorText}>{error}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: Colors.dangerLight, borderWidth: 1, borderColor: Colors.dangerMid, borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={Colors.danger} />
+            <Text style={{ flex: 1, color: Colors.danger, fontSize: Typography.base }}>{error}</Text>
           </View>
         ) : null}
 
-        {/* Form */}
-        <View style={styles.form}>
-          <View style={styles.fieldGroup}>
-            <Text style={styles.label}>Email</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="you@example.com"
-              placeholderTextColor="#A0A0A0"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
+        {/* ── Credentials ── */}
+        <SectionCard title="Your credentials">
+
+          <View style={{ gap: Spacing['2'] }}>
+            <Text style={s.fieldLabel}>Email</Text>
+            <View style={s.inputRow}>
+              <MaterialCommunityIcons name="email-outline" size={16} color={Colors.gray400} />
+              <TextInput style={s.input} placeholder="you@example.com" placeholderTextColor={Colors.gray300} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+            </View>
           </View>
 
-          <View style={styles.fieldGroup}>
-            <View style={styles.labelRow}>
-              <Text style={styles.label}>Password</Text>
+          <Divider spacing={Spacing['4']} />
+
+          <View style={{ gap: Spacing['2'] }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={s.fieldLabel}>Password</Text>
               <TouchableOpacity>
-                <Text style={styles.forgotText}>Forgot password?</Text>
+                <Text style={{ fontSize: Typography.sm, color: Colors.primary, fontWeight: Typography.medium }}>Forgot password?</Text>
               </TouchableOpacity>
             </View>
-            <View style={styles.passwordWrapper}>
-              <TextInput
-                style={styles.passwordInput}
-                placeholder="••••••••"
-                placeholderTextColor="#A0A0A0"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                onPress={() => setShowPassword(!showPassword)}
-                style={styles.eyeBtn}
-              >
-                <Text style={styles.eyeText}>
-                  {showPassword ? 'Hide' : 'Show'}
-                </Text>
+            <View style={s.inputRow}>
+              <MaterialCommunityIcons name="lock-outline" size={16} color={Colors.gray400} />
+              <TextInput style={[s.input, { flex: 1 }]} placeholder="••••••••" placeholderTextColor={Colors.gray300} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: Spacing['1'] }}>
+                <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.gray400} />
               </TouchableOpacity>
             </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
-            onPress={handleLogin}
-            activeOpacity={0.85}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.loginBtnText}>Sign in</Text>
-            )}
-          </TouchableOpacity>
+        </SectionCard>
+
+        {/* ── Sign in button ── */}
+        <TouchableOpacity
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing['2'], backgroundColor: Colors.primary, borderRadius: Radii.lg, paddingVertical: Spacing['4'], opacity: loading ? 0.6 : 1, ...Shadows.colored(Colors.primary) }}
+          onPress={handleLogin}
+          activeOpacity={0.85}
+          disabled={loading}
+        >
+          {loading
+            ? <ActivityIndicator color={Colors.white} />
+            : <><Text style={{ color: Colors.white, fontSize: Typography.lg, fontWeight: Typography.semibold }}>Sign in</Text><MaterialCommunityIcons name="arrow-right" size={18} color={Colors.white} /></>
+          }
+        </TouchableOpacity>
+
+        {/* ── OR divider ── */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] }}>
+          <View style={{ flex: 1, height: 1, backgroundColor: Colors.gray200 }} />
+          <Text style={{ fontSize: Typography.sm, color: Colors.gray400 }}>or</Text>
+          <View style={{ flex: 1, height: 1, backgroundColor: Colors.gray200 }} />
         </View>
 
-        {/* Divider */}
-        <View style={styles.dividerRow}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
+        {/* ── Register ── */}
+        <SectionCard>
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing['2'] }}>
+            <Text style={{ fontSize: Typography.md, color: Colors.gray400 }}>Don't have an account?</Text>
+            <Link href="/(auth)/register" asChild>
+              <TouchableOpacity>
+                <Text style={{ fontSize: Typography.md, color: Colors.primary, fontWeight: Typography.semibold }}>Create one</Text>
+              </TouchableOpacity>
+            </Link>
+          </View>
+        </SectionCard>
 
-        {/* Register link */}
-        <View style={styles.registerRow}>
-          <Text style={styles.registerPrompt}>Don't have an account? </Text>
-          <Link href="/(auth)/register" asChild>
-            <TouchableOpacity>
-              <Text style={styles.registerLink}>Create one</Text>
-            </TouchableOpacity>
-          </Link>
-        </View>
+        <Spacer size="xl" />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: '#F8F7F4',
-  },
-  container: {
-    flexGrow: 1,
-    paddingHorizontal: 28,
-    paddingTop: 72,
-    paddingBottom: 40,
-  },
-  brandRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    marginBottom: 48,
-  },
-  logoBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: '#1A1A2E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoLetter: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  brandName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#1A1A2E',
-    letterSpacing: -0.3,
-  },
-  headingBlock: {
-    marginBottom: 32,
-  },
-  heading: {
-    fontSize: 30,
-    fontWeight: '700',
-    color: '#1A1A2E',
-    letterSpacing: -0.5,
-    marginBottom: 6,
-  },
-  subheading: {
-    fontSize: 15,
-    color: '#6B7280',
-  },
-  errorBox: {
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    marginBottom: 20,
-  },
-  errorText: {
-    color: '#DC2626',
-    fontSize: 13,
-  },
-  form: {
-    gap: 20,
-  },
-  fieldGroup: {
-    gap: 6,
-  },
-  labelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  label: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: '#374151',
-    letterSpacing: 0.1,
-  },
-  forgotText: {
-    fontSize: 13,
-    color: '#1A1A2E',
-    fontWeight: '500',
-  },
-  input: {
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#1A1A2E',
-  },
-  passwordWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 12,
-    paddingRight: 16,
-  },
-  passwordInput: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    fontSize: 15,
-    color: '#1A1A2E',
-  },
-  eyeBtn: {
-    paddingLeft: 8,
-  },
-  eyeText: {
-    fontSize: 13,
-    color: '#6B7280',
-    fontWeight: '500',
-  },
-  loginBtn: {
-    backgroundColor: '#1A1A2E',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  loginBtnDisabled: {
-    opacity: 0.6,
-  },
-  loginBtnText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
+// Only styles reused across multiple elements live here
+const s = StyleSheet.create({
+  fieldLabel: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    color: Colors.gray600,
     letterSpacing: 0.2,
   },
-  dividerRow: {
+  inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 28,
-    gap: 12,
+    gap: Spacing['2'],
+    backgroundColor: Colors.gray50,
+    borderWidth: 1,
+    borderColor: Colors.gray200,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing['3'],
   },
-  dividerLine: {
+  input: {
     flex: 1,
-    height: 1,
-    backgroundColor: '#E5E7EB',
-  },
-  dividerText: {
-    fontSize: 13,
-    color: '#9CA3AF',
-  },
-  registerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  registerPrompt: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  registerLink: {
-    fontSize: 14,
-    color: '#1A1A2E',
-    fontWeight: '600',
+    paddingVertical: Spacing['3'],
+    fontSize: Typography.md,
+    color: Colors.gray900,
   },
 });
