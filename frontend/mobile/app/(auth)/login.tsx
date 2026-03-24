@@ -26,6 +26,13 @@ import {
   Shadows,
 } from '../../components/ui';
 
+// ─── MOCK AUTH ────────────────────────────────────────────────────────────────
+// TODO: Remove this block once the backend is live.
+const MOCK_AUTH = true; // flip to false to re-enable the real API call
+const MOCK_CREDENTIALS = { email: 'demo@example.com', password: 'password' };
+const MOCK_TOKEN = 'mock-token-123';
+// ─────────────────────────────────────────────────────────────────────────────
+
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,6 +45,26 @@ export default function LoginScreen() {
     if (!email || !password) { setError('Please fill in all fields.'); return; }
     setError('');
     setLoading(true);
+
+    // ── Mock path ──────────────────────────────────────────────────────────
+    if (MOCK_AUTH) {
+      await new Promise((r) => setTimeout(r, 600)); // simulate network delay
+      if (
+        email === MOCK_CREDENTIALS.email &&
+        password === MOCK_CREDENTIALS.password
+      ) {
+        setToken(MOCK_TOKEN);
+        router.replace('/(tabs)');
+      } else {
+        setError(
+          `Invalid credentials.\nUse ${MOCK_CREDENTIALS.email} / ${MOCK_CREDENTIALS.password}`
+        );
+      }
+      setLoading(false);
+      return;
+    }
+    // ── Real API path (restored when MOCK_AUTH = false) ────────────────────
+
     try {
       const response = await fetch('http://localhost:8000/api/v1/auth/login', {
         method: 'POST',
@@ -76,6 +103,16 @@ export default function LoginScreen() {
             <Text style={{ fontSize: Typography.sm, color: Colors.gray400, marginTop: 1 }}>Your next role is one swipe away</Text>
           </View>
         </View>
+
+        {/* ── Mock-mode hint banner ── */}
+        {MOCK_AUTH ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: '#FFF8E1', borderWidth: 1, borderColor: '#FFE082', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
+            <MaterialCommunityIcons name="information-outline" size={15} color="#F9A825" />
+            <Text style={{ flex: 1, color: '#795548', fontSize: Typography.sm }}>
+              Mock mode — use <Text style={{ fontWeight: '600' }}>{MOCK_CREDENTIALS.email}</Text> / <Text style={{ fontWeight: '600' }}>{MOCK_CREDENTIALS.password}</Text>
+            </Text>
+          </View>
+        ) : null}
 
         {/* ── Error banner ── */}
         {error ? (
