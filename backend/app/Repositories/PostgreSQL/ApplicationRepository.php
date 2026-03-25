@@ -30,8 +30,6 @@ class ApplicationRepository
                 'invitation_message' => $message,
                 'invited_at' => now(),
             ]);
-<<<<<<< Updated upstream
-=======
     }
 
     public function exists(string $applicantId, string $jobPostingId): bool
@@ -64,7 +62,6 @@ class ApplicationRepository
             ")
             ->select('applications.*')
             - paginate($perPage);
->>>>>>> Stashed changes
     }
 
     public function update(Application $application, array $data): Application
