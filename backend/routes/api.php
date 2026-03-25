@@ -1,6 +1,10 @@
 <?php
 
-
+use App\Http\Controllers\Applicant\SwipeController;
+use App\Http\Controllers\Auth\AuthController;
+use App\Http\Controllers\Auth\OAuthController;
+use App\Http\Controllers\Company\JobPostingController;
+use App\Http\Middleware\CheckSwipeLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -71,14 +75,17 @@ Route::prefix('v1')->group(function () {
         Route::prefix('company')->group(function () {
             Route::apiResource('jobs', JobPostingController::class);
             Route::post('jobs/{id}/close', [JobPostingController::class, 'close']);
-        // Applicant Swipe Routes
-        Route::prefix('applicant/swipe')->group(function () {
-            Route::get('deck', [SwipeController::class, 'getDeck']);
-            Route::get('limits', [SwipeController::class, 'getLimits']);
+            // Applicant Swipe Routes
+            Route::prefix('applicant/swipe')->group(function () {
+                Route::get('deck', [SwipeController::class, 'getDeck']);
+                Route::get('limits', [SwipeController::class, 'getLimits']);
 
-            // Swipe actions require limit check
-            Route::middleware(CheckSwipeLimit::class)->group(function () {
-                Route::post('right/{job_id}', [SwipeController::class, 'swipeRight']);
-                Route::post('left/{job_id}', [SwipeController::class, 'swipeLeft']);
+                // Swipe actions require limit check
+                Route::middleware(CheckSwipeLimit::class)->group(function () {
+                    Route::post('right/{job_id}', [SwipeController::class, 'swipeRight']);
+                    Route::post('left/{job_id}', [SwipeController::class, 'swipeLeft']);
+                });
             });
-    
+        });
+    });
+});
