@@ -26,6 +26,21 @@ php artisan config:clear
 php artisan cache:clear
 php artisan view:clear
 
+# Run database migrations (only in production, not for Horizon worker)
+if [ "$RUN_HORIZON" != "true" ]; then
+    echo "Running PostgreSQL migrations..."
+    php artisan migrate --force
+    
+    echo "Setting up MongoDB collections..."
+    php artisan mongo:setup || echo "MongoDB setup skipped or failed (non-critical)"
+fi
 
-# Run Laravel development server
-php artisan serve --host=0.0.0.0
+# Check if we should run Horizon (for background worker service)
+if [ "$RUN_HORIZON" = "true" ]; then
+    echo "Starting Laravel Horizon..."
+    php artisan horizon
+else
+    # Run Laravel development server (for web service)
+    echo "Starting Laravel web server..."
+    php artisan serve --host=0.0.0.0
+fi
