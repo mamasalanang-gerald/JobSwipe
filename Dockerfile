@@ -115,28 +115,61 @@ EOF
 # Create startup script
 COPY <<EOF /start.sh
 #!/bin/sh
+set -e
 
-# Generate app key if not exists
-if [ ! -f .env ]; then
-    cp .env.example .env
+echo "=== Starting JobApp Backend ==="
+
+# Only run migrations if not in CI test mode
+if [ "\$SKIP_MIGRATIONS" != "true" ]; then
+    # Wait for PostgreSQL to be ready (with timeout)
+    echo "Waiting for PostgreSQL..."
+    RETRY_COUNT=0
+    MAX_RETRIES=30
+    until php artisan db:show 2>/dev/null || [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; do
+        echo "PostgreSQL is unavailable - sleeping (\$RETRY_COUNT/\$MAX_RETRIES)"
+        sleep 2
+        RETRY_COUNT=\$((RETRY_COUNT + 1))
+    done
+    
+    if [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; then
+        echo "PostgreSQL connection timeout - skipping migrations"
+    else
+        echo "PostgreSQL is ready!"
+        
+        # Clear all caches first
+        echo "Clearing caches..."
+        php artisan config:clear
+        php artisan cache:clear
+        php artisan route:clear
+        php artisan view:clear
+
+        # Run database migrations
+        echo "Running PostgreSQL migrations..."
+        php artisan migrate --force || {
+            echo "Migration failed! Checking database connection..."
+            php artisan db:show
+            exit 1
+        }
+
+        # Setup MongoDB collections
+        echo "Setting up MongoDB collections..."
+        php artisan mongo:setup || echo "MongoDB setup skipped (non-critical)"
+
+        # Cache configuration for production
+        echo "Caching configuration..."
+        php artisan config:cache
+        php artisan route:cache
+
+        # Only cache views if resources/views directory exists
+        if [ -d "resources/views" ]; then
+            php artisan view:cache
+        fi
+    fi
+else
+    echo "Skipping migrations (CI test mode)"
 fi
 
-# Generate Laravel app key if not set
-if [ -z "\$APP_KEY" ]; then
-    php artisan key:generate --force
-fi
-
-# Run database migrations
-php artisan migrate --force
-
-# Cache configuration for production
-php artisan config:cache
-php artisan route:cache
-
-# Only cache views if resources/views directory exists
-if [ -d "resources/views" ]; then
-    php artisan view:cache
-fi
+echo "=== Startup complete, starting services ==="
 
 # Start supervisor
 exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf

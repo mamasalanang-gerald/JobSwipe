@@ -1,13 +1,60 @@
 <?php
 
+use App\Http\Controllers\Applicant\SwipeController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\Company\JobPostingController;
+use App\Http\Middleware\CheckSwipeLimit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Schema;
 
 Route::get('/health', function (Request $request) {
     return ['status' => 'ok', 'timestamp' => now()];
+});
+
+// Debug endpoint to check database and Redis
+Route::get('/debug/database', function () {
+    try {
+        $tables = Schema::getTableListing();
+
+        $tableCounts = [];
+        foreach ($tables as $table) {
+            try {
+                $tableCounts[$table] = DB::table($table)->count();
+            } catch (\Exception $e) {
+                $tableCounts[$table] = 'Error: '.$e->getMessage();
+            }
+        }
+
+        $redisKeys = [];
+        try {
+            $redisKeys = Redis::keys('*');
+            $redisSize = Redis::dbSize();
+        } catch (\Exception $e) {
+            $redisKeys = ['Error: '.$e->getMessage()];
+            $redisSize = 0;
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'database' => [
+                'tables' => $tables,
+                'table_counts' => $tableCounts,
+            ],
+            'redis' => [
+                'keys' => $redisKeys,
+                'total_keys' => $redisSize,
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
 });
 
 Route::prefix('v1')->group(function () {
@@ -28,6 +75,16 @@ Route::prefix('v1')->group(function () {
         Route::prefix('company')->group(function () {
             Route::apiResource('jobs', JobPostingController::class);
             Route::post('jobs/{id}/close', [JobPostingController::class, 'close']);
+        // Applicant Swipe Routes
+        Route::prefix('applicant/swipe')->group(function () {
+            Route::get('deck', [SwipeController::class, 'getDeck']);
+            Route::get('limits', [SwipeController::class, 'getLimits']);
+
+            // Swipe actions require limit check
+            Route::middleware(CheckSwipeLimit::class)->group(function () {
+                Route::post('right/{job_id}', [SwipeController::class, 'swipeRight']);
+                Route::post('left/{job_id}', [SwipeController::class, 'swipeLeft']);
+            });
         });
     });
 });
