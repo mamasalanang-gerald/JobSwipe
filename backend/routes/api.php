@@ -1,10 +1,6 @@
 <?php
 
-use App\Http\Controllers\Applicant\SwipeController;
-use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\OAuthController;
-use App\Http\Controllers\Company\JobPostingController;
-use App\Http\Middleware\CheckSwipeLimit;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
@@ -85,6 +81,4 @@ Route::prefix('v1')->group(function () {
                 Route::post('right/{job_id}', [SwipeController::class, 'swipeRight']);
                 Route::post('left/{job_id}', [SwipeController::class, 'swipeLeft']);
             });
-        });
-    });
-});
+    
