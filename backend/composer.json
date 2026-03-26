@@ -17,7 +17,8 @@
     "laravel/tinker": "^2.8",
     "meilisearch/meilisearch-php": "^1.16",
     "mongodb/laravel-mongodb": "^5.6",
-    "predis/predis": "^2.0"
+    "predis/predis": "^2.0",
+    "resend/resend-php": "^0.13.0"
   },
   "require-dev": {
     "barryvdh/laravel-ide-helper": "^3.7",

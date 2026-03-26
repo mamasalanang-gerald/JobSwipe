@@ -12,7 +12,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-API_URL="${1:-https://jobswipe-eff8.onrender.com}"
+API_URL="${1:-https://your-service-name.onrender.com}"
 TIMEOUT=30
 
 echo "🧪 Testing JobSwipe Deployment"
