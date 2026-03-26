@@ -3,6 +3,7 @@ services:
   - type: web
     name: jobapp-backend
     env: docker
+    dockerCommand: /start.sh
     image:
       url: docker.io/gm1026/jobapp-backend:latest
     plan: starter
@@ -28,7 +29,7 @@ services:
       - key: LOG_CHANNEL
         value: stderr
       - key: LOG_LEVEL
-        value: error
+        value: info
       
       # PostgreSQL Database
       - key: DB_CONNECTION
@@ -73,6 +74,24 @@ services:
         value: redis
       - key: QUEUE_CONNECTION
         value: redis
+      
+      # Mail Configuration (CRITICAL for email verification)
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value:                # Add your SMTP host (e.g., smtp.sendgrid.net)
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        value:                # Add your SMTP username
+      - key: MAIL_PASSWORD
+        value:                # Add your SMTP password
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@yourdomain.com
+      - key: MAIL_FROM_NAME
+        value: JobApp
       
       # MongoDB (External - Add these manually in Render dashboard)
       - key: MONGO_HOST
@@ -118,7 +137,7 @@ services:
       - key: LOG_CHANNEL
         value: stderr
       - key: LOG_LEVEL
-        value: error
+        value: info
       
       # PostgreSQL Database
       - key: DB_CONNECTION
@@ -163,6 +182,24 @@ services:
         value: redis
       - key: QUEUE_CONNECTION
         value: redis
+      
+      # Mail Configuration (CRITICAL for email verification)
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value:                # Add your SMTP host (e.g., smtp.sendgrid.net)
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        value:                # Add your SMTP username
+      - key: MAIL_PASSWORD
+        value:                # Add your SMTP password
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@yourdomain.com
+      - key: MAIL_FROM_NAME
+        value: JobApp
       
       # MongoDB (External - Add these manually in Render dashboard)
       - key: MONGO_HOST
