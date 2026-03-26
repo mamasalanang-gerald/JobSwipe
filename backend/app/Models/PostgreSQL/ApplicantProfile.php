@@ -16,7 +16,7 @@ class ApplicantProfile extends Model
 
     protected $fillable = [
         'user_id', 'total_points', 'subscription_tier', 'subscription_status',
-        'daily_swipes_used', 'daily_swipe_limit', 'extra_swipes_balance', 'swipe_reset_at',
+        'daily_swipes_used', 'daily_swipe_limit', 'extra_swipe_balance', 'swipe_reset_at',
     ];
 
     protected $casts = [
@@ -46,6 +46,6 @@ class ApplicantProfile extends Model
     public function hasSwipesRemaining(): bool
     {
         return $this->daily_swipes_used < $this->daily_swipe_limit
-            || $this->extra_swipes_balance > 0;
+            || $this->extra_swipe_balance > 0;
     }
 }
