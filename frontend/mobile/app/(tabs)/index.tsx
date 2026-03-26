@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   View,
   Text,
@@ -249,9 +250,6 @@ export default function HomeTab() {
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#10B981', opacity: likeOverlayOpacity, zIndex: 5 }]} pointerEvents="none" />
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#EF4444', opacity: nopeOverlayOpacity, zIndex: 5 }]} pointerEvents="none" />
 
-        {/* Scrims */}
-        <View style={[s.scrimTop,    { height: topBarHeight || 160 }]}  pointerEvents="none" />
-        <View style={[s.scrimBottom, { height: overlayBottom + 180 }]} pointerEvents="none" />
 
         {/* Stamps */}
         <Animated.View style={[s.stampWrap, { right: Spacing['5'], opacity: likeOpacity }]} pointerEvents="none"><SwipeLabel type="like" visible /></Animated.View>
@@ -272,13 +270,22 @@ export default function HomeTab() {
           </View>
         </View>
 
+        {/* Gradient scrim for text legibility */}
+        <LinearGradient
+          colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.75)']}
+          style={[StyleSheet.absoluteFill, { top: '45%', zIndex: 3 }]}
+          pointerEvents="none"
+        />
+
         {/* Company info strip */}
         <View style={[s.bottomOverlay, { bottom: overlayBottom }]} pointerEvents="box-none">
           <View style={s.nameRow}>
             <View style={{ flex: 1 }}>
-              <Text style={s.companyName}>{job.company}</Text>
+              <View style={s.companyNameRow}>
+                <Text style={s.companyName}>{job.company}</Text>
+                <MaterialCommunityIcons name="check-decagram" size={22} color="#60A5FA" style={s.verifiedIcon} />
+              </View>
               <View style={s.verifiedRow}>
-                <MaterialCommunityIcons name="check-decagram" size={17} color="#60A5FA" />
                 <Text style={s.salaryInline}>{job.salary}</Text>
               </View>
             </View>
@@ -298,17 +305,8 @@ export default function HomeTab() {
       {/* END layer 1 */}
 
       {/*
-        Layer 2 — Match badge
-        =====================
-        Rendered as a SIBLING after the Animated.View, not inside it.
-        Uses module-level constants so it is NEVER translated by the card's
-        transform. pointerEvents="none" so it doesn't swallow card touches.
-      */}
-      <View style={[s.badgeContainer, { bottom: badgeBottom }]} pointerEvents="none">
-        <MatchBadge percent={job.matchPercent} />
-      </View>
-
-      {/* Layer 3 — Action buttons */}
+    
+      {/* Layer 2 — Action buttons */}
       <View style={[s.actionsRow, { bottom: actionsBottom }]}>
         <SecondaryButton icon="close"               onPress={() => commitSwipe(-1)} style={s.btnDark} />
         <GhostButton     icon="rotate-left"         onPress={undo}                  style={[s.btnDark, s.btnSm]} />
@@ -318,7 +316,7 @@ export default function HomeTab() {
       </View>
 
       {/*
-        Layer 4 — Expand panel (bottom sheet)
+        Layer 3 — Expand panel (bottom sheet)
         ======================================
         Completely outside the swipeable card so it's never constrained
         by the card's height or overflow. Height = 62 % of screen.
@@ -386,16 +384,7 @@ export default function HomeTab() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#000' },
 
-  scrimTop: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.28)',
-  },
-  scrimBottom: {
-    position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(0,0,0,0.52)',
-    zIndex: 6,
-  },
-
+  
   stampWrap: { position: 'absolute', top: 90, zIndex: 20 },
 
   topBar: {
@@ -426,26 +415,33 @@ const s = StyleSheet.create({
 
   bottomOverlay: { position: 'absolute', left: 0, right: 0, paddingHorizontal: Spacing['5'], zIndex: 10 },
   nameRow:       { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 4 },
+  companyNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   companyName: {
     fontSize: 34, fontWeight: Typography.bold, color: Colors.white, letterSpacing: -0.5,
-    textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+    textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10,
   },
+  verifiedIcon: { marginTop: 2 },
   verifiedRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 3 },
-  salaryInline: { fontSize: Typography.md, fontWeight: Typography.semibold, color: 'rgba(255,255,255,0.9)' },
+  salaryInline: {
+    fontSize: Typography.md, fontWeight: Typography.semibold, color: 'rgba(255,255,255,0.95)',
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+  },
   expandBtn: {
     width: 40, height: 40, borderRadius: Radii.full,
     backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
   lookingRow:   { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Spacing['3'], marginBottom: 3 },
-  lookingLabel: { fontSize: Typography.base, color: 'rgba(255,255,255,0.75)', fontWeight: Typography.medium },
+  lookingLabel: {
+    fontSize: Typography.base, color: 'rgba(255,255,255,0.9)', fontWeight: Typography.medium,
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
+  },
   positionText: {
     fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.white,
-    textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+    textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8,
   },
 
-  // Badge — sibling to Animated card, never moves
-  badgeContainer: { position: 'absolute', left: Spacing['5'], zIndex: 50 },
+
 
   actionsRow: {
     position: 'absolute', left: 0, right: 0,
