@@ -1294,7 +1294,7 @@ Add these to your `.env` and `.env.example`:
 ```env
 # ── Google OAuth ──────────────────────────────────────────────────────────
 GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=your-client-secret
+GOOGLE_CLIENT_SECRET=YOUR_GOOGLE_CLIENT_SECRET
 GOOGLE_REDIRECT_URI=https://api.jobswipe.ph/v1/auth/google/callback
 
 # ── Gmail SMTP ────────────────────────────────────────────────────────────
@@ -1302,7 +1302,7 @@ MAIL_MAILER=smtp
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your-gmail@gmail.com
-MAIL_PASSWORD=your-app-password   # Use a Gmail App Password, NOT your real password
+MAIL_PASSWORD=YOUR_APP_PASSWORD   # Use a Gmail App Password, NOT your real password
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=noreply@jobswipe.ph
 MAIL_FROM_NAME="JobSwipe"

@@ -4,18 +4,18 @@
 
 ### 1. Database Setup
 - ✅ PostgreSQL database created on Render
-  - Host: `dpg-d6v3477gi27c73eoinpg-a`
-  - Database: `jobswipe_acb5`
-  - User: `jobswipe_acb5_user`
+  - Host: `your-postgres-host`
+  - Database: `your_database`
+  - User: `your_postgres_user`
 
 - ✅ Redis instance created on Render
   - Host: `red-d6v36u6a2pns73ab5h7g`
   - Port: `6379`
 
 - ✅ MongoDB Atlas cluster created
-  - Cluster: `jobswipe-cluster.m0baanc.mongodb.net`
+  - Cluster: `your-cluster.mongodb.net`
   - Database: `jobswipe`
-  - User: `geraldkasan163_db_user`
+  - User: `your_mongodb_user`
   - IP Whitelist: `0.0.0.0/0` (Render access enabled)
 
 ### 2. Environment Variables
@@ -57,12 +57,12 @@ Get your connection string from MongoDB Atlas dashboard.
 
 Run the test script:
 ```bash
-bash test-deployment.sh https://jobswipe-eff8.onrender.com
+bash test-deployment.sh https://your-service-name.onrender.com
 ```
 
 Or test manually:
 ```bash
-curl https://jobswipe-eff8.onrender.com/api/health
+curl https://your-service-name.onrender.com/api/health
 ```
 
 Expected response:
@@ -101,7 +101,7 @@ APP_NAME=JobSwipe
 APP_ENV=production
 APP_DEBUG=false
 APP_KEY=<YOUR_GENERATED_APP_KEY>
-APP_URL=https://jobswipe-eff8.onrender.com
+APP_URL=https://your-service-name.onrender.com
 ```
 
 ### Database Connections
