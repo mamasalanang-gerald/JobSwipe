@@ -22,11 +22,7 @@ class ApplicantReviewController extends Controller
 
     public function getApplicants(Request $request, string $jobId): JsonResponse
     {
-        $job = JobPosting::with('skills')->findOrFail($jobId);
-
-        if ($job->company_id !== $request->user()->companyProfile->id) {
-            return $this->error('UNAUTHORIZED', 'Not authorized', 403);
-        }
+        $this->authorizeJobAccess($request, $jobId);
 
         $applicants = $this->applications->getPrioritizedApplicants($jobId, perPage: 20);
 
@@ -41,11 +37,7 @@ class ApplicantReviewController extends Controller
 
     public function getApplicantDetail(Request $request, string $jobId, string $applicantId): JsonResponse
     {
-        $job = JobPosting::with('skills')->findOrFail($jobId);
-
-        if ($job->company_id !== $request->user()->companyProfile->id) {
-            return $this->error('UNAUTHORIZED', 'Not authorized', 403);
-        }
+        $this->authorizeJobAccess($request, $jobId);
 
         $application = Application::where('job_posting_id', $jobId)
             ->where('applicant_id', $applicantId)
@@ -70,16 +62,12 @@ class ApplicantReviewController extends Controller
 
     public function swipeRight(HRSwipeRequest $request, string $jobId, string $applicantId): JsonResponse
     {
-        $job = JobPosting::findOrFail($jobId);
-
-        if ($job->company_id !== $request->user()->companyProfile->id) {
-            return $this->error('UNAUTHORIZED', 'Not authorized', 403);
-        }
+        $job = $this->authorizeJobAccess($request, $jobId);
 
         $message = $this->processMessageTemplate(
             (string) ($request->message ?? $job->interview_template),
             $applicantId,
-            $jobId
+            $job
         );
 
         $result = $this->swipe->hrSwipeRight(
@@ -98,11 +86,7 @@ class ApplicantReviewController extends Controller
 
     public function swipeLeft(Request $request, string $jobId, string $applicantId): JsonResponse
     {
-        $job = JobPosting::findOrFail($jobId);
-
-        if ($job->company_id !== $request->user()->companyProfile->id) {
-            return $this->error('UNAUTHORIZED', 'Not authorized', 403);
-        }
+        $this->authorizeJobAccess($request, $jobId);
 
         $result = $this->swipe->hrSwipeLeft(
             $request->user()->id,
@@ -117,11 +101,21 @@ class ApplicantReviewController extends Controller
         };
     }
 
-    private function processMessageTemplate(string $template, string $applicantId, string $jobId): string
+    private function authorizeJobAccess(Request $request, string $jobId): JobPosting
+    {
+        $job = JobPosting::findOrFail($jobId);
+
+        if ($job->company_id !== $request->user()->companyProfile->id) {
+            abort(403, 'Not authorized');
+        }
+
+        return $job;
+    }
+
+    private function processMessageTemplate(string $template, string $applicantId, JobPosting $job): string
     {
         $applicant = ApplicantProfile::findOrFail($applicantId);
         $mongoProfile = ApplicantProfileDocument::where('user_id', $applicant->user_id)->first();
-        $job = JobPosting::findOrFail($jobId);
 
         $fullName = trim((string) ($mongoProfile?->first_name.' '.$mongoProfile?->last_name));
 

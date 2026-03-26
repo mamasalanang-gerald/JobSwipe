@@ -3,7 +3,8 @@
 namespace App\Models\PostgreSQL;
 
 use Illuminate\Database\Eloquent\Model;
-
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 class CompanyProfile extends Model
 {
     protected $connection = 'pgsql';
@@ -24,17 +25,17 @@ class CompanyProfile extends Model
         'active_listings_count' => 'integer',
     ];
 
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function jobPostings(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function jobPostings(): HasMany
     {
         return $this->hasMany(JobPosting::class, 'company_id');
     }
 
-    public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function reviews(): HasMany
     {
         return $this->hasMany(CompanyReview::class, 'company_id');
     }

@@ -6,12 +6,14 @@ use App\Mail\InterviewInvitationMail;
 use App\Models\MongoDB\ApplicantProfileDocument;
 use App\Models\PostgreSQL\ApplicantProfile;
 use App\Models\PostgreSQL\JobPosting;
+use App\Models\PostgreSQL\Notification;
 use App\Services\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Mail;
 
 class SendInterviewInvitation implements ShouldQueue
 {
@@ -20,6 +22,12 @@ class SendInterviewInvitation implements ShouldQueue
     public function __construct(
         private string $applicantId,
         private string $jobId,
+        private string $message,
+    ) {
+        $this->onQueue('notifications');
+    }
+
+    public function handle(): void
         private string $message
     ) {}
 
@@ -40,32 +48,17 @@ class SendInterviewInvitation implements ShouldQueue
                 'job_id' => $this->jobId,
                 'company_id' => $job->company_id,
                 'message' => $this->message,
-            ]
-        );
+            ],
+        ]);
 
-        // Send email (respects user preferences)
-        $notificationService->sendEmail(
-            userId: $user->id,
-            mailable: new InterviewInvitationMail(
-                applicantName: $mongoProfile->first_name,
-                jobTitle: $job->title,
-                companyName: $job->company->company_name,
-                message: $this->message,
-                jobUrl: config('app.frontend_url').'/jobs/'.$this->jobId,
-            ),
-            type: 'interview_invitation'
-        );
+        Mail::to($user->email)->send(new InterviewInvitationMail(
+            applicantName: $mongoProfile->first_name,
+            jobTitle: $job->title,
+            companyName: $job->company->company_name,
+            message: $this->message,
+            jobUrl: config('app.frontend.url').'/jobs/'.$this->jobId,
+        ));
 
-        // Send push notification (respects user preferences)
-        $notificationService->sendPush(
-            userId: $user->id,
-            type: 'interview_invitation',
-            title: "Interview Invitation from {$job->company->company_name}",
-            body: "You've been invited to interview for {$job->title}",
-            data: [
-                'job_id' => $this->jobId,
-                'company_id' => $job->company_id,
-            ]
-        );
+        // TODO: EXPO NOTIFICATIONS
     }
 }
