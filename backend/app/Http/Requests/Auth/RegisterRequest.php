@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
 class RegisterRequest extends FormRequest
 {
@@ -11,12 +12,27 @@ class RegisterRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // Ensure this request expects JSON response
+        $this->headers->set('Accept', 'application/json');
+    }
+
     public function rules(): array
     {
         return [
             'role' => ['required', 'string', 'in:applicant,hr,company_admin'],
             'email' => ['required', 'email:rfc,dns', 'max:255'],
-            'password' => ['required', 'string', 'min:8', 'max:128'],
+            'password' => [
+                'required',
+                'string',
+                Password::min(8)
+                    ->mixedCase()
+                    ->letters()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised(),
+            ],
         ];
     }
 
