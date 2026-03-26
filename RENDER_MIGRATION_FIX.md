@@ -35,7 +35,7 @@ docker push gm1026/jobapp-backend:latest
 
 ### Step 2: Update Render Environment Variables
 
-In your Render dashboard for `jobapp-backend-latest` service:
+In your Render dashboard for your backend service:
 
 1. Verify these PostgreSQL variables are set:
    - `DB_CONNECTION=pgsql`
@@ -63,7 +63,7 @@ In your Render dashboard for `jobapp-backend-latest` service:
 ### Step 3: Trigger Redeploy
 
 In Render dashboard:
-1. Go to your `jobapp-backend-latest` service
+1. Go to your backend service
 2. Click "Manual Deploy" → "Deploy latest commit"
 3. Or click "Clear build cache & deploy"
 
@@ -158,13 +158,13 @@ Redis doesn't need migrations - it's a key-value store that creates keys on dema
 
 ### Test PostgreSQL
 ```bash
-curl https://jobapp-backend-latest.onrender.com/api/health
+curl https://your-service-name.onrender.com/api/health
 ```
 
 ### Test API Endpoints
 ```bash
 # Register a user (should create record in PostgreSQL)
-curl -X POST https://jobapp-backend-latest.onrender.com/api/v1/auth/register \
+curl -X POST https://your-service-name.onrender.com/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "test@example.com",
@@ -180,7 +180,7 @@ If this works, your PostgreSQL tables are created and working!
 
 If you can't rebuild the Docker image, you can manually run migrations via Render Shell:
 
-1. Go to Render dashboard → `jobapp-backend-latest` → Shell
+1. Go to Render dashboard → your backend service → Shell
 2. Run these commands:
    ```bash
    cd /var/www/html

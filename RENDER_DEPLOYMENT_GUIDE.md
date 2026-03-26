@@ -71,7 +71,7 @@ Once deployment succeeds, test your API:
 
 ```bash
 # Test health endpoint
-curl https://jobswipe-eff8.onrender.com/api/health
+curl https://your-service-name.onrender.com/api/health
 
 # Expected response:
 {
@@ -142,9 +142,9 @@ Once GitHub secrets are added:
 
 ## 🌐 Production URLs
 
-- **API Base URL**: `https://jobswipe-eff8.onrender.com`
-- **Health Check**: `https://jobswipe-eff8.onrender.com/api/health`
-- **API Endpoints**: `https://jobswipe-eff8.onrender.com/api/v1/*`
+- **API Base URL**: `https://your-service-name.onrender.com`
+- **Health Check**: `https://your-service-name.onrender.com/api/health`
+- **API Endpoints**: `https://your-service-name.onrender.com/api/v1/*`
 
 ## 📝 Important Notes
 

@@ -23,7 +23,7 @@ But it's NOT running:
 
 ### Step 1: Find the Override Commands
 
-Go to your Render dashboard for `jobapp-backend-latest`:
+Go to your Render dashboard for your backend service:
 
 1. Click on your service
 2. Go to **Settings** tab
@@ -91,13 +91,13 @@ MongoDB setup completed successfully!
 
 ```bash
 # Test health endpoint
-curl https://jobapp-backend-latest.onrender.com/api/health
+curl https://your-service-name.onrender.com/api/health
 
 # Test debug endpoint (should work now, not 404)
-curl https://jobapp-backend-latest.onrender.com/api/debug/database
+curl https://your-service-name.onrender.com/api/debug/database
 
 # Test auth routes
-curl -X POST https://jobapp-backend-latest.onrender.com/api/v1/auth/register \
+curl -X POST https://your-service-name.onrender.com/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{"email":"test@example.com","password":"password123","role":"applicant"}'
 ```
