@@ -49,7 +49,6 @@ class ApplicantProfileDocument extends Model
             'email_enabled' => true,
             'push_enabled' => true,
             'channels' => [
-                'interview_invitation' => ['email' => true, 'push' => true],
                 'match_found' => ['email' => true, 'push' => true],
                 'profile_tips' => ['email' => false, 'push' => false],
             ],
