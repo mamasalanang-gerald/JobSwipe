@@ -9,20 +9,34 @@ RUN docker-php-ext-install pdo pdo_pgsql bcmath mbstring zip pcntl
 
 RUN pecl install mongodb && docker-php-ext-enable mongodb
 
+# Install Redis extension for queue support
+RUN pecl install redis && docker-php-ext-enable redis
+
+# Configure PHP-FPM to log to stderr/stdout for Render
+RUN echo "catch_workers_output = yes" >> /usr/local/etc/php-fpm.d/docker.conf && \
+    echo "decorate_workers_output = no" >> /usr/local/etc/php-fpm.d/docker.conf && \
+    echo "php_admin_flag[log_errors] = on" >> /usr/local/etc/php-fpm.d/docker.conf && \
+    echo "php_admin_value[error_log] = /proc/self/fd/2" >> /usr/local/etc/php-fpm.d/docker.conf
+
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
 COPY backend/ .
 
-RUN composer install --optimize-autoloader --no-dev --no-interaction --prefer-dist && \
-    php artisan package:discover --ansi
+# Update composer.lock if needed, then install
+RUN composer update resend/resend-php --no-interaction --prefer-dist --no-scripts || true
+RUN composer install --optimize-autoloader --no-interaction --prefer-dist --no-scripts
 
-# Write a flag file that survives into the running container.
-# ClearStaleRouteCache middleware checks for this on the first request and
-# nukes any route cache that Render wrote before our ENTRYPOINT ran.
-RUN touch /tmp/render_precached_routes
+# CRITICAL FIX: Hide Laravel from Render's auto-detection
+# Render detects Laravel from both 'artisan' and 'composer.json' files
+# and runs pre-deploy commands (migrate, route:cache) BEFORE our container starts.
+# We rename them during build, then restore them in start.sh.
+RUN mv artisan artisan.hidden && \
+    mv composer.json composer.json.hidden && \
+    mv composer.lock composer.lock.hidden
 
+# No longer need the flag file approach since Render won't detect Laravel
 RUN mkdir -p storage/logs storage/framework/cache/data \
     storage/framework/sessions storage/framework/views \
     bootstrap/cache resources/views && \
@@ -69,41 +83,96 @@ COPY <<EOF /etc/supervisor/conf.d/supervisord.conf
 [supervisord]
 nodaemon=true
 user=root
+loglevel=info
 
 [program:php-fpm]
 command=php-fpm
 autostart=true
 autorestart=true
-stderr_logfile=/var/log/php-fpm.err.log
-stdout_logfile=/var/log/php-fpm.out.log
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
 
 [program:nginx]
 command=nginx -g "daemon off;"
 autostart=true
 autorestart=true
-stderr_logfile=/var/log/nginx.err.log
-stdout_logfile=/var/log/nginx.out.log
+stderr_logfile=/dev/stderr
+stderr_logfile_maxbytes=0
+stdout_logfile=/dev/stdout
+stdout_logfile_maxbytes=0
 EOF
 
 COPY <<EOF /start.sh
 #!/bin/sh
 set -e
 
+# CRITICAL: Restore files that were hidden from Render's detection
+if [ -f artisan.hidden ]; then
+    mv artisan.hidden artisan
+    echo "Restored artisan file"
+fi
+if [ -f composer.json.hidden ]; then
+    mv composer.json.hidden composer.json
+    mv composer.lock.hidden composer.lock
+    echo "Restored composer files"
+fi
+
+# Check if running as Horizon worker
+if [ "\$RUN_HORIZON" = "true" ]; then
+    echo "=== Starting Laravel Horizon Worker ==="
+    
+    # Log environment for debugging
+    echo "Environment check:"
+    echo "  QUEUE_CONNECTION: \$QUEUE_CONNECTION"
+    echo "  MAIL_MAILER: \$MAIL_MAILER"
+    echo "  MAIL_HOST: \$MAIL_HOST"
+    echo "  REDIS_HOST: \$REDIS_HOST"
+    
+    # Wait for Redis
+    echo "Waiting for Redis..."
+    RETRY_COUNT=0; MAX_RETRIES=30
+    until php -r "\\\$r = new Redis(); \\\$r->connect('\$REDIS_HOST', \$REDIS_PORT); \\\$r->ping();" 2>/dev/null || [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; do
+        RETRY_COUNT=\$((RETRY_COUNT + 1))
+        if [ \$RETRY_COUNT -lt \$MAX_RETRIES ]; then
+            echo "  not ready (\$RETRY_COUNT/\$MAX_RETRIES)..."
+            sleep 2
+        fi
+    done
+    
+    if [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; then
+        echo "ERROR: Redis timeout"
+        exit 1
+    fi
+    
+    echo "Redis ready."
+    
+    # Clear config cache to pick up new settings
+    echo "Clearing config cache..."
+    php artisan config:clear 2>/dev/null || true
+    
+    echo "Starting Horizon..."
+    exec php artisan horizon
+fi
+
+# Otherwise run web server
 echo "=== Starting JobApp Backend ==="
 
-# Remove stale caches from Render's pre-start hook.
-# The middleware also handles this on first request as a fallback,
-# but clearing here means even the health check gets clean routes.
-echo "Clearing Render pre-cached routes..."
+# Clear any stale caches (shouldn't exist since Render didn't detect Laravel)
+echo "Clearing any existing caches..."
 rm -f /var/www/html/bootstrap/cache/routes-*.php
 rm -f /var/www/html/bootstrap/cache/config.php
 
 if [ "\$SKIP_MIGRATIONS" != "true" ]; then
     echo "Waiting for PostgreSQL..."
     RETRY_COUNT=0; MAX_RETRIES=30
-    until php artisan db:show 2>/dev/null || [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; do
-        echo "  not ready (\$RETRY_COUNT/\$MAX_RETRIES)..."
-        sleep 2; RETRY_COUNT=\$((RETRY_COUNT + 1))
+    until php -r "new PDO('pgsql:host=\$DB_HOST;port=\$DB_PORT;dbname=\$DB_DATABASE', '\$DB_USERNAME', '\$DB_PASSWORD');" 2>/dev/null || [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; do
+        RETRY_COUNT=\$((RETRY_COUNT + 1))
+        if [ \$RETRY_COUNT -lt \$MAX_RETRIES ]; then
+            echo "  not ready (\$RETRY_COUNT/\$MAX_RETRIES)..."
+            sleep 2
+        fi
     done
     
     if [ \$RETRY_COUNT -eq \$MAX_RETRIES ]; then
@@ -117,23 +186,27 @@ if [ "\$SKIP_MIGRATIONS" != "true" ]; then
         php artisan view:clear   2>/dev/null || true
         
         echo "Running migrations..."
-        php artisan migrate --force || { php artisan db:show; exit 1; }
+        php artisan migrate --force 2>&1 || { echo "Migration failed"; exit 1; }
         
         echo "Setting up MongoDB..."
         php artisan mongo:setup || echo "WARNING: MongoDB setup non-critical, continuing"
         
-        echo "Re-caching with correct routes..."
+        echo "Caching configuration and routes..."
         php artisan config:cache
+        
+        # IMPORTANT: Clear route cache before caching to pick up new routes
+        php artisan route:clear 2>/dev/null || true
         php artisan route:cache
         
-        ls -la /var/www/html/bootstrap/cache/routes-*.php 2>/dev/null \
-            && echo "Route cache OK." || echo "WARNING: No route cache written"
+        if ls /var/www/html/bootstrap/cache/routes-*.php 2>/dev/null; then
+            echo "Route cache created successfully."
+        else
+            echo "WARNING: No route cache written"
+        fi
         
         [ -d resources/views ] && php artisan view:cache || true
         
-        # Clear the poison flag — middleware won't need to intervene
-        rm -f /tmp/render_precached_routes
-        echo "Cleared render_precached_routes flag."
+        echo "Startup caching complete."
     fi
 else
     echo "SKIP_MIGRATIONS=true — skipping."
