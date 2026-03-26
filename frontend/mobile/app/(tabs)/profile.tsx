@@ -1,215 +1,482 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import {
-  PageHeader, SectionCard, Divider, Spacer,
-  AvatarCircle, StatBox, PreferenceRow,
-  TextButton, TagBadge,
-  Colors, Typography, Spacing, Radii, cardBase,
-} from '../../components/ui';
+  View, Text, ScrollView, TouchableOpacity,
+  StyleSheet, StatusBar, Dimensions, FlatList, Image,
+} from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 
-// ─── Data ────────────────────────────────────────────────────────────────────
-const SKILLS: { label: string; variant: 'primary' | 'success' | 'warning' | 'neutral' }[] = [
-  { label: 'React Native', variant: 'primary'  },
-  { label: 'TypeScript',   variant: 'primary'  },
-  { label: 'Node.js',      variant: 'success'  },
-  { label: 'GraphQL',      variant: 'warning'  },
-  { label: 'AWS',          variant: 'neutral'  },
-  { label: 'Figma',        variant: 'neutral'  },
-  { label: 'Swift',        variant: 'neutral'  },
+const { width: SCREEN_W } = Dimensions.get('window');
+
+// ─── Theme ────────────────────────────────────────────────────────────────────
+const T = {
+  bg:          '#0f0a1e',
+  surface:     '#16102a',
+  surfaceHigh: '#1e1535',
+  border:      'rgba(255,255,255,0.07)',
+  primary:     '#a855f7',
+  danger:      '#f87171',
+  dangerBg:    'rgba(239,68,68,0.08)',
+  textPrimary: '#ffffff',
+  textSub:     'rgba(255,255,255,0.5)',
+  textHint:    'rgba(255,255,255,0.28)',
+  gold:        '#f59e0b',
+};
+
+// ─── Data ─────────────────────────────────────────────────────────────────────
+const SKILLS = [
+  'React', 'TypeScript', 'Node.js', 'Python',
+  'AWS', 'GraphQL', 'Figma', 'Leadership',
 ];
 
 const EXPERIENCE = [
-  { role: 'Senior Frontend Engineer', company: 'Stripe',    period: '2022 – Present', icon: 'code-braces',  color: Colors.primary  },
-  { role: 'Mobile Engineer',          company: 'Shopify',   period: '2020 – 2022',    icon: 'cellphone',    color: Colors.success  },
-  { role: 'Junior Developer',         company: 'Accenture', period: '2018 – 2020',    icon: 'laptop',       color: Colors.warning  },
+  { role: 'Senior Developer',    company: 'Tech Company', period: '2021 – Present', icon: 'code-braces' as const, color: T.primary   },
+  { role: 'Full Stack Developer', company: 'Startup Inc',  period: '2019 – 2021',   icon: 'laptop'      as const, color: '#4ade80' },
 ];
 
-const PREFS = [
-  { key: 'remote',    label: 'Remote only',        icon: 'home-outline'     },
-  { key: 'relocate',  label: 'Open to relocation', icon: 'airplane' },
-  { key: 'contract',  label: 'Open to contract',   icon: 'file-sign'        },
+type Plan = {
+  id: string; name: string; price: string | null;
+  color: string; border: string; bg: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+  badge: string | null;
+  features: string[];
+  locked: string[];
+  cta: string | null;
+};
+
+const PLANS: Plan[] = [
+  {
+    id: 'free', name: 'Free', price: null,
+    color: T.primary, border: 'rgba(168,85,247,0.3)', bg: 'rgba(168,85,247,0.05)',
+    icon: 'star-outline', badge: null,
+    features: ['10 applications / month', 'Basic job matching'],
+    locked: ['See who liked you', 'Priority results', 'Advanced insights', 'Career coach'],
+    cta: null,
+  },
+  {
+    id: 'gold', name: 'Gold', price: '$9.99 / mo',
+    color: T.gold, border: 'rgba(245,158,11,0.35)', bg: 'rgba(245,158,11,0.05)',
+    icon: 'lightning-bolt', badge: 'POPULAR',
+    features: ['Unlimited applications', 'Advanced matching', 'See who liked you', 'Priority results'],
+    locked: ['Advanced insights', 'Career coach'],
+    cta: 'Upgrade to Gold',
+  },
+  {
+    id: 'platinum', name: 'Platinum', price: '$19.99 / mo',
+    color: '#cbd5e1', border: 'rgba(203,213,225,0.3)', bg: 'rgba(148,163,184,0.05)',
+    icon: 'diamond-stone', badge: 'BEST VALUE',
+    features: ['Everything in Gold', 'Advanced insights', 'Dedicated career coach', 'AI-powered matching'],
+    locked: [],
+    cta: 'Upgrade to Platinum',
+  },
 ];
+
+const PLAN_W = SCREEN_W - 48;
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+function SectionLabel({ title }: { title: string }) {
+  return <Text style={sl.label}>{title}</Text>;
+}
+const sl = StyleSheet.create({
+  label: { fontSize: 11, fontWeight: '700', color: 'rgba(255,255,255,0.25)', letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 14 },
+});
+
+function Sep() {
+  return <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 28, marginHorizontal: 24 }} />;
+}
 
 // ─── ProfileTab ───────────────────────────────────────────────────────────────
 export default function ProfileTab() {
-  const tabBarHeight = useTabBarHeight();
+  const tabBarHeight      = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
-  const [editMode, setEditMode] = useState(false);
-  const [toggles, setToggles] = useState({ remote: true, relocate: false, contract: true });
 
-  const toggle = (key: string) =>
-    setToggles(p => ({ ...p, [key]: !p[key as keyof typeof p] }));
+  const [editMode, setEditMode]       = useState(false);
+  const [avatarPhoto, setAvatarPhoto] = useState<string | null>(null);
+  const [photos, setPhotos]           = useState<(string | null)[]>([null, null, null]);
+  const [activePlan, setActivePlan]   = useState(0);
+  const planRef = useRef<FlatList<Plan>>(null);
+
+  const pickAvatar = async () => {
+    const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.85 });
+    if (!r.canceled) setAvatarPhoto(r.assets[0].uri);
+  };
+
+  const pickPhoto = async (i: number) => {
+    const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [4, 5], quality: 0.85 });
+    if (!r.canceled) { const p = [...photos]; p[i] = r.assets[0].uri; setPhotos(p); }
+  };
+
+  const onPlanScroll = (e: any) =>
+    setActivePlan(Math.round(e.nativeEvent.contentOffset.x / (PLAN_W + 12)));
+
+  const renderPlan = ({ item }: { item: Plan }) => {
+    const isCurrent = item.id === 'free';
+    return (
+      <View style={[ps.card, { width: PLAN_W, borderColor: item.border, backgroundColor: item.bg }]}>
+        <View style={ps.top}>
+          <View style={[ps.iconWrap, { backgroundColor: item.color + '20' }]}>
+            <MaterialCommunityIcons name={item.icon} size={18} color={item.color} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[ps.name, { color: item.color }]}>{item.name}</Text>
+            <Text style={ps.price}>{item.price ?? 'Free forever'}</Text>
+          </View>
+          {item.badge && (
+            <View style={[ps.badge, { backgroundColor: item.color + '18', borderColor: item.color + '40' }]}>
+              <Text style={[ps.badgeText, { color: item.color }]}>{item.badge}</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={ps.sep} />
+
+        <View style={{ gap: 8 }}>
+          {item.features.map((f, i) => (
+            <View key={`inc-${i}`} style={ps.row}>
+              <MaterialCommunityIcons name="check-circle" size={13} color={item.color} />
+              <Text style={ps.rowText}>{f}</Text>
+            </View>
+          ))}
+          {item.locked.map((f, i) => (
+            <View key={`lock-${i}`} style={ps.row}>
+              <MaterialCommunityIcons name="lock-outline" size={13} color={T.textHint} />
+              <Text style={[ps.rowText, { color: T.textHint }]}>{f}</Text>
+            </View>
+          ))}
+        </View>
+
+        {item.cta && !isCurrent ? (
+          <TouchableOpacity style={[ps.cta, { backgroundColor: item.color }]} activeOpacity={0.85}>
+            <Text style={[ps.ctaText, { color: item.id === 'platinum' ? '#0f172a' : '#fff' }]}>{item.cta}</Text>
+          </TouchableOpacity>
+        ) : isCurrent ? (
+          <View style={ps.activePill}>
+            <MaterialCommunityIcons name="check-circle" size={12} color={T.primary} />
+            <Text style={ps.activePillText}>Current plan</Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  };
 
   return (
     <View style={[s.screen, { paddingTop: topInset }]}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle="light-content" />
 
-      <PageHeader
-        title="Profile"
-        action
-        actionIcon={editMode ? 'check' : 'pencil-outline'}
-        onActionPress={() => setEditMode(e => !e)}
-      />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarHeight + 40 }}>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: tabBarHeight + 16 }]}>
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <View style={s.hero}>
+          <TouchableOpacity onPress={pickAvatar} activeOpacity={0.85} style={s.avatarWrap}>
+            {avatarPhoto
+              ? <Image source={{ uri: avatarPhoto }} style={s.avatar} />
+              : <View style={s.avatarFallback}><Text style={s.avatarInitials}>JD</Text></View>
+            }
+            <View style={s.camBadge}>
+              <MaterialCommunityIcons name="camera" size={10} color="#fff" />
+            </View>
+          </TouchableOpacity>
 
-        {/* ── Avatar card ── */}
-        <SectionCard>
-          <View style={s.avatarRow}>
-            <AvatarCircle initials="AJ" size={64} color={Colors.primary} ring ringColor={Colors.primaryMid} />
-            <View style={s.avatarInfo}>
-              <Text style={s.name}>Alex Johnson</Text>
-              <Text style={s.headline}>Senior React Native Engineer</Text>
-              <View style={s.locRow}>
-                <MaterialCommunityIcons name="map-marker-outline" size={13} color={Colors.gray400} />
-                <Text style={s.locText}>San Francisco, CA</Text>
-              </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+              <Text style={s.name}>John Doe</Text>
+              <MaterialCommunityIcons name="check-decagram" size={15} color={T.primary} />
+            </View>
+            <Text style={s.headline}>Full Stack Developer</Text>
+            <View style={s.locRow}>
+              <MaterialCommunityIcons name="map-marker-outline" size={11} color={T.textHint} />
+              <Text style={s.loc}>San Francisco, CA</Text>
             </View>
           </View>
 
-          <Divider />
-
-          {/* Profile strength */}
-          <View style={s.strengthRow}>
-            <Text style={s.strengthLabel}>Profile strength</Text>
-            <Text style={s.strengthPct}>82%</Text>
-          </View>
-          <View style={s.strengthTrack}>
-            <View style={[s.strengthFill, { width: '82%' }]} />
-          </View>
-        </SectionCard>
-
-        {/* ── Stats ── */}
-        <View style={s.statsRow}>
-          <StatBox value="24" label="Applied" />
-          <StatBox value="8"  label="Matches" />
-          <StatBox value="3"  label="Interviews" />
+          <TouchableOpacity
+            style={[s.editBtn, editMode && s.editBtnSaving]}
+            onPress={() => setEditMode(e => !e)}
+            activeOpacity={0.8}
+          >
+            <MaterialCommunityIcons
+              name={editMode ? 'check' : 'pencil-outline'}
+              size={13}
+              color={editMode ? '#4ade80' : T.primary}
+            />
+            <Text style={[s.editBtnText, editMode && { color: '#4ade80' }]}>
+              {editMode ? 'Save' : 'Edit'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
-        {/* ── Salary target ── */}
-        <SectionCard title="Salary target">
-          <TouchableOpacity style={s.salaryRow} activeOpacity={0.8}>
-            <View style={s.salaryIcon}>
-              <MaterialCommunityIcons name="currency-usd" size={18} color={Colors.primary} />
-            </View>
-            <Text style={s.salaryText}>$120k – $160k / year</Text>
-            <MaterialCommunityIcons name="chevron-right" size={18} color={Colors.gray300} />
-          </TouchableOpacity>
-        </SectionCard>
+        {/* ── Stats ────────────────────────────────────────────────────────── */}
+        <View style={s.statsCard}>
+          {[
+            { label: 'Applied',    value: '12'  },
+            { label: 'Interviews', value: '3'   },
+            { label: 'Match %',    value: '88%' },
+          ].map((st, i) => (
+            <React.Fragment key={st.label}>
+              {i > 0 && <View style={s.statSep} />}
+              <View style={s.stat}>
+                <Text style={s.statVal}>{st.value}</Text>
+                <Text style={s.statLbl}>{st.label}</Text>
+              </View>
+            </React.Fragment>
+          ))}
+        </View>
 
-        {/* ── Skills ── */}
-        <SectionCard title="Skills" action={editMode ? () => {} : undefined} actionLabel="+ Add">
-          <View style={s.skillsWrap}>
-            {SKILLS.map((skill, i) => (
-              <View key={i} style={s.skillWrap}>
-                <TagBadge label={skill.label} variant={skill.variant} />
+        <Sep />
+
+        {/* ── About ────────────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <SectionLabel title="About" />
+          <Text style={s.aboutText}>
+            Passionate developer with expertise in building modern web applications.
+            Strong background in React, Node.js, and cloud technologies.
+          </Text>
+        </View>
+
+        <Sep />
+
+        {/* ── Photos ───────────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <SectionLabel title="Photos" />
+          <View style={s.photoGrid}>
+            {photos.map((uri, i) => (
+              <TouchableOpacity key={i} style={s.photoSlot} onPress={() => pickPhoto(i)} activeOpacity={0.8}>
+                {uri
+                  ? <Image source={{ uri }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+                  : <MaterialCommunityIcons name="plus" size={22} color={T.textHint} />
+                }
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <Sep />
+
+        {/* ── Skills ───────────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <SectionLabel title="Skills" />
+            {editMode && (
+              <TouchableOpacity style={s.addBtn}>
+                <MaterialCommunityIcons name="plus" size={12} color={T.primary} />
+                <Text style={s.addBtnText}>Add</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <View style={s.chips}>
+            {SKILLS.map((sk, i) => (
+              <View key={i} style={s.chip}>
+                <Text style={s.chipText}>{sk}</Text>
                 {editMode && (
-                  <TouchableOpacity style={s.skillRemove}>
-                    <MaterialCommunityIcons name="close" size={10} color={Colors.gray400} />
-                  </TouchableOpacity>
+                  <MaterialCommunityIcons name="close" size={10} color={T.textHint} style={{ marginLeft: 4 }} />
                 )}
               </View>
             ))}
           </View>
-        </SectionCard>
+        </View>
 
-        {/* ── Experience ── */}
-        <SectionCard title="Experience">
-          {EXPERIENCE.map((exp, i) => (
-            <View key={i}>
-              {i > 0 && <Divider />}
-              <View style={s.expRow}>
+        <Sep />
+
+        {/* ── Experience ───────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <SectionLabel title="Experience" />
+          <View style={{ gap: 16 }}>
+            {EXPERIENCE.map((exp, i) => (
+              <View key={i} style={s.expRow}>
                 <View style={[s.expIcon, { backgroundColor: exp.color + '18' }]}>
-                  <MaterialCommunityIcons name={exp.icon as any} size={18} color={exp.color} />
+                  <MaterialCommunityIcons name={exp.icon} size={15} color={exp.color} />
                 </View>
-                <View style={s.expInfo}>
+                <View style={{ flex: 1 }}>
                   <Text style={s.expRole}>{exp.role}</Text>
-                  <Text style={s.expCompany}>{exp.company}</Text>
+                  <Text style={s.expMeta}>{exp.company} · {exp.period}</Text>
                 </View>
-                <Text style={s.expPeriod}>{exp.period}</Text>
               </View>
+            ))}
+          </View>
+        </View>
+
+        <Sep />
+
+        {/* ── Education ────────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <SectionLabel title="Education" />
+          <View style={s.expRow}>
+            <View style={[s.expIcon, { backgroundColor: 'rgba(168,85,247,0.12)' }]}>
+              <MaterialCommunityIcons name="school-outline" size={15} color={T.primary} />
             </View>
-          ))}
-        </SectionCard>
+            <View style={{ flex: 1 }}>
+              <Text style={s.expRole}>BS Computer Science</Text>
+              <Text style={s.expMeta}>University of California · 2015 – 2019</Text>
+            </View>
+          </View>
+        </View>
 
-        {/* ── Preferences ── */}
-        <SectionCard title="Job preferences">
-          {PREFS.map((pref, i) => (
-            <PreferenceRow
-              key={pref.key}
-              icon={pref.icon}
-              label={pref.label}
-              value={toggles[pref.key as keyof typeof toggles]}
-              onChange={() => toggle(pref.key)}
-              borderBottom={i < PREFS.length - 1}
-            />
-          ))}
-        </SectionCard>
+        <Sep />
 
-        {/* ── Sign out ── */}
+        {/* ── Preferences ──────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <SectionLabel title="Job preferences" />
+          <View style={s.chips}>
+            {[
+              { label: 'Remote',    icon: 'home-outline'     as const, on: true  },
+              { label: 'Full-time', icon: 'briefcase-outline' as const, on: true  },
+              { label: '$120k+',    icon: 'currency-usd'     as const, on: true  },
+            ].map((p, i) => (
+              <View key={i} style={[s.prefChip, p.on && s.prefChipOn]}>
+                <MaterialCommunityIcons name={p.icon} size={13} color={p.on ? T.primary : T.textHint} />
+                <Text style={[s.chipText, p.on && { color: T.primary }]}>{p.label}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        <Sep />
+
+        {/* ── Subscription ─────────────────────────────────────────────────── */}
+        <View style={[s.section, { marginBottom: 16 }]}>
+          <SectionLabel title="Subscription" />
+        </View>
+
+        <FlatList<Plan>
+          ref={planRef}
+          data={PLANS}
+          renderItem={renderPlan}
+          keyExtractor={item => item.id}
+          horizontal
+          pagingEnabled={false}
+          showsHorizontalScrollIndicator={false}
+          snapToInterval={PLAN_W + 12}
+          snapToAlignment="start"
+          decelerationRate="fast"
+          onMomentumScrollEnd={onPlanScroll}
+          contentContainerStyle={{ paddingHorizontal: 24, gap: 12 }}
+          getItemLayout={(_, i) => ({ length: PLAN_W + 12, offset: (PLAN_W + 12) * i, index: i })}
+        />
+
+        <View style={s.dotsRow}>
+          {PLANS.map((plan, i) => (
+            <TouchableOpacity
+              key={i}
+              onPress={() => { planRef.current?.scrollToIndex({ index: i, animated: true }); setActivePlan(i); }}
+            >
+              <View style={[s.dot, { backgroundColor: activePlan === i ? PLANS[i].color : T.border, width: activePlan === i ? 20 : 6 }]} />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* ── Sign out ─────────────────────────────────────────────────────── */}
         <TouchableOpacity style={s.signOut} activeOpacity={0.8}>
-          <MaterialCommunityIcons name="logout" size={16} color={Colors.danger} />
+          <MaterialCommunityIcons name="logout" size={14} color={T.danger} />
           <Text style={s.signOutText}>Sign out</Text>
         </TouchableOpacity>
 
-        <Spacer size="xl" />
       </ScrollView>
     </View>
   );
 }
 
+// ─── Plan card styles ─────────────────────────────────────────────────────────
+const ps = StyleSheet.create({
+  card:         { borderRadius: 20, borderWidth: 1.5, padding: 18 },
+  top:          { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  iconWrap:     { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  name:         { fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
+  price:        { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  badge:        { borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText:    { fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
+  sep:          { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginBottom: 14 },
+  row:          { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowText:      { fontSize: 12, color: 'rgba(255,255,255,0.6)', flex: 1 },
+  cta:          { marginTop: 16, borderRadius: 22, paddingVertical: 13, alignItems: 'center' },
+  ctaText:      { fontSize: 13, fontWeight: '800' },
+  activePill:   { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14, justifyContent: 'center' },
+  activePillText: { fontSize: 11, fontWeight: '600', color: 'rgba(168,85,247,0.6)' },
+});
+
+// ─── Main styles ──────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: Colors.background },
-  scroll: { padding: Spacing['4'], gap: Spacing['3'] },
+  screen: { flex: 1, backgroundColor: T.bg },
 
-  avatarRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing['4'], marginBottom: Spacing['4'] },
-  avatarInfo: { flex: 1 },
-  name: { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.gray900, marginBottom: 2 },
-  headline: { fontSize: Typography.base, color: Colors.gray500, marginBottom: 5 },
-  locRow: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  locText: { fontSize: Typography.sm, color: Colors.gray400 },
-
-  strengthRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing['2'] },
-  strengthLabel: { fontSize: Typography.sm, color: Colors.gray400 },
-  strengthPct: { fontSize: Typography.sm, fontWeight: Typography.semibold, color: Colors.primary },
-  strengthTrack: { height: 5, backgroundColor: Colors.primaryLight, borderRadius: Radii.full, overflow: 'hidden' },
-  strengthFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: Radii.full },
-
-  statsRow: { flexDirection: 'row', gap: Spacing['3'] },
-
-  salaryRow: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing['3'],
-    backgroundColor: Colors.primaryLight, borderRadius: Radii.md, padding: Spacing['4'],
+  // Hero
+  hero: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 24, paddingTop: 16, paddingBottom: 20, gap: 14,
   },
-  salaryIcon: {
-    width: 32, height: 32, borderRadius: Radii.sm,
-    backgroundColor: Colors.white, alignItems: 'center', justifyContent: 'center',
+  avatarWrap:     { position: 'relative' },
+  avatar:         { width: 76, height: 76, borderRadius: 38 },
+  avatarFallback: { width: 76, height: 76, borderRadius: 38, backgroundColor: '#2d1b69', alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { fontSize: 24, fontWeight: '800', color: '#fff' },
+  camBadge: {
+    position: 'absolute', bottom: 1, right: 1,
+    width: 22, height: 22, borderRadius: 11,
+    backgroundColor: T.primary, borderWidth: 2, borderColor: T.bg,
+    alignItems: 'center', justifyContent: 'center',
   },
-  salaryText: { flex: 1, fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.primaryDark },
+  name:     { fontSize: 19, fontWeight: '800', color: '#fff', letterSpacing: -0.4 },
+  headline: { fontSize: 13, color: T.textSub, marginBottom: 4 },
+  locRow:   { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  loc:      { fontSize: 11, color: T.textHint },
+  editBtn:  {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1, borderColor: 'rgba(168,85,247,0.28)',
+    borderRadius: 20, paddingHorizontal: 11, paddingVertical: 5,
+    backgroundColor: 'rgba(168,85,247,0.08)',
+  },
+  editBtnSaving:  { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' },
+  editBtnText:    { fontSize: 11, fontWeight: '700', color: T.primary },
 
-  skillsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing['2'] },
-  skillWrap: { position: 'relative' },
-  skillRemove: {
-    position: 'absolute', top: -4, right: -4,
-    width: 14, height: 14, borderRadius: Radii.full,
-    backgroundColor: Colors.gray200, alignItems: 'center', justifyContent: 'center',
+  // Stats
+  statsCard: {
+    flexDirection: 'row', marginHorizontal: 24,
+    backgroundColor: T.surface, borderRadius: 16,
+    borderWidth: 1, borderColor: T.border, paddingVertical: 16,
+  },
+  stat:    { flex: 1, alignItems: 'center' },
+  statVal: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.5 },
+  statLbl: { fontSize: 10, color: T.textHint, marginTop: 3, fontWeight: '500' },
+  statSep: { width: 1, backgroundColor: T.border },
+
+  // Sections
+  section: { paddingHorizontal: 24 },
+  aboutText: { fontSize: 14, color: T.textSub, lineHeight: 22 },
+
+  // Photos
+  photoGrid: { flexDirection: 'row', gap: 8 },
+  photoSlot: {
+    flex: 1, aspectRatio: 0.85, borderRadius: 14,
+    backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border,
+    alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
 
-  expRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['3'] },
-  expIcon: { width: 40, height: 40, borderRadius: Radii.md, alignItems: 'center', justifyContent: 'center' },
-  expInfo: { flex: 1 },
-  expRole: { fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.gray900 },
-  expCompany: { fontSize: Typography.base, color: Colors.gray500, marginTop: 1 },
-  expPeriod: { fontSize: Typography.xs, color: Colors.gray400 },
+  // Skills
+  chips:     { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
+  chip:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border },
+  chipText:  { fontSize: 12, fontWeight: '600', color: T.textSub },
+  addBtn:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(168,85,247,0.28)', backgroundColor: 'rgba(168,85,247,0.08)' },
+  addBtnText:{ fontSize: 11, fontWeight: '700', color: T.primary },
 
+  // Preferences
+  prefChip:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border },
+  prefChipOn: { borderColor: 'rgba(168,85,247,0.35)', backgroundColor: 'rgba(168,85,247,0.09)' },
+
+  // Experience
+  expRow:  { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  expIcon: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  expRole: { fontSize: 13, fontWeight: '700', color: '#fff' },
+  expMeta: { fontSize: 11, color: T.textHint, marginTop: 2 },
+
+  // Plan dots
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 14, marginBottom: 8 },
+  dot:     { height: 6, borderRadius: 3 },
+
+  // Sign out
   signOut: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: Spacing['2'], paddingVertical: Spacing['4'],
-    borderRadius: Radii.lg, backgroundColor: Colors.dangerLight,
-    borderWidth: 1, borderColor: Colors.dangerMid,
+    gap: 7, marginHorizontal: 24, marginTop: 28,
+    paddingVertical: 13, borderRadius: 13,
+    backgroundColor: T.dangerBg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.15)',
   },
-  signOutText: { fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.danger },
+  signOutText: { fontSize: 13, fontWeight: '700', color: T.danger },
 });
