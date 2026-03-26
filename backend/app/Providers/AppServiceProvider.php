@@ -72,12 +72,12 @@ class AppServiceProvider extends ServiceProvider
         if (app()->environment('production')) {
             app()->bind('router', function ($app) {
                 $router = new \Illuminate\Routing\Router($app['events'], $app);
-                
+
                 // Override the routesAreCached method to always return false
                 $router->macro('routesAreCached', function () {
                     return false;
                 });
-                
+
                 return $router;
             });
         }
