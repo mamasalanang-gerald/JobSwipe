@@ -2,6 +2,7 @@
 
 namespace App\Models\PostgreSQL;
 
+use App\Services\UserDataCleanupService;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Str;
 use Laravel\Cashier\Billable;
@@ -50,6 +51,10 @@ class User extends Authenticatable
             if (empty($model->id)) {
                 $model->id = (string) Str::uuid();
             }
+        });
+
+        static::deleting(function (self $model) {
+            app(UserDataCleanupService::class)->cleanupForDeletedUser($model);
         });
     }
 

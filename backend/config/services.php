@@ -21,6 +21,7 @@ return [
         'secret' => env('STRIPE_SECRET'),
         'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         'basic_price_id' => env('STRIPE_BASIC_PRICE_ID'),
+        'checkout_idempotency_ttl_seconds' => env('STRIPE_CHECKOUT_IDEMPOTENCY_TTL_SECONDS', 86400),
     ],
 
     'slack' => [
