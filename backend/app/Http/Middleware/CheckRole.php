@@ -13,7 +13,7 @@ class CheckRole
     {
         $user = $request->user();
 
-        if (!$user) {
+        if (! $user) {
             return new JsonResponse([
                 'success' => false,
                 'message' => 'Unauthenticated',
@@ -21,7 +21,7 @@ class CheckRole
             ], 401);
         }
 
-        if ($roles !== [] && !in_array($user->role, $roles, true)) {
+        if ($roles !== [] && ! in_array($user->role, $roles, true)) {
             return new JsonResponse([
                 'success' => false,
                 'message' => 'You are not allowed to access this resource.',

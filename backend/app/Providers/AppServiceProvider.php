@@ -59,11 +59,15 @@ class AppServiceProvider extends ServiceProvider
         // $this->app->singleton(\App\Services\InvitationService::class);
 
         $this->app->singleton(\App\Services\OTPService::class);
+        $this->app->singleton(\App\Services\ProfileCompletionService::class);
+        $this->app->singleton(\App\Services\ProfileSocialLinksValidator::class);
+        $this->app->singleton(\App\Services\ProfileOnboardingService::class);
         $this->app->singleton(\App\Services\ProfileService::class);
         $this->app->singleton(\App\Services\FileUploadService::class);
         $this->app->singleton(\App\Services\SubscriptionService::class);
         $this->app->singleton(\App\Services\TokenService::class);
         $this->app->singleton(\App\Services\AuthService::class);
+        $this->app->singleton(\App\Services\UserDataCleanupService::class);
     }
 
     /**
