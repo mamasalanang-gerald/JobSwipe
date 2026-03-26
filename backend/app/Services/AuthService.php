@@ -18,12 +18,29 @@ class AuthService
 
     public function initiateRegistration(string $email, string $password, string $role): string
     {
+        \Log::info('AuthService: Starting registration', [
+            'email' => $email,
+            'role' => $role,
+        ]);
+
         if ($this->users->emailExists($email)) {
+            \Log::warning('AuthService: Email already exists', ['email' => $email]);
+
             return 'email_taken';
         }
 
         $passwordHash = Hash::make($password, ['rounds' => config('hashing.bcrypt.rounds', 10)]);
-        $this->otp->sendOtp($email, $passwordHash, $role);
+
+        try {
+            $this->otp->sendOtp($email, $passwordHash, $role);
+            \Log::info('AuthService: OTP sent successfully', ['email' => $email]);
+        } catch (\Exception $e) {
+            \Log::error('AuthService: Failed to send OTP', [
+                'email' => $email,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
 
         return 'otp_sent';
     }
