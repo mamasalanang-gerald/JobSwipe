@@ -1,6 +1,7 @@
 #!/bin/bash
 
 echo "Checking production PostgreSQL tables..."
-# Replace with your actual connection string from Render dashboard
-# docker run -it --rm postgres:15-alpine psql postgresql://username:password@host:5432/database -c "\dt"
-echo "Please set your PostgreSQL connection string from Render dashboard"
+# Set DATABASE_URL environment variable with your connection string from Render dashboard
+# Example: export DATABASE_URL="postgresql://user:pass@host:5432/dbname"
+# docker run -it --rm postgres:15-alpine psql "$DATABASE_URL" -c "\dt"
+echo "Please set DATABASE_URL environment variable with your PostgreSQL connection string from Render dashboard"
