@@ -38,10 +38,14 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Repositories\MongoDB\SwipeHistoryRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\ApplicationRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\ApplicantProfileRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\CompanyProfileRepository::class);
         $this->app->singleton(\App\Repositories\Redis\OTPCacheRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\UserRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\JobPostingRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\PointEventRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\NotificationRepository::class);
+        $this->app->singleton(\App\Repositories\MongoDB\ApplicantProfileDocumentRepository::class);
+        $this->app->singleton(\App\Repositories\MongoDB\CompanyProfileDocumentRepository::class);
 
         // -----------------------------------------------------------------
         // Services
@@ -52,12 +56,20 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Services\SwipeService::class);
         $this->app->singleton(\App\Services\DeckService::class);
         $this->app->singleton(\App\Services\PointService::class);
+        $this->app->singleton(\App\Services\NotificationService::class);
+        // $this->app->singleton(\App\Services\PointService::class);
         // $this->app->singleton(\App\Services\InvitationService::class);
 
         $this->app->singleton(\App\Services\OTPService::class);
+        $this->app->singleton(\App\Services\ProfileCompletionService::class);
+        $this->app->singleton(\App\Services\ProfileSocialLinksValidator::class);
+        $this->app->singleton(\App\Services\ProfileOnboardingService::class);
         $this->app->singleton(\App\Services\ProfileService::class);
+        $this->app->singleton(\App\Services\FileUploadService::class);
+        $this->app->singleton(\App\Services\SubscriptionService::class);
         $this->app->singleton(\App\Services\TokenService::class);
         $this->app->singleton(\App\Services\AuthService::class);
+        $this->app->singleton(\App\Services\UserDataCleanupService::class);
     }
 
     /**
@@ -65,6 +77,22 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // CRITICAL FIX: Disable route caching on Render.com
+        // Render runs `php artisan route:cache` before our container starts,
+        // caching routes before api.php is loaded. This causes all API routes to 404.
+        // By setting routesAreCached to always return false, we force Laravel to
+        // load routes from files on every request (negligible performance impact).
+        if (app()->environment('production')) {
+            app()->bind('router', function ($app) {
+                $router = new \Illuminate\Routing\Router($app['events'], $app);
+
+                // Override the routesAreCached method to always return false
+                $router->macro('routesAreCached', function () {
+                    return false;
+                });
+
+                return $router;
+            });
+        }
     }
 }
