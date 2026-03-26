@@ -54,4 +54,22 @@ class ApplicantProfileDocumentRepository
     {
         return ApplicantProfileDocument::whereIn('skills.name', $skills)->get();
     }
+
+    public function getNotificationPreferences(string $userId): ?array
+    {
+        $profile = $this->findByUserId($userId);
+
+        return $profile ? $profile->getNotificationPreferences() : null;
+    }
+
+    public function updateNotificationPreferences(string $userId, array $preferences): void
+    {
+        $profile = $this->findByUserId($userId);
+
+        if ($profile) {
+            $currentPrefs = $profile->getNotificationPreferences();
+            $merged = array_merge($currentPrefs, $preferences);
+            $profile->update(['notification_preferences' => $merged]);
+        }
+    }
 }

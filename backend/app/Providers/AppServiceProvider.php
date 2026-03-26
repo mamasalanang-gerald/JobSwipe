@@ -41,6 +41,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Repositories\Redis\OTPCacheRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\UserRepository::class);
         $this->app->singleton(\App\Repositories\PostgreSQL\JobPostingRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\NotificationRepository::class);
+        $this->app->singleton(\App\Repositories\MongoDB\ApplicantProfileDocumentRepository::class);
+        $this->app->singleton(\App\Repositories\MongoDB\CompanyProfileDocumentRepository::class);
 
         // -----------------------------------------------------------------
         // Services
@@ -50,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
 
         $this->app->singleton(\App\Services\SwipeService::class);
         $this->app->singleton(\App\Services\DeckService::class);
+        $this->app->singleton(\App\Services\NotificationService::class);
         // $this->app->singleton(\App\Services\PointService::class);
         // $this->app->singleton(\App\Services\InvitationService::class);
 
