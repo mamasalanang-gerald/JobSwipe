@@ -126,7 +126,7 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_PASSWORD: password
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
           POSTGRES_DB: jobapp_test
         options: >-
           --health-cmd pg_isready
@@ -169,8 +169,10 @@ jobs:
         run: |
           cd backend
           cp .env.example .env
-          sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
-          sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
+          sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
+          sed -i 's/REDIS_HOST=127.0.0.1/REDIS_HOST=127.0.0.1/' .env
+          sed -i "s/DB_PASSWORD=/DB_PASSWORD=${{ secrets.CI_POSTGRES_PASSWORD }}/" .env
+          sed -i "s/JWT_SECRET=/JWT_SECRET=${{ secrets.CI_JWT_SECRET }}/" .env
           php artisan key:generate
 
       - name: 🗄️ Run Backend Migrations
@@ -221,7 +223,7 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_PASSWORD: password
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
           POSTGRES_DB: jobapp_test
         options: >-
           --health-cmd pg_isready
@@ -235,7 +237,7 @@ jobs:
         image: mongo:7
         env:
           MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: password
+          MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.CI_MONGO_PASSWORD }}
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
           --health-interval 10s
@@ -279,6 +281,9 @@ jobs:
           sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
           sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
           sed -i 's/MONGO_HOST=mongodb/MONGO_HOST=127.0.0.1/' .env
+          sed -i "s/DB_PASSWORD=/DB_PASSWORD=${{ secrets.CI_POSTGRES_PASSWORD }}/" .env
+          sed -i "s/MONGO_ROOT_PASSWORD=/MONGO_ROOT_PASSWORD=${{ secrets.CI_MONGO_PASSWORD }}/" .env
+          sed -i "s/JWT_SECRET=/JWT_SECRET=${{ secrets.CI_JWT_SECRET }}/" .env
           php artisan key:generate
 
       - name: 🗄️ Run Backend Migrations & Seeders
@@ -323,7 +328,7 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_PASSWORD: password
+          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
           POSTGRES_DB: jobapp_test
         options: >-
           --health-cmd pg_isready
@@ -383,6 +388,9 @@ jobs:
           sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
           sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
           sed -i 's/MONGO_HOST=mongodb/MONGO_HOST=127.0.0.1/' .env
+          sed -i "s/DB_PASSWORD=/DB_PASSWORD=${{ secrets.CI_POSTGRES_PASSWORD }}/" .env
+          sed -i "s/MONGO_ROOT_PASSWORD=/MONGO_ROOT_PASSWORD=${{ secrets.CI_MONGO_PASSWORD }}/" .env
+          sed -i "s/JWT_SECRET=/JWT_SECRET=${{ secrets.CI_JWT_SECRET }}/" .env
           php artisan key:generate
 
       - name: 🗄️ Setup Database
@@ -466,7 +474,7 @@ jobs:
           echo "🧪 Testing Docker image..."
           docker run --rm -d --name jobapp-test -p 8080:8080 \
             -e SKIP_MIGRATIONS=true \
-            -e APP_KEY=base64:test-key-for-ci \
+            -e APP_KEY=${{ secrets.CI_APP_KEY }} \
             jobapp-test:latest
           sleep 10
           
