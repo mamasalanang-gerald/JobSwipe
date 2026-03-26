@@ -308,11 +308,10 @@ export default function HomeTab() {
     
       {/* Layer 2 — Action buttons */}
       <View style={[s.actionsRow, { bottom: actionsBottom }]}>
-        <SecondaryButton icon="close"               onPress={() => commitSwipe(-1)} style={s.btnDark} />
-        <GhostButton     icon="rotate-left"         onPress={undo}                  style={[s.btnDark, s.btnSm]} />
+        <TouchableOpacity style={s.btnDark} onPress={() => commitSwipe(-1)} activeOpacity={0.8}>
+          <MaterialCommunityIcons name="close" size={32} color={Colors.white} />
+        </TouchableOpacity>
         <PrimaryButton   icon="heart" iconSize={32} onPress={() => commitSwipe(1)}  style={s.btnHeart} />
-        <OutlineButton   icon="bookmark-outline"    onPress={() => {}}              style={[s.btnDark, s.btnSm]} iconColor={Colors.warning} />
-        <SuperButton     icon="star"                onPress={() => {}}              style={s.btnDark} />
       </View>
 
       {/*
@@ -446,13 +445,16 @@ const s = StyleSheet.create({
   actionsRow: {
     position: 'absolute', left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: Spacing['3'], zIndex: 40,
+    gap: Spacing['5'], zIndex: 40,
   },
   btnDark: {
-    width: 54, height: 54, backgroundColor: 'rgba(18,18,18,0.92)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)', borderRadius: Radii.full,
+    width: 70, height: 70,
+    backgroundColor: '#EF4444',
+    borderWidth: 0, borderColor: 'transparent', borderRadius: Radii.full,
+    shadowColor: '#EF4444', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10, elevation: 8,
+    alignItems: 'center', justifyContent: 'center',
   },
-  btnSm:   { width: 46, height: 46 },
+  btnSm:   {},
   btnHeart:{ width: 70, height: 70, backgroundColor: Colors.success, borderRadius: Radii.full, ...Shadows.colored(Colors.success) },
 
   // Expand panel
