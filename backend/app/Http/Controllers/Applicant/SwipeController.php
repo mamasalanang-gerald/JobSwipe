@@ -23,9 +23,10 @@ class SwipeController extends Controller
     public function getDeck(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
-        $perPage = $request->input('per_page', 20);
+        $perPage = (int) $request->input('per_page', 20);
+        $cursor = $request->input('cursor');
 
-        $deck = $this->deck->getJobDeck($userId, $perPage);
+        $deck = $this->deck->getJobDeck($userId, $perPage, is_string($cursor) ? $cursor : null);
 
         return $this->success(data: $deck);
     }
@@ -112,7 +113,7 @@ class SwipeController extends Controller
         return $this->success(data: [
             'daily_swipes_used' => $applicant->daily_swipes_used,
             'daily_swipe_limit' => $applicant->daily_swipe_limit,
-            'extra_swipes_balance' => $applicant->extra_swipes_balance,
+            'extra_swipe_balance' => $applicant->extra_swipe_balance,
             'has_swipes_remaining' => $applicant->hasSwipesRemaining(),
             'swipe_reset_at' => $applicant->swipe_reset_at,
         ]);

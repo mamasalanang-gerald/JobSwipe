@@ -3,6 +3,12 @@ set -e
 
 cd /var/www/html
 
+# CRITICAL: Remove bootstrap cache FIRST before anything else
+# This prevents stale service provider references from causing errors
+rm -rf bootstrap/cache/*.php 2>/dev/null || true
+rm -rf bootstrap/cache/packages.php 2>/dev/null || true
+rm -rf bootstrap/cache/services.php 2>/dev/null || true
+
 # Create necessary directories with proper permissions
 mkdir -p storage/logs \
          storage/framework/cache/data \
@@ -19,21 +25,8 @@ if [ ! -f vendor/autoload.php ]; then
     composer install --no-scripts --no-interaction --prefer-dist
 fi
 
-# Clear cached config to pick up new view.php configuration
-php artisan config:clear
-php artisan config:cache
-php artisan config:clear
-php artisan cache:clear
-php artisan view:clear
-
-# Run database migrations (only in production, not for Horizon worker)
-if [ "$RUN_HORIZON" != "true" ]; then
-    echo "Running PostgreSQL migrations..."
-    php artisan migrate --force
-    
-    echo "Setting up MongoDB collections..."
-    php artisan mongo:setup || echo "MongoDB setup skipped or failed (non-critical)"
-fi
+# Regenerate composer autoload to ensure clean state
+composer dump-autoload --optimize 2>/dev/null || true
 
 # Check if we should run Horizon (for background worker service)
 if [ "$RUN_HORIZON" = "true" ]; then

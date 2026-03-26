@@ -1107,9 +1107,9 @@ DB_HOST=
 DB_PORT=5432
 DB_DATABASE=jobswipe
 DB_USERNAME=
-DB_PASSWORD=
+DB_PASSWORD=YOUR_SECURE_PASSWORD
 
-MONGODB_URI=mongodb://user:pass@host:27017/jobswipe
+MONGODB_URI=mongodb://user:password@host:27017/jobswipe
 
 REDIS_HOST=
 REDIS_PASSWORD=
