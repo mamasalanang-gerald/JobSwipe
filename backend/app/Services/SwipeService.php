@@ -167,7 +167,7 @@ class SwipeService
         }
 
         // Check extra swipes balance
-        if ($applicant->extra_swipes_balance > 0) {
+        if ($applicant->extra_swipe_balance > 0) {
             return true;
         }
 

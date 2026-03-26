@@ -11,7 +11,7 @@ class HRSwipeRequest extends FormRequest
      */
     public function authorize(): bool
     {
-        return in_array($this->user()->role, ['hr', 'company_admin']);
+        return in_array($this->user()?->role, ['hr', 'company_admin'], true);
     }
 
     public function rules(): array
