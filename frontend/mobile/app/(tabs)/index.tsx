@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -123,6 +123,7 @@ export default function HomeTab() {
 
   const [index, setIndex]           = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [timerKey, setTimerKey]     = useState(0);
   const [liked, setLiked]           = useState<number[]>([]);
   const [expanded, setExpanded]     = useState(false);
   const [history, setHistory]       = useState<{ id: number; dir: number }[]>([]);
@@ -131,6 +132,35 @@ export default function HomeTab() {
 
   const position   = useRef(new Animated.ValueXY()).current;
   const expandAnim = useRef(new Animated.Value(0)).current;
+  const progressAnim = useRef(new Animated.Value(0)).current;
+  const photoScrollRef = useRef<ScrollView>(null);
+
+  // Auto-cycle photos every 5 seconds with scroll effect
+  useEffect(() => {
+    const total = JOBS[index]?.photos.length ?? 1;
+    if (total <= 1) return;
+    progressAnim.setValue(0);
+    Animated.timing(progressAnim, { toValue: 1, duration: 5000, useNativeDriver: false }).start();
+    const timer = setInterval(() => {
+      setPhotoIndex(p => {
+        const isLast = p === total - 1;
+        const next = isLast ? 0 : p + 1;
+        if (isLast) {
+          // Scroll forward to the cloned first image, then silently snap back
+          photoScrollRef.current?.scrollTo({ x: total * cardSize.width, animated: true });
+          setTimeout(() => {
+            photoScrollRef.current?.scrollTo({ x: 0, animated: false });
+          }, 400);
+        } else {
+          photoScrollRef.current?.scrollTo({ x: next * cardSize.width, animated: true });
+        }
+        progressAnim.setValue(0);
+        Animated.timing(progressAnim, { toValue: 1, duration: 5000, useNativeDriver: false }).start();
+        return next;
+      });
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [index, cardSize.width, timerKey]);
 
   const onCardLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -194,8 +224,16 @@ export default function HomeTab() {
     if (expanded) return;
     const x     = evt.nativeEvent.locationX;
     const total = JOBS[index].photos.length;
-    if (x < SW * 0.35)      setPhotoIndex(p => (p === 0 ? total - 1 : p - 1));
-    else if (x > SW * 0.65) setPhotoIndex(p => (p === total - 1 ? 0 : p + 1));
+    if (x < SW * 0.35 || x > SW * 0.65) {
+      setPhotoIndex(p => {
+        const next = x < SW * 0.35
+          ? (p === 0 ? total - 1 : p - 1)
+          : (p === total - 1 ? 0 : p + 1);
+        photoScrollRef.current?.scrollTo({ x: next * cardSize.width, animated: true });
+        return next;
+      });
+      setTimerKey(k => k + 1); // resets the interval
+    }
   };
 
   // ── Empty state ─────────────────────────────────────────────────────────────
@@ -243,30 +281,55 @@ export default function HomeTab() {
         {...panResponder.panHandlers}
       >
         <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={handleImageTap}>
-          <Image source={photo} style={{ width: cardSize.width, height: cardSize.height }} resizeMode="cover" fadeDuration={0} />
+          <ScrollView
+            ref={photoScrollRef}
+            horizontal
+            pagingEnabled
+            scrollEnabled={false}
+            showsHorizontalScrollIndicator={false}
+            style={StyleSheet.absoluteFill}
+            onMomentumScrollEnd={(e) => {
+              const offsetX = e.nativeEvent.contentOffset.x;
+              const total = job.photos.length;
+              // If we've scrolled to the cloned first photo at the end, silently jump to real first
+              if (offsetX >= total * cardSize.width) {
+                photoScrollRef.current?.scrollTo({ x: 0, animated: false });
+                setPhotoIndex(0);
+              }
+            }}
+          >
+            {job.photos.map((p, i) => (
+              <Image key={i} source={p} style={{ width: cardSize.width, height: cardSize.height }} resizeMode="cover" fadeDuration={0} />
+            ))}
+            {/* Clone of first photo for seamless loop */}
+            <Image source={job.photos[0]} style={{ width: cardSize.width, height: cardSize.height }} resizeMode="cover" fadeDuration={0} />
+          </ScrollView>
         </TouchableOpacity>
 
         {/* Colour tints */}
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#10B981', opacity: likeOverlayOpacity, zIndex: 5 }]} pointerEvents="none" />
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#EF4444', opacity: nopeOverlayOpacity, zIndex: 5 }]} pointerEvents="none" />
 
-
         {/* Stamps */}
-        <Animated.View style={[s.stampWrap, { right: Spacing['5'], opacity: likeOpacity }]} pointerEvents="none"><SwipeLabel type="like" visible /></Animated.View>
-        <Animated.View style={[s.stampWrap, { left:  Spacing['5'], opacity: nopeOpacity }]} pointerEvents="none"><SwipeLabel type="pass" visible /></Animated.View>
+        <Animated.View style={[s.stampWrap, { alignSelf: 'center', opacity: likeOpacity }]} pointerEvents="none"><SwipeLabel type="like" visible /></Animated.View>
+        <Animated.View style={[s.stampWrap, { alignSelf: 'center', opacity: nopeOpacity }]} pointerEvents="none"><SwipeLabel type="pass" visible /></Animated.View>
 
         {/* Top bar */}
         <View style={[s.topBar, { paddingTop: topInset > 0 ? topInset + 8 : (Platform.OS === 'ios' ? 54 : 40) }]} pointerEvents="box-none" onLayout={e => setTopBarHeight(e.nativeEvent.layout.height)}>
           <View style={s.tabRow}>
             <TouchableOpacity style={s.iconPill}><MaterialCommunityIcons name="tune-variant"   size={19} color={Colors.white} /></TouchableOpacity>
-            <View style={s.tabPills}>
-              <View style={[s.tabPill, s.tabPillActive]}><Text style={s.tabTextActive}>For You</Text></View>
-              <TouchableOpacity style={s.tabPill}><Text style={s.tabText}>Saved</Text></TouchableOpacity>
-            </View>
             <TouchableOpacity style={s.iconPill}><MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA"      /></TouchableOpacity>
           </View>
           <View style={s.dotsRow}>
-            {job.photos.map((_, i) => <View key={i} style={[s.dot, i === photoIndex && s.dotActive]} />)}
+            {job.photos.map((_, i) => (
+              <View key={i} style={s.dot}>
+                {i === photoIndex ? (
+                  <Animated.View style={[s.dotFill, { width: progressAnim.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} />
+                ) : (
+                  <View style={[s.dotFill, { width: i < photoIndex ? '100%' : '0%' }]} />
+                )}
+              </View>
+            ))}
           </View>
         </View>
 
@@ -409,8 +472,9 @@ const s = StyleSheet.create({
   tabTextActive: { fontSize: Typography.base, fontWeight: Typography.bold,   color: Colors.gray900 },
 
   dotsRow:  { flexDirection: 'row', gap: 5, paddingHorizontal: Spacing['1'] },
-  dot:      { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)' },
+  dot:      { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', overflow: 'hidden' },
   dotActive:{ backgroundColor: Colors.white },
+  dotFill:  { height: '100%', borderRadius: 2, backgroundColor: Colors.white },
 
   bottomOverlay: { position: 'absolute', left: 0, right: 0, paddingHorizontal: Spacing['5'], zIndex: 10 },
   nameRow:       { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 4 },
