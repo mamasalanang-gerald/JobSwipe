@@ -2,17 +2,17 @@
 
 namespace App\Models\PostgreSQL;
 
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class PointEvent extends Model
 {
+    use HasUuids;
+
     protected $connection = 'pgsql';
 
     protected $table = 'points_events';
-
-    public $incrementing = false;
-
-    protected $keyType = 'string';
 
     public $timestamps = false;
 
@@ -25,7 +25,7 @@ class PointEvent extends Model
         'created_at' => 'datetime',
     ];
 
-    public function applicant(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function applicant(): BelongsTo
     {
         return $this->belongsTo(ApplicantProfile::class, 'applicant_id');
     }
