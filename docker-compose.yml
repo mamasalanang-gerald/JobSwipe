@@ -90,6 +90,7 @@ services:
     volumes:
       - ./backend:/var/www/html
       - laravel_vendor:/var/www/html/vendor # Uncomment if you want to persist vendor directory (optional)
+      - laravel_bootstrap_cache:/var/www/html/bootstrap/cache # Prevent host bootstrap cache from overriding container
     networks:
       - jobapp_network
     depends_on:
@@ -137,3 +138,4 @@ volumes:
   mongodb_data:
   redis_data:
   laravel_vendor:
+  laravel_bootstrap_cache:
