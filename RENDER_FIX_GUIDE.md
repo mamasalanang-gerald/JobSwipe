@@ -130,7 +130,8 @@ After fixing:
 
 ### PostgreSQL (Already Working ✅)
 ```bash
-docker run -it --rm postgres:15-alpine psql postgresql://jobswipe_acb5_user:vpklnROXCJvTWxPbM5SjCnYVKiKci9Bz@dpg-d6v3477gi27c73eoinpg-a.oregon-postgres.render.com:5432/jobswipe_acb5 -c "\dt"
+# Use your PostgreSQL connection string from Render dashboard
+docker run -it --rm postgres:15-alpine psql postgresql://username:password@host:5432/database -c "\dt"
 ```
 
 ### Redis (Test Connection)
