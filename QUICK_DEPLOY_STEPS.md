@@ -27,14 +27,14 @@ This will automatically trigger a new deployment.
    ✓ Building Docker image...
    ✓ Starting container...
    ✓ Running migrations...
-   ✓ Service live at https://jobswipe-eff8.onrender.com
+   ✓ Service live at https://your-service-name.onrender.com
    ```
 
 ### 3️⃣ Test the API (1 minute)
 
 Open your browser or use curl:
 ```bash
-https://jobswipe-eff8.onrender.com/api/health
+https://your-service-name.onrender.com/api/health
 ```
 
 Expected response:
