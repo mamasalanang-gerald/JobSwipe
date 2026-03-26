@@ -29,6 +29,9 @@ class ApplicantProfileDocument extends Model
         'education',
         'completed_profile_fields',
         'notification_preferences',
+        'onboarding_step',
+        'onboarding_completed_at',
+        'profile_completion_percentage',
     ];
 
     protected $casts = [
@@ -38,6 +41,8 @@ class ApplicantProfileDocument extends Model
         'social_links' => 'array',
         'completed_profile_fields' => 'array',
         'notification_preferences' => 'array',
+        'onboarding_completed_at' => 'datetime',
+        'profile_completion_percentage' => 'integer',
     ];
 
     /**

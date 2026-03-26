@@ -17,7 +17,7 @@ class Subscription extends Model
     protected $fillable = [
         'user_id', 'subscriber_type', 'tier', 'billing_cycle',
         'amount_paid', 'currency', 'payment_provider', 'provider_sub_id',
-        'status', 'current_period_start', 'current_period_end',
+        'status', 'stripe_status', 'current_period_start', 'current_period_end',
     ];
 
     protected $casts = [
