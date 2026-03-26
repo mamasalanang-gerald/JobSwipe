@@ -3,7 +3,7 @@
 # Render Deployment Verification Script
 # This script helps verify that your Render deployment is working correctly
 
-BACKEND_URL="https://jobapp-backend-latest.onrender.com"
+BACKEND_URL="https://your-service-name.onrender.com"
 API_VERSION="v1"
 
 echo "=========================================="
@@ -85,5 +85,5 @@ echo "Manual Migration Command (in Render Shell):"
 echo "  cd /var/www/html && php artisan migrate --force && php artisan mongo:setup"
 echo ""
 echo "View Logs:"
-echo "  Render Dashboard → jobapp-backend-latest → Logs"
+echo "  Render Dashboard → your-service-name → Logs"
 echo ""
