@@ -4,6 +4,7 @@ use App\Http\Controllers\Applicant\SwipeController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\Company\JobPostingController;
+use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Middleware\CheckSwipeLimit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -70,6 +71,16 @@ Route::prefix('v1')->group(function () {
 
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
+
+        // ── Notifications ──────────────────────────────────────────
+        Route::prefix('notifications')->group(function () {
+            Route::get('/', [NotificationController::class, 'index']);
+            Route::get('/unread', [NotificationController::class, 'unread']);
+            Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
+            Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
+            Route::get('/preferences', [NotificationController::class, 'getPreferences']);
+            Route::patch('/preferences', [NotificationController::class, 'updatePreferences']);
+        });
 
         // ── Company Job Management (Phase 2) ──────────────────────
         Route::prefix('company')->group(function () {
