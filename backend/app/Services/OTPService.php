@@ -14,6 +14,15 @@ class OTPService
 
     public function sendOtp(string $email, ?string $passwordHash = null, ?string $role = null): bool
     {
+        error_log('=== OTP SERVICE: Sending OTP to '.$email.' ===');
+        \Log::info('OTPService: Starting sendOtp', [
+            'email' => $email,
+            'has_password_hash' => ! is_null($passwordHash),
+            'role' => $role,
+            'queue_connection' => config('queue.default'),
+            'mail_mailer' => config('mail.default'),
+        ]);
+
         $code = $this->generateCode();
         $codeHash = $this->hashCode($code);
         $stored = $this->otpCache->get($email);
