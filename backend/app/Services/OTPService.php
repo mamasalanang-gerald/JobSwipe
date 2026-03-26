@@ -12,7 +12,7 @@ class OTPService
 
     public function __construct(private OTPCacheRepository $otpCache) {}
 
-    public function sendOtp(string $email, ?string $passwordHash = null, ?string $role = null): void
+    public function sendOtp(string $email, ?string $passwordHash = null, ?string $role = null): bool
     {
         error_log('=== OTP SERVICE: Sending OTP to '.$email.' ===');
         \Log::info('OTPService: Starting sendOtp', [
@@ -25,51 +25,20 @@ class OTPService
 
         $code = $this->generateCode();
         $codeHash = $this->hashCode($code);
+        $stored = $this->otpCache->get($email);
 
-        try {
-            $this->otpCache->store($email, $codeHash, $passwordHash, $role);
-            \Log::info('OTPService: Stored OTP in Redis', ['email' => $email]);
-        } catch (\Exception $e) {
-            \Log::error('OTPService: Failed to store OTP in Redis', [
-                'email' => $email,
-                'error' => $e->getMessage(),
-            ]);
-            throw $e;
+        $resolvedPasswordHash = $passwordHash ?? ($stored['password_hash'] ?? null);
+        $resolvedRole = $role ?? ($stored['role'] ?? null);
+
+        if ($resolvedPasswordHash === null || $resolvedRole === null) {
+            return false;
         }
 
-        try {
-            error_log('=== MAIL: Attempting to send to '.$email.' via '.config('mail.mailers.smtp.host').' ===');
-            \Log::info('OTPService: Sending email', [
-                'email' => $email,
-                'code_preview' => substr($code, 0, 2).'****',
-                'method' => 'sync',
-                'mail_host' => config('mail.mailers.smtp.host'),
-                'mail_port' => config('mail.mailers.smtp.port'),
-            ]);
+        $this->otpCache->store($email, $codeHash, $resolvedPasswordHash, $resolvedRole);
 
-            // Send synchronously with timeout handling
-            $startTime = microtime(true);
-            Mail::to($email)->send(new EmailVerificationMail($code));
-            $duration = microtime(true) - $startTime;
+        Mail::to($email)->queue(new EmailVerificationMail($code));
 
-            error_log('=== MAIL: Email sent successfully in '.round($duration, 2).'s ===');
-            \Log::info('OTPService: Email sent successfully', [
-                'email' => $email,
-                'duration_seconds' => round($duration, 2),
-            ]);
-        } catch (\Exception $e) {
-            error_log('=== MAIL ERROR: '.$e->getMessage().' ===');
-            \Log::error('OTPService: Failed to send email', [
-                'email' => $email,
-                'error' => $e->getMessage(),
-                'error_class' => get_class($e),
-                'trace' => $e->getTraceAsString(),
-            ]);
-
-            // Don't throw - let registration succeed even if email fails
-            // User can request resend later
-            \Log::warning('OTPService: Continuing despite email failure');
-        }
+        return true;
     }
 
     public function verify(string $email, string $submittedCode): string
