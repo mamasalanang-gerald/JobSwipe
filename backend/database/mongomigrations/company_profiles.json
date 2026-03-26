@@ -4,12 +4,17 @@
     "$jsonSchema": {
       "bsonType": "object",
       "required": [
+        "user_id",
         "company_id",
         "company_name",
         "created_at",
         "updated_at"
       ],
       "properties": {
+        "user_id": {
+          "bsonType": "string",
+          "description": "UUID from PostgreSQL users.id"
+        },
         "company_id": {
           "bsonType": "string",
           "description": "UUID from PostgreSQL company_profiles.id"
@@ -121,6 +126,31 @@
             "bsonType": "string"
           }
         },
+        "verification_documents": {
+          "bsonType": "array",
+          "items": {
+            "bsonType": "string"
+          }
+        },
+        "onboarding_step": {
+          "bsonType": [
+            "int",
+            "string",
+            "null"
+          ]
+        },
+        "onboarding_completed_at": {
+          "bsonType": [
+            "date",
+            "null"
+          ]
+        },
+        "profile_completion_percentage": {
+          "bsonType": [
+            "int",
+            "null"
+          ]
+        },
         "created_at": {
           "bsonType": "date"
         },
@@ -135,11 +165,28 @@
   "indexes": [
     {
       "keys": {
+        "user_id": 1
+      },
+      "options": {
+        "unique": true,
+        "name": "idx_company_profiles_user_id"
+      }
+    },
+    {
+      "keys": {
         "company_id": 1
       },
       "options": {
         "unique": true,
         "name": "idx_company_profiles_company_id"
+      }
+    },
+    {
+      "keys": {
+        "onboarding_step": 1
+      },
+      "options": {
+        "name": "idx_company_profiles_onboarding_step"
       }
     },
     {
@@ -157,6 +204,7 @@
         "company_id": "10000000-0000-0000-0000-000000000001"
       },
       "data": {
+        "user_id": "00000000-0000-0000-0000-000000000101",
         "company_id": "10000000-0000-0000-0000-000000000001",
         "company_name": "Acme Software",
         "tagline": "Shipping tools for modern hiring teams.",
@@ -189,6 +237,10 @@
           "engineering-first",
           "remote-friendly"
         ],
+        "verification_documents": [],
+        "onboarding_step": 1,
+        "onboarding_completed_at": null,
+        "profile_completion_percentage": 0,
         "created_at": {
           "$date": "2026-03-21T00:00:00Z"
         },

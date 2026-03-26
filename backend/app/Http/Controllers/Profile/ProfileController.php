@@ -1,0 +1,335 @@
+<?php
+
+namespace App\Http\Controllers\Profile;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\Profile\UpdateApplicantBasicInfoRequest;
+use App\Http\Requests\Profile\UpdateApplicantSkillsRequest;
+use App\Http\Requests\Profile\UpdateCompanyDetailsRequest;
+use App\Services\FileUploadService;
+use App\Services\ProfileService;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use InvalidArgumentException;
+
+class ProfileController extends Controller
+{
+    public function __construct(
+        private ProfileService $profiles,
+        private FileUploadService $fileUploads,
+    ) {}
+
+    public function getApplicantProfile(Request $request): JsonResponse
+    {
+        return $this->success(data: $this->profiles->getApplicantProfile($request->user()->id));
+    }
+
+    public function updateApplicantBasicInfo(UpdateApplicantBasicInfoRequest $request): JsonResponse
+    {
+        $result = $this->profiles->updateApplicantBasicInfo($request->user()->id, $request->validated());
+
+        return $this->success(data: $result, message: 'Applicant basic info updated.');
+    }
+
+    public function updateApplicantSkills(UpdateApplicantSkillsRequest $request): JsonResponse
+    {
+        $result = $this->profiles->updateApplicantSkills($request->user()->id, $request->validated('skills'));
+
+        return $this->success(data: $result, message: 'Applicant skills updated.');
+    }
+
+    public function addWorkExperience(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'company' => ['required', 'string', 'max:255'],
+            'position' => ['required', 'string', 'max:255'],
+            'start_date' => ['required', 'string', 'max:20'],
+            'end_date' => ['nullable', 'string', 'max:20'],
+            'is_current' => ['required', 'boolean'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $result = $this->profiles->addWorkExperience($request->user()->id, $validated);
+
+        return $this->success(data: $result, message: 'Work experience added.');
+    }
+
+    public function updateWorkExperience(Request $request, int $index): JsonResponse
+    {
+        $validated = $request->validate([
+            'company' => ['sometimes', 'string', 'max:255'],
+            'position' => ['sometimes', 'string', 'max:255'],
+            'start_date' => ['sometimes', 'string', 'max:20'],
+            'end_date' => ['nullable', 'string', 'max:20'],
+            'is_current' => ['sometimes', 'boolean'],
+            'description' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        try {
+            $result = $this->profiles->updateWorkExperience($request->user()->id, $index, $validated);
+
+            return $this->success(data: $result, message: 'Work experience updated.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function removeWorkExperience(Request $request, int $index): JsonResponse
+    {
+        try {
+            $result = $this->profiles->removeWorkExperience($request->user()->id, $index);
+
+            return $this->success(data: $result, message: 'Work experience removed.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function addEducation(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'institution' => ['required', 'string', 'max:255'],
+            'degree' => ['required', 'string', 'max:255'],
+            'field' => ['required', 'string', 'max:255'],
+            'graduation_year' => ['nullable', 'integer', 'min:1900', 'max:'.now()->year],
+        ]);
+
+        $result = $this->profiles->addEducation($request->user()->id, $validated);
+
+        return $this->success(data: $result, message: 'Education added.');
+    }
+
+    public function updateEducation(Request $request, int $index): JsonResponse
+    {
+        $validated = $request->validate([
+            'institution' => ['sometimes', 'string', 'max:255'],
+            'degree' => ['sometimes', 'string', 'max:255'],
+            'field' => ['sometimes', 'string', 'max:255'],
+            'graduation_year' => ['nullable', 'integer', 'min:1900', 'max:'.now()->year],
+        ]);
+
+        try {
+            $result = $this->profiles->updateEducation($request->user()->id, $index, $validated);
+
+            return $this->success(data: $result, message: 'Education updated.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function removeEducation(Request $request, int $index): JsonResponse
+    {
+        try {
+            $result = $this->profiles->removeEducation($request->user()->id, $index);
+
+            return $this->success(data: $result, message: 'Education removed.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function updateApplicantResume(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'resume_url' => ['required', 'url', 'max:2000'],
+        ]);
+
+        $this->fileUploads->validateFileUrl((string) $validated['resume_url']);
+        $result = $this->profiles->updateApplicantResume($request->user()->id, (string) $validated['resume_url']);
+
+        return $this->success(data: $result, message: 'Resume updated.');
+    }
+
+    public function updateApplicantCoverLetter(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'cover_letter_url' => ['required', 'url', 'max:2000'],
+        ]);
+
+        $this->fileUploads->validateFileUrl((string) $validated['cover_letter_url']);
+        $result = $this->profiles->updateApplicantCoverLetter($request->user()->id, (string) $validated['cover_letter_url']);
+
+        return $this->success(data: $result, message: 'Cover letter updated.');
+    }
+
+    public function updateApplicantPhoto(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'profile_photo_url' => ['required', 'url', 'max:2000'],
+        ]);
+
+        $this->fileUploads->validateFileUrl((string) $validated['profile_photo_url']);
+        $result = $this->profiles->updateApplicantPhoto($request->user()->id, (string) $validated['profile_photo_url']);
+
+        return $this->success(data: $result, message: 'Profile photo updated.');
+    }
+
+    public function updateSocialLinks(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'social_links' => ['required', 'array'],
+        ]);
+
+        try {
+            $result = $this->profiles->updateSocialLinks($request->user()->id, (array) $validated['social_links']);
+
+            return $this->success(data: $result, message: 'Social links updated.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function getCompanyProfile(Request $request): JsonResponse
+    {
+        try {
+            return $this->success(data: $this->profiles->getCompanyProfile($request->user()->id));
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function updateCompanyDetails(UpdateCompanyDetailsRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->profiles->updateCompanyDetails($request->user()->id, $request->validated());
+
+            return $this->success(data: $result, message: 'Company details updated.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function updateCompanyLogo(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'logo_url' => ['required', 'url', 'max:2000'],
+        ]);
+
+        $this->fileUploads->validateFileUrl((string) $validated['logo_url']);
+
+        try {
+            $result = $this->profiles->updateCompanyLogo($request->user()->id, (string) $validated['logo_url']);
+
+            return $this->success(data: $result, message: 'Company logo updated.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function addOfficeImage(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'image_url' => ['required', 'url', 'max:2000'],
+        ]);
+
+        $this->fileUploads->validateFileUrl((string) $validated['image_url']);
+
+        try {
+            $result = $this->profiles->addOfficeImage($request->user()->id, (string) $validated['image_url']);
+
+            return $this->success(data: $result, message: 'Office image added.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function removeOfficeImage(Request $request, int $index): JsonResponse
+    {
+        try {
+            $result = $this->profiles->removeOfficeImage($request->user()->id, $index);
+
+            return $this->success(data: $result, message: 'Office image removed.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function submitVerificationDocuments(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'verification_documents' => ['required', 'array', 'min:1'],
+            'verification_documents.*' => ['required', 'url', 'max:2000'],
+        ]);
+
+        foreach ($validated['verification_documents'] as $documentUrl) {
+            $this->fileUploads->validateFileUrl((string) $documentUrl);
+        }
+
+        try {
+            $result = $this->profiles->submitVerificationDocuments(
+                $request->user()->id,
+                (array) $validated['verification_documents']
+            );
+
+            return $this->success(data: $result, message: 'Verification documents submitted.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function getOnboardingStatus(Request $request): JsonResponse
+    {
+        $result = $this->profiles->getOnboardingStatus(
+            $request->user()->id,
+            (string) $request->user()->role
+        );
+
+        return $this->success(data: $result);
+    }
+
+    public function completeOnboardingStep(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'step' => ['required', 'integer', 'min:1'],
+            'step_data' => ['nullable', 'array'],
+        ]);
+
+        try {
+            $result = $this->profiles->completeOnboardingStep(
+                $request->user()->id,
+                (string) $request->user()->role,
+                (int) $validated['step'],
+                (array) ($validated['step_data'] ?? [])
+            );
+
+            return $this->success(data: $result, message: 'Onboarding step completed.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function getProfileCompletion(Request $request): JsonResponse
+    {
+        $completion = $this->profiles->getProfileCompletion(
+            $request->user()->id,
+            (string) $request->user()->role
+        );
+
+        return $this->success(data: [
+            'profile_completion_percentage' => $completion,
+        ]);
+    }
+
+    private function handleDomainException(InvalidArgumentException $exception): JsonResponse
+    {
+        $message = $exception->getMessage();
+
+        if (str_starts_with($message, 'INVALID_URL:')) {
+            $field = substr($message, strlen('INVALID_URL:'));
+
+            return $this->error('INVALID_URL', "Invalid URL for {$field}", 400);
+        }
+
+        return match ($message) {
+            'MAX_IMAGES_EXCEEDED' => $this->error('MAX_IMAGES_EXCEEDED', 'Maximum office images reached.', 409),
+            'OFFICE_IMAGE_NOT_FOUND' => $this->error('OFFICE_IMAGE_NOT_FOUND', 'Office image not found.', 404),
+            'WORK_EXPERIENCE_NOT_FOUND' => $this->error('WORK_EXPERIENCE_NOT_FOUND', 'Work experience not found.', 404),
+            'EDUCATION_NOT_FOUND' => $this->error('EDUCATION_NOT_FOUND', 'Education entry not found.', 404),
+            'COMPANY_PROFILE_NOT_FOUND' => $this->error('COMPANY_PROFILE_NOT_FOUND', 'Company profile not found.', 404),
+            'SUBSCRIPTION_REQUIRED' => $this->error('SUBSCRIPTION_REQUIRED', 'Active subscription required.', 402),
+            'INVALID_ONBOARDING_STEP' => $this->error('INVALID_ONBOARDING_STEP', 'Invalid onboarding step.', 400),
+            'STEP_DATA_INVALID' => $this->error('STEP_DATA_INVALID', 'Step data is invalid or incomplete.', 400),
+            default => $this->error('PROFILE_UPDATE_FAILED', 'Unable to process the request.', 400),
+        };
+    }
+}
