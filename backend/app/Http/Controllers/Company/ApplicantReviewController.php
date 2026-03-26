@@ -24,13 +24,12 @@ class ApplicantReviewController extends Controller
     {
         $this->authorizeJobAccess($request, $jobId);
 
-        // Get prioritized applicants (5-tier algorithm)
         $applicants = $this->applications->getPrioritizedApplicants($jobId, perPage: 20);
 
-        // Load MongoDB profile data
         foreach ($applicants as $application) {
             $mongoProfile = ApplicantProfileDocument::where('user_id', $application->applicant->user_id)->first();
             $application->applicant->profile_data = $mongoProfile;
+            $application->applicant->skill_match_percentage = $this->calculateSkillMatchPercentage($job, $mongoProfile);
         }
 
         return $this->success(data: $applicants);
@@ -45,9 +44,18 @@ class ApplicantReviewController extends Controller
             ->with('applicant')
             ->firstOrFail();
 
-        // Load full MongoDB profile
         $mongoProfile = ApplicantProfileDocument::where('user_id', $application->applicant->user_id)->first();
+
+        if (! $this->isApplicantProfileComplete($mongoProfile)) {
+            return $this->error(
+                'INCOMPLETE_PROFILE',
+                'Applicant profile is missing required information.',
+                400
+            );
+        }
+
         $application->applicant->profile_data = $mongoProfile;
+        $application->applicant->skill_match_percentage = $this->calculateSkillMatchPercentage($job, $mongoProfile);
 
         return $this->success(data: $application);
     }
@@ -56,9 +64,8 @@ class ApplicantReviewController extends Controller
     {
         $job = $this->authorizeJobAccess($request, $jobId);
 
-        // Process interview template message
         $message = $this->processMessageTemplate(
-            $request->message ?? $job->interview_template,
+            (string) ($request->message ?? $job->interview_template),
             $applicantId,
             $job
         );
@@ -73,6 +80,7 @@ class ApplicantReviewController extends Controller
         return match ($result['status']) {
             'invited' => $this->success(message: 'Interview invitation sent'),
             'already_swiped' => $this->error('ALREADY_SWIPED', 'Already swiped on this applicant', 409),
+            default => $this->error('SWIPE_FAILED', 'Unable to process swipe.', 500),
         };
     }
 
@@ -89,6 +97,7 @@ class ApplicantReviewController extends Controller
         return match ($result['status']) {
             'dismissed' => $this->success(message: 'Applicant dismissed'),
             'already_swiped' => $this->error('ALREADY_SWIPED', 'Already swiped on this applicant', 409),
+            default => $this->error('SWIPE_FAILED', 'Unable to process swipe.', 500),
         };
     }
 
@@ -108,12 +117,65 @@ class ApplicantReviewController extends Controller
         $applicant = ApplicantProfile::findOrFail($applicantId);
         $mongoProfile = ApplicantProfileDocument::where('user_id', $applicant->user_id)->first();
 
+        $fullName = trim((string) ($mongoProfile?->first_name.' '.$mongoProfile?->last_name));
+
         $replacements = [
-            '{{applicant_name}}' => $mongoProfile->first_name.' '.$mongoProfile->last_name,
+            '{{applicant_name}}' => $fullName !== '' ? $fullName : 'Applicant',
             '{{job_title}}' => $job->title,
             '{{company_name}}' => $job->company->company_name,
         ];
 
         return str_replace(array_keys($replacements), array_values($replacements), $template);
+    }
+
+    private function isApplicantProfileComplete(?ApplicantProfileDocument $profile): bool
+    {
+        if (! $profile) {
+            return false;
+        }
+
+        return ! empty(trim((string) $profile->first_name))
+            && ! empty(trim((string) $profile->last_name))
+            && ! empty(trim((string) $profile->location))
+            && ! empty(trim((string) $profile->resume_url))
+            && is_array($profile->skills)
+            && count($profile->skills) > 0;
+    }
+
+    private function calculateSkillMatchPercentage(JobPosting $job, ?ApplicantProfileDocument $profile): int
+    {
+        if (! $profile || ! is_array($profile->skills)) {
+            return 0;
+        }
+
+        $jobSkills = $job->skills
+            ->pluck('skill_name')
+            ->map(fn ($skill) => strtolower(trim((string) $skill)))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($jobSkills->count() === 0) {
+            return 0;
+        }
+
+        $applicantSkills = collect($profile->skills)
+            ->map(function ($skill) {
+                if (is_array($skill)) {
+                    return strtolower(trim((string) ($skill['name'] ?? '')));
+                }
+
+                if (is_object($skill)) {
+                    return strtolower(trim((string) ($skill->name ?? '')));
+                }
+
+                return '';
+            })
+            ->filter()
+            ->unique();
+
+        $matched = $jobSkills->filter(fn ($skill) => $applicantSkills->contains($skill))->count();
+
+        return (int) round(($matched / $jobSkills->count()) * 100);
     }
 }

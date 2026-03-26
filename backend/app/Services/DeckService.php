@@ -5,14 +5,17 @@ namespace App\Services;
 use App\Models\MongoDB\ApplicantProfileDocument;
 use App\Models\PostgreSQL\JobPosting;
 use App\Repositories\MongoDB\SwipeHistoryRepository;
-use App\Repositories\PostgreSQL\JobPostingRepository;
 use App\Repositories\Redis\SwipeCacheRepository;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 
 class DeckService
 {
+    private const CANDIDATE_POOL_MULTIPLIER = 5;
+
+    private const MAX_CANDIDATE_POOL = 250;
+
     public function __construct(
-        private JobPostingRepository $jobs,
         private SwipeCacheRepository $cache,
         private SwipeHistoryRepository $swipeHistory,
     ) {}
@@ -20,8 +23,10 @@ class DeckService
     /**
      * Get the job deck for an applicant with relevance-based sorting
      */
-    public function getJobDeck(string $userId, int $perPage = 20): array
+    public function getJobDeck(string $userId, int $perPage = 20, ?string $cursor = null): array
     {
+        $perPage = max(1, min($perPage, 50));
+
         // 1. Get seen job IDs from Redis (fallback to MongoDB)
         $seenJobIds = $this->getSeenJobIds($userId);
 
@@ -30,11 +35,30 @@ class DeckService
         $applicantSkills = $applicantProfile?->skills ?? [];
         $applicantCity = $applicantProfile?->location_city;
 
-        // 3. Query active jobs excluding seen ones
-        $jobs = JobPosting::active()
+        $candidateLimit = min(
+            max($perPage * self::CANDIDATE_POOL_MULTIPLIER, $perPage),
+            self::MAX_CANDIDATE_POOL
+        );
+
+        // 3. Query a bounded candidate pool using cursor-based pagination
+        $query = JobPosting::active()
+            ->whereNotNull('published_at')
             ->whereNotIn('id', $seenJobIds)
-            ->with(['skills', 'company'])
+            ->orderByDesc('published_at')
+            ->orderByDesc('id')
+            ->with(['skills', 'company']);
+
+        $decodedCursor = $this->decodeCursor($cursor);
+        if ($decodedCursor !== null) {
+            $this->applyCursor($query, $decodedCursor['published_at'], $decodedCursor['job_id']);
+        }
+
+        $candidatePool = $query
+            ->limit($candidateLimit + 1)
             ->get();
+
+        $hasMore = $candidatePool->count() > $candidateLimit;
+        $jobs = $candidatePool->take($candidateLimit)->values();
 
         // 4. Calculate relevance score for each job
         $scoredJobs = $jobs->map(function ($job) use ($applicantSkills, $applicantCity) {
@@ -51,10 +75,21 @@ class DeckService
         // 5. Sort by relevance score and paginate
         $sortedJobs = $scoredJobs->sortByDesc('relevance_score')->take($perPage)->values();
 
+        $nextCursor = null;
+        if ($hasMore && $jobs->isNotEmpty()) {
+            $nextCursor = $this->encodeCursor($jobs->last());
+        }
+
+        $totalUnseen = JobPosting::active()
+            ->whereNotNull('published_at')
+            ->whereNotIn('id', $seenJobIds)
+            ->count();
+
         return [
             'jobs' => $sortedJobs,
-            'has_more' => $jobs->count() > $perPage,
-            'total_unseen' => $jobs->count(),
+            'has_more' => $hasMore,
+            'total_unseen' => $totalUnseen,
+            'next_cursor' => $nextCursor,
         ];
     }
 
@@ -134,5 +169,61 @@ class DeckService
         }
 
         return $seenIds;
+    }
+
+    private function applyCursor(Builder $query, Carbon $publishedAt, string $jobId): void
+    {
+        $query->where(function (Builder $builder) use ($publishedAt, $jobId) {
+            $builder->where('published_at', '<', $publishedAt)
+                ->orWhere(function (Builder $inner) use ($publishedAt, $jobId) {
+                    $inner->where('published_at', '=', $publishedAt)
+                        ->where('id', '<', $jobId);
+                });
+        });
+    }
+
+    private function decodeCursor(?string $cursor): ?array
+    {
+        if ($cursor === null || trim($cursor) === '') {
+            return null;
+        }
+
+        $decoded = base64_decode($cursor, true);
+
+        if ($decoded === false) {
+            return null;
+        }
+
+        $data = json_decode($decoded, true);
+
+        if (! is_array($data) || ! isset($data['published_at'], $data['job_id'])) {
+            return null;
+        }
+
+        try {
+            $publishedAt = Carbon::parse((string) $data['published_at']);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $jobId = (string) $data['job_id'];
+        if ($jobId === '') {
+            return null;
+        }
+
+        return [
+            'published_at' => $publishedAt,
+            'job_id' => $jobId,
+        ];
+    }
+
+    private function encodeCursor(JobPosting $job): string
+    {
+        $publishedAt = $job->published_at?->toIso8601String();
+
+        return base64_encode((string) json_encode([
+            'published_at' => $publishedAt,
+            'job_id' => (string) $job->id,
+        ]));
     }
 }

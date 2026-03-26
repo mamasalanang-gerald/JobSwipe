@@ -7,6 +7,7 @@ use App\Models\MongoDB\ApplicantProfileDocument;
 use App\Models\PostgreSQL\ApplicantProfile;
 use App\Models\PostgreSQL\JobPosting;
 use App\Models\PostgreSQL\Notification;
+use App\Services\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Foundation\Queue\Queueable;
@@ -27,18 +28,23 @@ class SendInterviewInvitation implements ShouldQueue
     }
 
     public function handle(): void
+        private string $message
+    ) {}
+
+    public function handle(NotificationService $notificationService): void
     {
         $applicant = ApplicantProfile::findOrFail($this->applicantId);
         $job = JobPosting::with('company')->findOrFail($this->jobId);
         $user = $applicant->user;
         $mongoProfile = ApplicantProfileDocument::where('user_id', $user->id)->first();
 
-        Notification::create([
-            'user_id' => $user->id,
-            'type' => 'interview_invitation',
-            'title' => "Interview Invitation from {$job->company->company_name}",
-            'body' => "You've been invited to interview for {$job->title}",
-            'data' => [
+        // Create in-app notification
+        $notificationService->create(
+            userId: $user->id,
+            type: 'interview_invitation',
+            title: "Interview Invitation from {$job->company->company_name}",
+            body: "You've been invited to interview for {$job->title}",
+            data: [
                 'job_id' => $this->jobId,
                 'company_id' => $job->company_id,
                 'message' => $this->message,

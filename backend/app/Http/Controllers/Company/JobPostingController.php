@@ -51,6 +51,10 @@ class JobPostingController extends Controller
             return $this->error('NO_COMPANY_PROFILE', 'No company profile found for this user', 403);
         }
 
+        if ($company->subscription_status !== 'active') {
+            return $this->error('SUBSCRIPTION_REQUIRED', 'An active subscription is required to post jobs.', 402);
+        }
+
         $job = null;
 
         try {
