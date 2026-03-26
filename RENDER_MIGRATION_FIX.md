@@ -54,11 +54,11 @@ In your Render dashboard for `jobapp-backend-latest` service:
    - `QUEUE_CONNECTION=redis`
 
 3. Fix MongoDB variables for Atlas:
-   - `MONGO_HOST=jobswipe-cluster.m0baanc.mongodb.net` (NO PORT in hostname for Atlas)
+   - `MONGO_HOST=your-cluster.mongodb.net` (NO PORT in hostname for Atlas)
    - `MONGO_PORT=27017` (keep this, but it won't be used for Atlas)
    - `MONGO_DATABASE=jobswipe`
-   - `MONGO_ROOT_USERNAME=geraldkasan163_db_user`
-   - `MONGO_ROOT_PASSWORD=e5OCcrvDVAQsun19`
+   - `MONGO_ROOT_USERNAME=your_mongodb_username`
+   - `MONGO_ROOT_PASSWORD=your_mongodb_password`
 
 ### Step 3: Trigger Redeploy
 
