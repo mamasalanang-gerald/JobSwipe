@@ -16,6 +16,123 @@ Route::get('/health', function (Request $request) {
     return ['status' => 'ok', 'timestamp' => now()];
 });
 
+// Clear cache endpoint (for free tier without shell access)
+Route::get('/clear-cache', function () {
+    try {
+        \Artisan::call('route:clear');
+        \Artisan::call('config:clear');
+        \Artisan::call('cache:clear');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Cache cleared. Routes should be available now.',
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+        ], 500);
+    }
+});
+
+// Debug endpoint to check email and queue configuration
+Route::get('/debug/email-config', function () {
+    try {
+        $config = [
+            'mail' => [
+                'default_mailer' => config('mail.default'),
+                'from_address' => config('mail.from.address'),
+                'from_name' => config('mail.from.name'),
+                'smtp_host' => config('mail.mailers.smtp.host'),
+                'smtp_port' => config('mail.mailers.smtp.port'),
+                'smtp_username' => config('mail.mailers.smtp.username') ? 'SET' : 'NOT SET',
+                'smtp_password' => config('mail.mailers.smtp.password') ? 'SET' : 'NOT SET',
+                'smtp_encryption' => config('mail.mailers.smtp.encryption'),
+            ],
+            'queue' => [
+                'default_connection' => config('queue.default'),
+                'redis_connection' => config('queue.connections.redis.connection'),
+                'redis_queue' => config('queue.connections.redis.queue'),
+            ],
+            'redis' => [
+                'host' => config('database.redis.default.host'),
+                'port' => config('database.redis.default.port'),
+                'password' => config('database.redis.default.password') ? 'SET' : 'NOT SET',
+            ],
+            'horizon' => [
+                'use' => config('horizon.use'),
+                'prefix' => config('horizon.prefix'),
+            ],
+        ];
+
+        // Test Redis connection
+        try {
+            Redis::ping();
+            $config['redis']['status'] = 'CONNECTED';
+        } catch (\Exception $e) {
+            $config['redis']['status'] = 'ERROR: '.$e->getMessage();
+        }
+
+        // Check pending jobs
+        try {
+            $pendingJobs = Redis::llen('queues:default');
+            $config['queue']['pending_jobs'] = $pendingJobs;
+        } catch (\Exception $e) {
+            $config['queue']['pending_jobs'] = 'ERROR: '.$e->getMessage();
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'config' => $config,
+            'env_check' => [
+                'QUEUE_CONNECTION' => env('QUEUE_CONNECTION'),
+                'MAIL_MAILER' => env('MAIL_MAILER'),
+                'MAIL_HOST' => env('MAIL_HOST'),
+                'REDIS_HOST' => env('REDIS_HOST'),
+            ],
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ], 500);
+    }
+});
+
+// Debug endpoint to test email sending
+Route::post('/debug/test-email', function (Request $request) {
+    try {
+        $email = $request->input('email', 'test@example.com');
+
+        \Log::info('Debug: Testing email send', ['email' => $email]);
+
+        // Try to queue an email
+        \Illuminate\Support\Facades\Mail::to($email)->queue(
+            new \App\Mail\EmailVerificationMail('123456')
+        );
+
+        \Log::info('Debug: Email queued successfully', ['email' => $email]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Email queued. Check Horizon logs for processing.',
+            'email' => $email,
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Debug: Email test failed', [
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        return response()->json([
+            'status' => 'error',
+            'message' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ], 500);
+    }
+});
+
 // Debug endpoint to check database and Redis
 Route::get('/debug/database', function () {
     try {
