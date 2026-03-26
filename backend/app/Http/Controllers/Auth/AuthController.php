@@ -16,7 +16,19 @@ class AuthController extends Controller
 
     public function register(RegisterRequest $request): JsonResponse
     {
+        error_log('=== REGISTRATION START: '.$request->input('email').' ===');
+        \Log::info('AuthController: Registration request received', [
+            'email' => $request->input('email'),
+            'role' => $request->input('role'),
+            'has_oauth' => $request->has('oauth_provider'),
+        ]);
+
         if (in_array($request->input('role'), ['hr', 'company_admin'], true) && $request->has('oauth_provider')) {
+            \Log::warning('AuthController: OAuth not permitted for HR/Company', [
+                'email' => $request->input('email'),
+                'role' => $request->input('role'),
+            ]);
+
             return $this->error(
                 'OAUTH_NOT_PERMITTED',
                 'HR/Company accounts must register with email and password.',
@@ -24,20 +36,35 @@ class AuthController extends Controller
             );
         }
 
-        $result = $this->auth->initiateRegistration(
-            email: $request->input('email'),
-            password: $request->input('password'),
-            role: $request->input('role'),
-        );
+        try {
+            $result = $this->auth->initiateRegistration(
+                email: $request->input('email'),
+                password: $request->input('password'),
+                role: $request->input('role'),
+            );
 
-        if ($result === 'email_taken') {
-            return $this->error('EMAIL_TAKEN', 'An account already existed with this email', 409);
+            if ($result === 'email_taken') {
+                \Log::warning('AuthController: Email already taken', ['email' => $request->input('email')]);
+
+                return $this->error('EMAIL_TAKEN', 'An account already existed with this email', 409);
+            }
+
+            \Log::info('AuthController: Registration successful, verification sent', [
+                'email' => $request->input('email'),
+            ]);
+
+            return $this->success(
+                data: ['email' => $request->input('email')],
+                message: 'Verification code sent successfully'
+            );
+        } catch (\Exception $e) {
+            \Log::error('AuthController: Registration failed', [
+                'email' => $request->input('email'),
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw $e;
         }
-
-        return $this->success(
-            data: ['email' => $request->input('email')],
-            message: 'Verification code sent successfully'
-        );
     }
 
     public function verifyEmail(VerifyEmailRequest $request): JsonResponse
