@@ -4,9 +4,9 @@
 
 ### 1. Database Setup
 - ✅ PostgreSQL database created on Render
-  - Host: `dpg-d6v3477gi27c73eoinpg-a`
-  - Database: `jobswipe_acb5`
-  - User: `jobswipe_acb5_user`
+  - Host: `your-postgres-host`
+  - Database: `your_database`
+  - User: `your_postgres_user`
 
 - ✅ Redis instance created on Render
   - Host: `red-d6v36u6a2pns73ab5h7g`
