@@ -12,7 +12,7 @@ return new class extends Migration
     {
         Schema::create('company_profiles', function (Blueprint $table) {
             $table->uuid('id')->primary()->default(DB::raw('gen_random_uuid()'));
-            $table->uuid('user_id');
+            $table->uuid('user_id')->unique();
             $table->string('company_name', 255);
             $table->boolean('is_verified')->default(false);
             $table->string('verification_status', 15)->default('unverified');

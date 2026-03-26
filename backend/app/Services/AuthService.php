@@ -84,7 +84,7 @@ class AuthService
         }
 
         if (! $user->hasVerifiedEmail()) {
-            $this->otp->sendOtp($email);
+            $this->otp->sendOtp($email, $user->password_hash, $user->role);
 
             return ['status' => 'unverified'];
         }
@@ -161,6 +161,20 @@ class AuthService
 
     public function resendOtp(string $email): void
     {
-        $this->otp->sendOtp($email);
+        $storedData = $this->otp->getStoredData($email);
+
+        if ($storedData && isset($storedData['password_hash'], $storedData['role'])) {
+            $this->otp->sendOtp($email);
+
+            return;
+        }
+
+        $user = $this->users->findByEmail($email);
+
+        if (! $user || $user->hasVerifiedEmail()) {
+            return;
+        }
+
+        $this->otp->sendOtp($email, $user->password_hash, $user->role);
     }
 }
