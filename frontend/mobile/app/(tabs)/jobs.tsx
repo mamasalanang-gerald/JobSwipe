@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import {
   PageHeader, SearchBar, FilterChips, SectionCard,
@@ -59,6 +61,8 @@ const JOBS = [
 
 // ─── JobsTab ─────────────────────────────────────────────────────────────────
 export default function JobsTab() {
+  const tabBarHeight = useTabBarHeight();
+  const { top: topInset } = useSafeAreaInsets();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [savedIds, setSavedIds] = useState<number[]>([2, 5]);
@@ -78,7 +82,7 @@ export default function JobsTab() {
   });
 
   return (
-    <View style={s.screen}>
+    <View style={[s.screen, { paddingTop: topInset }]}>
       <StatusBar barStyle="dark-content" />
 
       <PageHeader
@@ -102,7 +106,7 @@ export default function JobsTab() {
         onSelect={setActiveFilter}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.list}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.list, { paddingBottom: tabBarHeight + 16 }]}>
         {filtered.length === 0 && (
           <View style={s.noResults}>
             <MaterialCommunityIcons name="magnify-close" size={32} color={Colors.gray300} />

@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import {
   PageHeader, SegmentControl, SectionCard, Divider, AvatarCircle,
@@ -55,6 +57,8 @@ const PIPELINE_STAGES: { key: Status; label: string; icon: string; bg: string; t
 export default function MatchesTab() {
   const [activeTab, setActiveTab] = useState('matches');
 
+  const tabBarHeight = useTabBarHeight();
+  const { top: topInset } = useSafeAreaInsets();
   const totalUnread = PIPELINE.reduce((a, m) => a + m.unread, 0);
 
   const segOptions = [
@@ -63,14 +67,14 @@ export default function MatchesTab() {
   ];
 
   return (
-    <View style={s.screen}>
+    <View style={[s.screen, { paddingTop: topInset }]}>
       <StatusBar barStyle="dark-content" />
 
       <PageHeader title="Matches" action actionIcon="filter-variant" onActionPress={() => {}} />
 
       <SegmentControl options={segOptions} active={activeTab} onSelect={setActiveTab} />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: tabBarHeight + 16 }]}>
 
         {/* ── MATCHES TAB ── */}
         {activeTab === 'matches' && (

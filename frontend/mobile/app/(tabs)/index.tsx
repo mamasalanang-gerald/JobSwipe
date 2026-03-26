@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import {
   View,
   Text,
@@ -111,6 +113,13 @@ const JOBS = [
 ] as const;
 
 export default function HomeTab() {
+  const tabBarHeight = useTabBarHeight();
+  const { top: topInset } = useSafeAreaInsets();
+  // Dynamic bottom positions — keep buttons above tab bar on all devices
+  const actionsBottom  = tabBarHeight + 20;
+  const overlayBottom  = actionsBottom + ACTIONS_HEIGHT + 8;
+  const badgeBottom    = overlayBottom + 92;
+
   const [index, setIndex]           = useState(0);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [liked, setLiked]           = useState<number[]>([]);
@@ -242,14 +251,14 @@ export default function HomeTab() {
 
         {/* Scrims */}
         <View style={[s.scrimTop,    { height: topBarHeight || 160 }]}  pointerEvents="none" />
-        <View style={[s.scrimBottom, { height: OVERLAY_BOTTOM + 180 }]} pointerEvents="none" />
+        <View style={[s.scrimBottom, { height: overlayBottom + 180 }]} pointerEvents="none" />
 
         {/* Stamps */}
         <Animated.View style={[s.stampWrap, { right: Spacing['5'], opacity: likeOpacity }]} pointerEvents="none"><SwipeLabel type="like" visible /></Animated.View>
         <Animated.View style={[s.stampWrap, { left:  Spacing['5'], opacity: nopeOpacity }]} pointerEvents="none"><SwipeLabel type="pass" visible /></Animated.View>
 
         {/* Top bar */}
-        <View style={s.topBar} pointerEvents="box-none" onLayout={e => setTopBarHeight(e.nativeEvent.layout.height)}>
+        <View style={[s.topBar, { paddingTop: topInset > 0 ? topInset + 8 : (Platform.OS === 'ios' ? 54 : 40) }]} pointerEvents="box-none" onLayout={e => setTopBarHeight(e.nativeEvent.layout.height)}>
           <View style={s.tabRow}>
             <TouchableOpacity style={s.iconPill}><MaterialCommunityIcons name="tune-variant"   size={19} color={Colors.white} /></TouchableOpacity>
             <View style={s.tabPills}>
@@ -264,7 +273,7 @@ export default function HomeTab() {
         </View>
 
         {/* Company info strip */}
-        <View style={[s.bottomOverlay, { bottom: OVERLAY_BOTTOM }]} pointerEvents="box-none">
+        <View style={[s.bottomOverlay, { bottom: overlayBottom }]} pointerEvents="box-none">
           <View style={s.nameRow}>
             <View style={{ flex: 1 }}>
               <Text style={s.companyName}>{job.company}</Text>
@@ -295,12 +304,12 @@ export default function HomeTab() {
         Uses module-level constants so it is NEVER translated by the card's
         transform. pointerEvents="none" so it doesn't swallow card touches.
       */}
-      <View style={[s.badgeContainer, { bottom: BADGE_BOTTOM }]} pointerEvents="none">
+      <View style={[s.badgeContainer, { bottom: badgeBottom }]} pointerEvents="none">
         <MatchBadge percent={job.matchPercent} />
       </View>
 
       {/* Layer 3 — Action buttons */}
-      <View style={[s.actionsRow, { bottom: ACTIONS_BOTTOM }]}>
+      <View style={[s.actionsRow, { bottom: actionsBottom }]}>
         <SecondaryButton icon="close"               onPress={() => commitSwipe(-1)} style={s.btnDark} />
         <GhostButton     icon="rotate-left"         onPress={undo}                  style={[s.btnDark, s.btnSm]} />
         <PrimaryButton   icon="heart" iconSize={32} onPress={() => commitSwipe(1)}  style={s.btnHeart} />
@@ -329,7 +338,7 @@ export default function HomeTab() {
 
         <ScrollView
           style={{ flex: 1 }}
-          contentContainerStyle={[s.expandContent, { paddingBottom: BOTTOM_NAV + 32 }]}
+          contentContainerStyle={[s.expandContent, { paddingBottom: tabBarHeight + 32 }]}
           showsVerticalScrollIndicator={false}
           bounces
           overScrollMode="always"
@@ -391,7 +400,6 @@ const s = StyleSheet.create({
 
   topBar: {
     position: 'absolute', top: 0, left: 0, right: 0,
-    paddingTop: Platform.OS === 'ios' ? 54 : 40,
     paddingHorizontal: Spacing['4'],
     zIndex: 10,
   },
@@ -490,4 +498,4 @@ const s = StyleSheet.create({
   emptySub:      { fontSize: Typography.md, color: Colors.gray500, textAlign: 'center', lineHeight: 22, marginBottom: Spacing['6'] },
   refreshBtn:    { backgroundColor: Colors.primary, paddingHorizontal: Spacing['8'], paddingVertical: Spacing['3'] + 1, borderRadius: Radii.lg },
   refreshBtnText:{ fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.white },
-}); 
+});
