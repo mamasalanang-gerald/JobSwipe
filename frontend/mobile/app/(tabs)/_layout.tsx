@@ -1,5 +1,6 @@
 import { Tabs } from 'expo-router';
 import { Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Colors, Typography } from '../../components/ui';
 
@@ -14,6 +15,15 @@ function TabIcon({ name, color }: { name: IconName; color: string }) {
 }
 
 export default function TabLayout() {
+  const insets = useSafeAreaInsets();
+
+  // On Android, insets.bottom reflects the gesture nav bar height (0 on
+  // devices with hardware buttons). On iOS it reflects the home indicator.
+  // Use the system inset when available; guarantee at least 12px on phones
+  // that report 0 (no gesture bar, no hardware buttons).
+  const bottomInset = Math.max(insets.bottom, 12);
+  const tabBarHeight = 56 + bottomInset;
+
   return (
     <Tabs
       screenOptions={{
@@ -21,7 +31,6 @@ export default function TabLayout() {
         tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: Colors.gray400,
         tabBarStyle: {
-          // Float the tab bar over the content so screens render full height
           position: 'absolute',
           bottom: 0,
           left: 0,
@@ -29,8 +38,8 @@ export default function TabLayout() {
           backgroundColor: Colors.white,
           borderTopWidth: 1,
           borderTopColor: Colors.gray100,
-          height: Platform.OS === 'ios' ? 88 : 64,
-          paddingBottom: Platform.OS === 'ios' ? 28 : 10,
+          height: tabBarHeight,
+          paddingBottom: bottomInset > 0 ? bottomInset : 10,
           paddingTop: 8,
           elevation: 8,
         },

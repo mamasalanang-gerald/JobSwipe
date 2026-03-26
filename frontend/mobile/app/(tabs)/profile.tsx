@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, StatusBar } from 'react-native';
 import {
   PageHeader, SectionCard, Divider, Spacer,
@@ -33,6 +35,8 @@ const PREFS = [
 
 // ─── ProfileTab ───────────────────────────────────────────────────────────────
 export default function ProfileTab() {
+  const tabBarHeight = useTabBarHeight();
+  const { top: topInset } = useSafeAreaInsets();
   const [editMode, setEditMode] = useState(false);
   const [toggles, setToggles] = useState({ remote: true, relocate: false, contract: true });
 
@@ -40,7 +44,7 @@ export default function ProfileTab() {
     setToggles(p => ({ ...p, [key]: !p[key as keyof typeof p] }));
 
   return (
-    <View style={s.screen}>
+    <View style={[s.screen, { paddingTop: topInset }]}>
       <StatusBar barStyle="dark-content" />
 
       <PageHeader
@@ -50,7 +54,7 @@ export default function ProfileTab() {
         onActionPress={() => setEditMode(e => !e)}
       />
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={s.scroll}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[s.scroll, { paddingBottom: tabBarHeight + 16 }]}>
 
         {/* ── Avatar card ── */}
         <SectionCard>
