@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendWelcomeEmail;
 use App\Repositories\PostgreSQL\UserRepository;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -59,6 +60,9 @@ class AuthService
             // Generate token
             $token = $this->tokens->generateToken($user);
         });
+
+        // Dispatch welcome email job
+        SendWelcomeEmail::dispatch($user->id)->onQueue('emails');
 
         return [
             'status' => 'verified',
@@ -135,6 +139,9 @@ class AuthService
 
                     $this->profiles->createProfileForUser($user, $googleUser->getAvatar());
                 });
+
+                // Dispatch welcome email for new users
+                SendWelcomeEmail::dispatch($user->id)->onQueue('emails');
             }
         }
 

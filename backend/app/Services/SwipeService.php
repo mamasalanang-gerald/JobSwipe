@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Jobs\SendInterviewInvitation;
 use App\Models\PostgreSQL\ApplicantProfile;
 use App\Repositories\MongoDB\SwipeHistoryRepository;
 use App\Repositories\PostgreSQL\ApplicationRepository;
@@ -124,8 +125,8 @@ class SwipeService
         // 3. Update Redis cache
         $this->cache->markApplicantSeenByHr($hrUserId, $jobId, $applicantId);
 
-        // TODO: Dispatch notification job when notification system is implemented
-        // SendInterviewInvitation::dispatch($applicantId, $jobId, $message)->onQueue('notifications');
+        // Dispatch notification job
+        SendInterviewInvitation::dispatch($applicantId, $jobId, $message)->onQueue('notifications');
 
         return ['status' => 'invited'];
     }
