@@ -11,6 +11,7 @@ class CompanyProfileDocument extends Model
     protected $collection = 'company_profiles';
 
     protected $fillable = [
+        'user_id',
         'company_id',
         'company_name',
         'tagline',
@@ -26,6 +27,10 @@ class CompanyProfileDocument extends Model
         'benefits',
         'culture_tags',
         'notification_preferences',
+        'verification_documents',
+        'onboarding_step',
+        'onboarding_completed_at',
+        'profile_completion_percentage',
     ];
 
     protected $casts = [
@@ -36,6 +41,9 @@ class CompanyProfileDocument extends Model
         'culture_tags' => 'array',
         'founded_year' => 'integer',
         'notification_preferences' => 'array',
+        'verification_documents' => 'array',
+        'onboarding_completed_at' => 'datetime',
+        'profile_completion_percentage' => 'integer',
     ];
 
     /**
