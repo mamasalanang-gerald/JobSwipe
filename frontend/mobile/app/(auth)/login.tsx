@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -39,6 +40,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const { top: topInset } = useSafeAreaInsets();
   const setToken = useAuthStore((s) => s.setToken);
 
   const handleLogin = async () => {
@@ -86,7 +88,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background, paddingTop: topInset }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <StatusBar barStyle="dark-content" />
 
       <PageHeader title="Sign In" subtitle="Welcome back to JobSwipe" />

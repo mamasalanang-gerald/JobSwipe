@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   StatusBar,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
@@ -63,6 +64,7 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { top: topInset } = useSafeAreaInsets();
   const setToken = useAuthStore((s) => s.setToken);
 
   const strengthLevel = password.length === 0 ? null : password.length < 8 ? 'weak' : password.length < 12 ? 'good' : 'strong';
@@ -97,7 +99,7 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background, paddingTop: topInset }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <StatusBar barStyle="dark-content" />
 
       <PageHeader title="Create Account" subtitle="Start your job search today" />
