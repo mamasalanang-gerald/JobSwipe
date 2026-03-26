@@ -15,6 +15,7 @@ import {
   ScrollView,
   Platform,
   LayoutChangeEvent,
+  Switch,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
@@ -66,6 +67,7 @@ const JOBS = [
       require('../assets/images/accenture3.jpg'),
     ],
     lookingFor: 'React Native · TypeScript · 5+ yrs',
+    distanceKm: 3.9,
   },
   {
     id: 2,
@@ -88,6 +90,7 @@ const JOBS = [
       require('../assets/images/alorica3.jpg'),
     ],
     lookingFor: 'Figma · UX Research · 3+ yrs',
+    distanceKm: 8.2,
   },
   {
     id: 3,
@@ -110,6 +113,7 @@ const JOBS = [
       require('../assets/images/socia3.jpg'),
     ],
     lookingFor: 'Python · PyTorch · MLOps · 4+ yrs',
+    distanceKm: 20.4,
   },
 ] as const;
 
@@ -130,37 +134,132 @@ export default function HomeTab() {
   const [cardSize, setCardSize]     = useState({ width: SW, height: SH });
   const [topBarHeight, setTopBarHeight] = useState(0);
 
+  // ── Settings state ───────────────────────────────────────────────────────────
+  const [settingsOpen, setSettingsOpen]   = useState(false);
+  const [useKm, setUseKm]                 = useState(true);
+  const [maxDistanceKm, setMaxDistanceKm] = useState(50);       // applied value
+  const [draftDistance, setDraftDistance] = useState(50);       // in-panel draft
+  const [draftUseKm, setDraftUseKm]       = useState(true);     // in-panel draft
+  const [sliderTrackWidth, setSliderTrackWidth] = useState(SW - 40);
+  const sliderWrapperX = useRef(0);  // page-level x offset of the slider wrapper
+  const settingsAnim = useRef(new Animated.Value(0)).current;
+
+  const openSettings = () => {
+    settingsOpenRef.current = true;
+    // seed draft from current applied values each time panel opens
+    setDraftDistance(maxDistanceKm);
+    setDraftUseKm(useKm);
+    setSettingsOpen(true);
+    Animated.spring(settingsAnim, { toValue: 1, bounciness: 3, useNativeDriver: false }).start();
+  };
+  const closeSettings = () => {
+    settingsOpenRef.current = false;
+    Animated.timing(settingsAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start(() => setSettingsOpen(false));
+  };
+  const applySettings = () => {
+    setMaxDistanceKm(draftDistance);
+    setUseKm(draftUseKm);
+    setIndex(0);          // reset card deck so the new filter takes effect from the start
+    setPhotoIndex(0);
+    closeSettings();
+  };
+
+  // km ↔ miles display helper
+  const formatDistance = (km: number) => {
+    if (useKm) return `${km.toFixed(1)} km away`;
+    return `${(km * 0.621371).toFixed(1)} mi away`;
+  };
+
+  // Label shown in the panel header uses the draft value
+  const draftLabel = draftUseKm ? `${draftDistance} km` : `${(draftDistance * 0.621371).toFixed(0)} mi`;
+  // Preview count using draft (shown before Apply)
+  const draftFilteredCount = JOBS.filter(j => j.distanceKm <= draftDistance).length;
+
+  // Filtered jobs use the committed/applied value
+  const filteredJobs = JOBS.filter(j => j.distanceKm <= maxDistanceKm);
+
   const position   = useRef(new Animated.ValueXY()).current;
   const expandAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const photoScrollRef = useRef<ScrollView>(null);
+  const photoScrollRef   = useRef<ScrollView>(null);
+  const PHOTO_DURATION   = 5000;
+  const timerRef         = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isPausedRef      = useRef(false);
+  const elapsedRef       = useRef(0);   // ms already spent on the current photo
+  const photoIndexRef    = useRef(0);   // mirror of photoIndex for use inside callbacks
 
-  // Auto-cycle photos every 5 seconds with scroll effect
+  // Keep the ref in sync with state
+  useEffect(() => { photoIndexRef.current = photoIndex; }, [photoIndex]);
+
+  // ── Helpers that start / stop the progress bar animation ────────────────────
+  const startProgressFrom = (elapsed: number) => {
+    const remaining = PHOTO_DURATION - elapsed;
+    const from      = elapsed / PHOTO_DURATION;
+    progressAnim.setValue(from);
+    Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: remaining,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  const advancePhoto = (currentCardWidth: number, totalPhotos: number) => {
+    elapsedRef.current = 0;
+    setPhotoIndex(p => {
+      const isLast = p === totalPhotos - 1;
+      const next   = isLast ? 0 : p + 1;
+      if (isLast) {
+        photoScrollRef.current?.scrollTo({ x: totalPhotos * currentCardWidth, animated: true });
+        setTimeout(() => photoScrollRef.current?.scrollTo({ x: 0, animated: false }), 400);
+      } else {
+        photoScrollRef.current?.scrollTo({ x: next * currentCardWidth, animated: true });
+      }
+      return next;
+    });
+    startProgressFrom(0);
+    scheduleNext(currentCardWidth, totalPhotos);
+  };
+
+  const scheduleNext = (currentCardWidth: number, totalPhotos: number) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(
+      () => advancePhoto(currentCardWidth, totalPhotos),
+      PHOTO_DURATION,
+    );
+  };
+
+  // ── Public pause / resume ────────────────────────────────────────────────────
+  const pauseTimer = () => {
+    if (isPausedRef.current) return;
+    isPausedRef.current = true;
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    progressAnim.stopAnimation(snapshot => { elapsedRef.current = snapshot * PHOTO_DURATION; });
+  };
+
+  const resumeTimer = (currentCardWidth: number, totalPhotos: number) => {
+    if (!isPausedRef.current) return;
+    isPausedRef.current = false;
+    const remaining = PHOTO_DURATION - elapsedRef.current;
+    startProgressFrom(elapsedRef.current);
+    timerRef.current = setTimeout(
+      () => advancePhoto(currentCardWidth, totalPhotos),
+      remaining,
+    );
+  };
+
+  // ── Effect: kick off timer whenever the card / photo changes ────────────────
   useEffect(() => {
-    const total = JOBS[index]?.photos.length ?? 1;
+    const total = filteredJobs[index]?.photos.length ?? 1;
     if (total <= 1) return;
-    progressAnim.setValue(0);
-    Animated.timing(progressAnim, { toValue: 1, duration: 5000, useNativeDriver: false }).start();
-    const timer = setInterval(() => {
-      setPhotoIndex(p => {
-        const isLast = p === total - 1;
-        const next = isLast ? 0 : p + 1;
-        if (isLast) {
-          // Scroll forward to the cloned first image, then silently snap back
-          photoScrollRef.current?.scrollTo({ x: total * cardSize.width, animated: true });
-          setTimeout(() => {
-            photoScrollRef.current?.scrollTo({ x: 0, animated: false });
-          }, 400);
-        } else {
-          photoScrollRef.current?.scrollTo({ x: next * cardSize.width, animated: true });
-        }
-        progressAnim.setValue(0);
-        Animated.timing(progressAnim, { toValue: 1, duration: 5000, useNativeDriver: false }).start();
-        return next;
-      });
-    }, 5000);
-    return () => clearInterval(timer);
-  }, [index, cardSize.width, timerKey]);
+
+    isPausedRef.current = false;
+    elapsedRef.current  = 0;
+    startProgressFrom(0);
+    scheduleNext(cardSize.width, total);
+
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, cardSize.width, timerKey, filteredJobs.length]);
 
   const onCardLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
@@ -175,14 +274,29 @@ export default function HomeTab() {
   const nextCardScale      = position.x.interpolate({ inputRange: [-SW, 0, SW],         outputRange: [1, 0.93, 1], extrapolate: 'clamp' });
   const panelTranslateY    = expandAnim.interpolate({ inputRange: [0, 1],               outputRange: [PANEL_HEIGHT, 0] });
 
+  const settingsOpenRef = useRef(false);
+  const isHoldingRef    = useRef(false);
+  const isDraggingRef   = useRef(false);
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: (_e, { dx, dy }) => !expanded && Math.abs(dx) > Math.abs(dy),
-      onMoveShouldSetPanResponder:  (_e, { dx, dy }) => !expanded && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5,
-      onPanResponderMove:    (_e, { dx, dy }) => position.setValue({ x: dx, y: dy * 0.25 }),
+      onStartShouldSetPanResponder: (_e, { dx, dy }) => !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy),
+      onMoveShouldSetPanResponder:  (_e, { dx, dy }) => !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5,
+      onPanResponderMove:    (_e, { dx, dy }) => {
+        if (!isDraggingRef.current) {
+          isDraggingRef.current = true;
+          pauseTimer();
+        }
+        position.setValue({ x: dx, y: dy * 0.25 });
+      },
       onPanResponderRelease: (_e, { dx, vx }) => {
-        if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.6) commitSwipe(dx > 0 ? 1 : -1);
-        else resetCard();
+        isDraggingRef.current = false;
+        isHoldingRef.current  = false;
+        if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.6) {
+          commitSwipe(dx > 0 ? 1 : -1);
+        } else {
+          resetCard();
+          resumeTimer(cardSize.width, filteredJobs[index]?.photos.length ?? 1);
+        }
       },
     })
   ).current;
@@ -195,8 +309,8 @@ export default function HomeTab() {
       useNativeDriver: false,
     }).start(() => {
       position.setValue({ x: 0, y: 0 });
-      if (dir > 0) setLiked(prev => [...prev, JOBS[index].id]);
-      setHistory(prev => [...prev, { id: JOBS[index].id, dir }]);
+      if (dir > 0) setLiked(prev => [...prev, filteredJobs[index].id]);
+      setHistory(prev => [...prev, { id: filteredJobs[index].id, dir }]);
       setPhotoIndex(0);
       setIndex(i => i + 1);
     });
@@ -223,7 +337,7 @@ export default function HomeTab() {
   const handleImageTap = (evt: any) => {
     if (expanded) return;
     const x     = evt.nativeEvent.locationX;
-    const total = JOBS[index].photos.length;
+    const total = filteredJobs[index].photos.length;
     if (x < SW * 0.35 || x > SW * 0.65) {
       setPhotoIndex(p => {
         const next = x < SW * 0.35
@@ -237,7 +351,99 @@ export default function HomeTab() {
   };
 
   // ── Empty state ─────────────────────────────────────────────────────────────
-  if (index >= JOBS.length) {
+  if (filteredJobs.length === 0) {
+    // No jobs match the current distance filter
+    return (
+      <View style={s.emptyScreen}>
+        <StatusBar barStyle="dark-content" />
+        <View style={s.emptyIconWrap}>
+          <MaterialCommunityIcons name="map-marker-off-outline" size={40} color={Colors.primary} />
+        </View>
+        <Text style={s.emptyTitle}>No jobs nearby</Text>
+        <Text style={s.emptySub}>There are no listings within your current distance. Try increasing the range in filters.</Text>
+        <TouchableOpacity style={s.refreshBtn} onPress={openSettings} activeOpacity={0.85}>
+          <Text style={s.refreshBtnText}>Adjust filters</Text>
+        </TouchableOpacity>
+        {settingsOpen && (
+          <TouchableOpacity style={s.settingsBackdrop} activeOpacity={1} onPress={closeSettings} />
+        )}
+        <Animated.View
+          style={[
+            s.settingsPanel,
+            {
+              paddingBottom: tabBarHeight + 16,
+              transform: [{ translateY: settingsAnim.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }],
+            },
+          ]}
+          pointerEvents={settingsOpen ? 'box-none' : 'none'}
+        >
+          <View style={s.panelHandle} />
+          <TouchableOpacity style={s.panelCloseBtn} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+            <MaterialCommunityIcons name="chevron-down" size={24} color="rgba(255,255,255,0.9)" />
+          </TouchableOpacity>
+          <View style={s.settingsContent}>
+            <Text style={s.settingsTitle}>Filters</Text>
+            <View style={s.settingsSection}>
+              <View style={s.settingsLabelRow}>
+                <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color="rgba(255,255,255,0.6)" />
+                <Text style={s.settingsLabel}>Max Distance</Text>
+                <Text style={s.settingsValue}>{draftLabel}</Text>
+              </View>
+              <View
+                style={s.sliderWrapper}
+                onLayout={(e) => setSliderTrackWidth(e.nativeEvent.layout.width)}
+                ref={(ref) => {
+                  if (ref) ref.measure((_x, _y, _w, _h, pageX) => { sliderWrapperX.current = pageX; });
+                }}
+                onStartShouldSetResponder={() => true}
+                onMoveShouldSetResponder={() => true}
+                onResponderGrant={(e) => {
+                  const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
+                  setDraftDistance(Math.max(1, Math.round(pct * 100)));
+                }}
+                onResponderMove={(e) => {
+                  const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
+                  setDraftDistance(Math.max(1, Math.round(pct * 100)));
+                }}
+              >
+                <View style={s.sliderTrack} pointerEvents="none">
+                  <View style={[s.sliderFill, { width: `${(draftDistance / 100) * 100}%` }]} />
+                </View>
+                <View style={[s.sliderThumb, { left: (draftDistance / 100) * sliderTrackWidth - 10 }]} pointerEvents="none" />
+              </View>
+              <View style={s.sliderLabels}>
+                <Text style={s.sliderMin}>1 {draftUseKm ? 'km' : 'mi'}</Text>
+                <Text style={s.sliderMax}>100 {draftUseKm ? 'km' : 'mi'}</Text>
+              </View>
+            </View>
+            <View style={s.exDivider} />
+            <View style={s.settingsSection}>
+              <View style={s.settingsLabelRow}>
+                <MaterialCommunityIcons name="map-outline" size={16} color="rgba(255,255,255,0.6)" />
+                <Text style={s.settingsLabel}>Distance Unit</Text>
+              </View>
+              <View style={s.unitToggleRow}>
+                <Text style={[s.unitLabel, !draftUseKm && s.unitLabelActive]}>Miles</Text>
+                <Switch value={draftUseKm} onValueChange={setDraftUseKm} trackColor={{ false: 'rgba(255,255,255,0.15)', true: Colors.primary }} thumbColor={Colors.white} ios_backgroundColor="rgba(255,255,255,0.15)" />
+                <Text style={[s.unitLabel, draftUseKm && s.unitLabelActive]}>Kilometres</Text>
+              </View>
+            </View>
+            <View style={s.exDivider} />
+            <View style={s.settingsResultRow}>
+              <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={Colors.primary} />
+              <Text style={s.settingsResultText}>{draftFilteredCount} job{draftFilteredCount !== 1 ? 's' : ''} within {draftLabel}</Text>
+            </View>
+            <TouchableOpacity style={s.applyFiltersBtn} onPress={applySettings} activeOpacity={0.85}>
+              <Text style={s.applyFiltersBtnText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      </View>
+    );
+  }
+
+  if (index >= filteredJobs.length) {
+    // All cards in range have been swiped
     return (
       <View style={s.emptyScreen}>
         <StatusBar barStyle="dark-content" />
@@ -256,8 +462,8 @@ export default function HomeTab() {
     );
   }
 
-  const job     = JOBS[index];
-  const nextJob = JOBS[index + 1];
+  const job     = filteredJobs[index];
+  const nextJob = filteredJobs[index + 1];
   const photo   = job.photos[photoIndex];
 
   // ── Main render ─────────────────────────────────────────────────────────────
@@ -280,7 +486,22 @@ export default function HomeTab() {
         style={[StyleSheet.absoluteFill, { transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }] }]}
         {...panResponder.panHandlers}
       >
-        <TouchableOpacity activeOpacity={1} style={StyleSheet.absoluteFill} onPress={handleImageTap}>
+        <TouchableOpacity
+          activeOpacity={1}
+          style={StyleSheet.absoluteFill}
+          onPress={handleImageTap}
+          onPressIn={() => {
+            isHoldingRef.current = true;
+            pauseTimer();
+          }}
+          onPressOut={() => {
+            if (!isHoldingRef.current) return;
+            isHoldingRef.current = false;
+            if (!isDraggingRef.current) {
+              resumeTimer(cardSize.width, filteredJobs[index]?.photos.length ?? 1);
+            }
+          }}
+        >
           <ScrollView
             ref={photoScrollRef}
             horizontal
@@ -317,7 +538,7 @@ export default function HomeTab() {
         {/* Top bar */}
         <View style={[s.topBar, { paddingTop: topInset > 0 ? topInset + 8 : (Platform.OS === 'ios' ? 54 : 40) }]} pointerEvents="box-none" onLayout={e => setTopBarHeight(e.nativeEvent.layout.height)}>
           <View style={s.tabRow}>
-            <TouchableOpacity style={s.iconPill}><MaterialCommunityIcons name="tune-variant"   size={19} color={Colors.white} /></TouchableOpacity>
+            <TouchableOpacity style={s.iconPill} onPress={openSettings}><MaterialCommunityIcons name="tune-variant"   size={19} color={Colors.white} /></TouchableOpacity>
             <TouchableOpacity style={s.iconPill}><MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA"      /></TouchableOpacity>
           </View>
           <View style={s.dotsRow}>
@@ -350,6 +571,11 @@ export default function HomeTab() {
               </View>
               <View style={s.verifiedRow}>
                 <Text style={s.salaryInline}>{job.salary}</Text>
+              </View>
+              {/* Always-visible distance */}
+              <View style={s.cardDistanceRow}>
+                <MaterialCommunityIcons name="map-marker-distance" size={13} color="rgba(255,255,255,0.65)" />
+                <Text style={s.cardDistanceText}>{formatDistance(job.distanceKm)}</Text>
               </View>
             </View>
             {!expanded && (
@@ -406,6 +632,11 @@ export default function HomeTab() {
           <Text style={s.exRole}>{job.position}</Text>
           <Text style={s.exSalary}>{job.salary}</Text>
 
+          <View style={s.exDistanceRow}>
+            <MaterialCommunityIcons name="map-marker-distance" size={14} color="rgba(255,255,255,0.5)" />
+            <Text style={s.exDistance}>{formatDistance(job.distanceKm)}</Text>
+          </View>
+
           <View style={s.exLocRow}>
             <MaterialCommunityIcons name="map-marker-outline" size={13} color="rgba(255,255,255,0.6)" />
             <Text style={s.exLoc}>{job.location}</Text>
@@ -439,6 +670,111 @@ export default function HomeTab() {
       {expanded && (
         <TouchableOpacity style={s.panelBackdrop} activeOpacity={1} onPress={collapsePanel} />
       )}
+
+      {/* ── Settings panel ─────────────────────────────────────────────────── */}
+      {settingsOpen && (
+        <TouchableOpacity style={s.settingsBackdrop} activeOpacity={1} onPress={closeSettings} />
+      )}
+      <Animated.View
+        style={[
+          s.settingsPanel,
+          {
+            paddingBottom: tabBarHeight + 16,
+            transform: [{ translateY: settingsAnim.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }],
+          },
+        ]}
+        pointerEvents={settingsOpen ? 'box-none' : 'none'}
+      >
+        <View style={s.panelHandle} />
+        <TouchableOpacity style={s.panelCloseBtn} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+          <MaterialCommunityIcons name="chevron-down" size={24} color="rgba(255,255,255,0.9)" />
+        </TouchableOpacity>
+
+        <View style={s.settingsContent}>
+          <Text style={s.settingsTitle}>Filters</Text>
+
+          {/* Distance slider */}
+          <View style={s.settingsSection}>
+            <View style={s.settingsLabelRow}>
+              <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color="rgba(255,255,255,0.6)" />
+              <Text style={s.settingsLabel}>Max Distance</Text>
+              <Text style={s.settingsValue}>{draftLabel}</Text>
+            </View>
+
+            {/* Slider wrapper — tall touch target, visual track centred inside */}
+            <View
+              style={s.sliderWrapper}
+              onLayout={(e) => {
+                setSliderTrackWidth(e.nativeEvent.layout.width);
+              }}
+              ref={(ref) => {
+                if (ref) ref.measure((_x, _y, _w, _h, pageX) => { sliderWrapperX.current = pageX; });
+              }}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={(e) => {
+                const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
+                setDraftDistance(Math.max(1, Math.round(pct * 100)));
+              }}
+              onResponderMove={(e) => {
+                const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
+                setDraftDistance(Math.max(1, Math.round(pct * 100)));
+              }}
+            >
+              {/* Visual track */}
+              <View style={s.sliderTrack} pointerEvents="none">
+                <View style={[s.sliderFill, { width: `${(draftDistance / 100) * 100}%` }]} />
+              </View>
+              {/* Thumb — positioned relative to wrapper */}
+              <View
+                style={[s.sliderThumb, { left: (draftDistance / 100) * sliderTrackWidth - 10 }]}
+                pointerEvents="none"
+              />
+            </View>
+
+            <View style={s.sliderLabels}>
+              <Text style={s.sliderMin}>1 {draftUseKm ? 'km' : 'mi'}</Text>
+              <Text style={s.sliderMax}>100 {draftUseKm ? 'km' : 'mi'}</Text>
+            </View>
+          </View>
+
+          <View style={s.exDivider} />
+
+          {/* Unit toggle */}
+          <View style={s.settingsSection}>
+            <View style={s.settingsLabelRow}>
+              <MaterialCommunityIcons name="map-outline" size={16} color="rgba(255,255,255,0.6)" />
+              <Text style={s.settingsLabel}>Distance Unit</Text>
+            </View>
+            <View style={s.unitToggleRow}>
+              <Text style={[s.unitLabel, !draftUseKm && s.unitLabelActive]}>Miles</Text>
+              <Switch
+                value={draftUseKm}
+                onValueChange={setDraftUseKm}
+                trackColor={{ false: 'rgba(255,255,255,0.15)', true: Colors.primary }}
+                thumbColor={Colors.white}
+                ios_backgroundColor="rgba(255,255,255,0.15)"
+              />
+              <Text style={[s.unitLabel, draftUseKm && s.unitLabelActive]}>Kilometres</Text>
+            </View>
+          </View>
+
+          <View style={s.exDivider} />
+
+          {/* Preview count */}
+          <View style={s.settingsResultRow}>
+            <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={Colors.primary} />
+            <Text style={s.settingsResultText}>
+              {draftFilteredCount} job{draftFilteredCount !== 1 ? 's' : ''} within {draftLabel}
+            </Text>
+          </View>
+
+          {/* Apply button */}
+          <TouchableOpacity style={s.applyFiltersBtn} onPress={applySettings} activeOpacity={0.85}>
+            <Text style={s.applyFiltersBtnText}>Apply Filters</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -544,7 +880,16 @@ const s = StyleSheet.create({
   expandContent: { paddingHorizontal: Spacing['5'], paddingTop: Spacing['3'] },
 
   exRole:        { fontSize: Typography['2xl'], fontWeight: Typography.bold,    color: Colors.white,             marginBottom: 4 },
-  exSalary:      { fontSize: Typography.lg,    fontWeight: Typography.semibold, color: '#818CF8',                marginBottom: Spacing['3'] },
+  exSalary:      { fontSize: Typography.lg,    fontWeight: Typography.semibold, color: '#818CF8',                marginBottom: Spacing['2'] },
+  exDistanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4,          marginBottom: Spacing['3'] },
+  exDistance:    { fontSize: Typography.base,  color: 'rgba(255,255,255,0.5)' },
+
+  // Always-visible distance on card
+  cardDistanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
+  cardDistanceText: {
+    fontSize: Typography.sm, color: 'rgba(255,255,255,0.7)',
+    textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+  },
   exLocRow:      { flexDirection: 'row', alignItems: 'center', gap: 4,          marginBottom: Spacing['3'] },
   exLoc:         { fontSize: Typography.base,  color: 'rgba(255,255,255,0.6)' },
   exTags:        { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing['2'],   marginBottom: Spacing['4'] },
@@ -560,4 +905,75 @@ const s = StyleSheet.create({
   emptySub:      { fontSize: Typography.md, color: Colors.gray500, textAlign: 'center', lineHeight: 22, marginBottom: Spacing['6'] },
   refreshBtn:    { backgroundColor: Colors.primary, paddingHorizontal: Spacing['8'], paddingVertical: Spacing['3'] + 1, borderRadius: Radii.lg },
   refreshBtnText:{ fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.white },
+
+  // Settings panel
+  settingsBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 65, backgroundColor: 'rgba(0,0,0,0.5)' },
+  settingsPanel: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(10,10,14,0.98)',
+    zIndex: 70,
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    overflow: 'hidden',
+  },
+  settingsContent: { paddingHorizontal: Spacing['5'], paddingTop: Spacing['2'] },
+  settingsTitle: {
+    fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.white,
+    marginBottom: Spacing['5'], marginTop: Spacing['2'],
+  },
+  settingsSection: { marginBottom: Spacing['4'] },
+  settingsLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing['3'] },
+  settingsLabel: { flex: 1, fontSize: Typography.md, color: 'rgba(255,255,255,0.75)', fontWeight: Typography.medium },
+  settingsValue: { fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.primary },
+
+  // Slider
+  sliderWrapper: {
+    height: 32,                              // tall touch target
+    justifyContent: 'center',               // visually centres the 4px track
+    position: 'relative',
+    marginBottom: 16,
+  },
+  sliderTrack: {
+    height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    position: 'relative',
+    overflow: 'visible',
+  },
+  sliderFill: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    backgroundColor: Colors.primary, borderRadius: 2,
+  },
+  sliderThumb: {
+    position: 'absolute', top: 6,           // (32px wrapper / 2) - (20px thumb / 2) = 6
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: Colors.white,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
+  },
+  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+  sliderMin: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.35)' },
+  sliderMax: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.35)' },
+
+  // Unit toggle
+  unitToggleRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] },
+  unitLabel: { fontSize: Typography.md, color: 'rgba(255,255,255,0.35)', fontWeight: Typography.medium },
+  unitLabelActive: { color: Colors.white },
+
+  // Results count
+  settingsResultRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing['1'] },
+  settingsResultText: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.5)' },
+
+  // Apply button
+  applyFiltersBtn: {
+    marginTop: Spacing['4'],
+    backgroundColor: Colors.primary,
+    borderRadius: Radii.lg,
+    paddingVertical: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyFiltersBtnText: {
+    fontSize: Typography.md,
+    fontWeight: Typography.bold,
+    color: Colors.white,
+    letterSpacing: 0.3,
+  },
 });

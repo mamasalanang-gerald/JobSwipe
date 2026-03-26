@@ -51,6 +51,7 @@ const JOBS = [
     ],
     match: 92, posted: '2h ago', applicants: 34,
     accentColor: '#a855f7',
+    distanceKm: 3.9,
     image: require('../assets/images/accenture.jpg') as any,
   },
   {
@@ -62,6 +63,7 @@ const JOBS = [
     ],
     match: 85, posted: '1d ago', applicants: 22,
     accentColor: '#1e40af',
+    distanceKm: 8.2,
     image: require('../assets/images/socia.png') as any,
   },
   {
@@ -73,6 +75,7 @@ const JOBS = [
     ],
     match: 78, posted: '5h ago', applicants: 61,
     accentColor: '#9f1239',
+    distanceKm: 15.4,
     image: require('../assets/images/alorica.jpg') as any,
   },
   {
@@ -84,6 +87,7 @@ const JOBS = [
     ],
     match: 88, posted: '3h ago', applicants: 15,
     accentColor: '#166534',
+    distanceKm: 20.1,
     image: require('../assets/images/accenture2.jpg') as any,
   },
   {
@@ -95,6 +99,7 @@ const JOBS = [
     ],
     match: 74, posted: '2d ago', applicants: 89,
     accentColor: '#7c3aed',
+    distanceKm: 32.7,
     image: require('../assets/images/socia2.jpg') as any,
   },
   {
@@ -106,6 +111,7 @@ const JOBS = [
     ],
     match: 81, posted: '6h ago', applicants: 44,
     accentColor: '#be185d',
+    distanceKm: 44.0,
     image: require('../assets/images/alorica2.jpg') as any,
   },
 ];
@@ -139,28 +145,36 @@ function HeroCarouselCard({ job }: { job: Job }) {
         style={s.heroCard}
         imageStyle={s.heroCardImg}
       >
-        {/* Dark scrim — no gradient */}
+        {/* Dark scrim */}
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,5,30,0.75)', borderRadius: 24 }]} />
 
-        {/* Top row */}
+        {/* Top row — logo only */}
         <View style={s.heroTop}>
           <View style={[s.heroLogo, { backgroundColor: job.accentColor }]}>
             <Text style={s.heroLogoText}>{job.abbr}</Text>
           </View>
         </View>
 
-        <Text style={s.heroCompany}>{job.company} · {job.location}</Text>
-        <Text style={s.heroRole}>{job.role}</Text>
-        <Text style={[s.heroSalary, { color: job.accentColor === '#a855f7' ? '#c084fc' : '#c084fc' }]}>
-          {job.salary}
-        </Text>
+        {/* Middle content — grows to fill available space */}
+        <View style={{ flex: 1 }}>
+          <Text style={s.heroCompany}>{job.company} · {job.location}</Text>
+          <Text style={s.heroRole} numberOfLines={2}>{job.role}</Text>
+          <Text style={[s.heroSalary, { color: '#c084fc' }]}>{job.salary}</Text>
 
-        <View style={s.tagRow}>
-          {job.tags.map(t => (
-            <TagPill key={t.label} label={t.label} variant={t.variant} />
-          ))}
+          {/* Distance */}
+          <View style={s.heroDistanceRow}>
+            <MaterialCommunityIcons name="map-marker-distance" size={12} color={T.textHint} />
+            <Text style={s.heroDistanceText}>{job.distanceKm.toFixed(1)} km away</Text>
+          </View>
+
+          <View style={s.tagRow}>
+            {job.tags.map(t => (
+              <TagPill key={t.label} label={t.label} variant={t.variant} />
+            ))}
+          </View>
         </View>
 
+        {/* Footer — always pinned at bottom */}
         <View style={s.heroFooter}>
           <View style={s.metaRow}>
             <MaterialCommunityIcons name="account-group-outline" size={12} color={T.textHint} />
@@ -203,14 +217,7 @@ function GridCard({ job, saved, onSave }: { job: Job; saved: boolean; onSave: ()
         </View>
       </View>
 
-      {/* Save */}
-      <TouchableOpacity style={s.gridSaveBtn} onPress={onSave} activeOpacity={0.75}>
-        <MaterialCommunityIcons
-          name={saved ? 'bookmark' : 'bookmark-outline'}
-          size={14}
-          color={saved ? '#a855f7' : 'rgba(255,255,255,0.5)'}
-        />
-      </TouchableOpacity>
+
     </ImageBackground>
   );
 }
@@ -224,12 +231,13 @@ export default function ExploreTab() {
   const [savedIds, setSavedIds]         = useState<number[]>([2, 5]);
   // dotIndex tracks position within BASE_CAROUSEL (0-based), for the dot indicators
   const [dotIndex, setDotIndex] = useState(0);
-  const carouselRef    = useRef<ScrollView>(null);
-  const isPausedRef    = useRef(false);
-  const timerRef       = useRef<ReturnType<typeof setInterval> | null>(null);
+  const carouselRef       = useRef<ScrollView>(null);
+  const isPausedRef       = useRef(false);
+  const timerRef          = useRef<ReturnType<typeof setInterval> | null>(null);
   // rawIndex tracks position within the full CAROUSEL_JOBS array (includes buffer clones)
-  const rawIndexRef    = useRef(CAROUSEL_START_INDEX);
-  const isJumpingRef   = useRef(false); // true while silently snapping clone->real
+  const rawIndexRef       = useRef(CAROUSEL_START_INDEX);
+  const isJumpingRef      = useRef(false); // true while silently snapping clone->real
+  const isAutoScrollingRef = useRef(false); // true during programmatic animated scroll
 
   const toggleSave = (id: number) =>
     setSavedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -244,29 +252,25 @@ export default function ExploreTab() {
   };
 
   const handleCarouselScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (isJumpingRef.current) return;
+    if (isJumpingRef.current || isAutoScrollingRef.current) return;
     const x = e.nativeEvent.contentOffset.x;
     const rawIdx = Math.round(x / (HERO_CARD_WIDTH + 12));
     rawIndexRef.current = rawIdx;
-    // Convert raw index to dot index (clamp to base range)
-    const base = BASE_CAROUSEL.length;
-    if (rawIdx === 0) {
-      setDotIndex(base - 1);
-    } else if (rawIdx === CAROUSEL_JOBS.length - 1) {
-      setDotIndex(0);
-    } else {
-      setDotIndex(rawIdx - 1);
-    }
+    // Don't update the dot while scrolling to/from either clone endpoint —
+    // those positions are transient and cause the indicator to flicker
+    if (rawIdx === 0 || rawIdx === CAROUSEL_JOBS.length - 1) return;
+    setDotIndex(rawIdx - 1);
   };
 
   const handleScrollEndDrag = () => {
     isPausedRef.current = false;
-    // If user manually scrolled to a clone, jump silently to the real item
     const raw = rawIndexRef.current;
     if (raw === 0) {
-      jumpTo(BASE_CAROUSEL.length); // last real item
+      jumpTo(BASE_CAROUSEL.length);
+      setDotIndex(BASE_CAROUSEL.length - 1);
     } else if (raw === CAROUSEL_JOBS.length - 1) {
-      jumpTo(1); // first real item
+      jumpTo(1);
+      setDotIndex(0);
     }
     startAutoScroll();
   };
@@ -275,8 +279,13 @@ export default function ExploreTab() {
     const x = e.nativeEvent.contentOffset.x;
     const raw = Math.round(x / (HERO_CARD_WIDTH + 12));
     rawIndexRef.current = raw;
-    if (raw === 0) jumpTo(BASE_CAROUSEL.length);
-    else if (raw === CAROUSEL_JOBS.length - 1) jumpTo(1);
+    if (raw === 0) {
+      jumpTo(BASE_CAROUSEL.length);
+      setDotIndex(BASE_CAROUSEL.length - 1);
+    } else if (raw === CAROUSEL_JOBS.length - 1) {
+      jumpTo(1);
+      setDotIndex(0);
+    }
   };
 
   const startAutoScroll = useCallback(() => {
@@ -284,14 +293,21 @@ export default function ExploreTab() {
     timerRef.current = setInterval(() => {
       if (isPausedRef.current) return;
       const nextRaw = rawIndexRef.current + 1;
+      // Block onScroll dot updates for the duration of the animation (~300ms)
+      isAutoScrollingRef.current = true;
       carouselRef.current?.scrollTo({ x: nextRaw * (HERO_CARD_WIDTH + 12), animated: true });
       rawIndexRef.current = nextRaw;
-      // After animation (~400ms), silently jump from trailing clone back to real index 1
       if (nextRaw === CAROUSEL_JOBS.length - 1) {
-        setTimeout(() => jumpTo(1), 420);
-        setDotIndex(0);
+        // Scrolling to trailing clone — wait for animation then jump silently,
+        // only update the dot AFTER the jump so it never flickers back to 0 mid-scroll
+        setTimeout(() => {
+          jumpTo(1);
+          setDotIndex(0);
+          isAutoScrollingRef.current = false;
+        }, 420);
       } else {
         setDotIndex(nextRaw - 1);
+        setTimeout(() => { isAutoScrollingRef.current = false; }, 350);
       }
     }, 3000);
   }, []);
@@ -541,8 +557,8 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: T.border,
     padding: 20,
-    height: 240,
-    justifyContent: 'flex-start',
+    height: 280,
+    flexDirection: 'column',
   },
   heroCardImg: { borderRadius: 24 },
   heroTop: {
@@ -559,10 +575,12 @@ const s = StyleSheet.create({
   },
   heroCompany: { fontSize: 12, color: T.textSub, marginBottom: 4 },
   heroRole:    { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.4, marginBottom: 4 },
-  heroSalary:  { fontSize: 14, fontWeight: '700', color: '#c084fc', marginBottom: 10 },
+  heroSalary:  { fontSize: 14, fontWeight: '700', color: '#c084fc', marginBottom: 6 },
+  heroDistanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  heroDistanceText: { fontSize: 11, color: T.textHint },
   heroFooter: {
     flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginTop: 'auto' as any,
+    justifyContent: 'space-between', paddingTop: 8,
   },
 
   // Tags
