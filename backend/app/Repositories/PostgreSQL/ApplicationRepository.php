@@ -61,7 +61,7 @@ class ApplicationRepository
                 applications.created_at ASC
             ")
             ->select('applications.*')
-            - paginate($perPage);
+            ->paginate($perPage);
     }
 
     public function update(Application $application, array $data): Application
