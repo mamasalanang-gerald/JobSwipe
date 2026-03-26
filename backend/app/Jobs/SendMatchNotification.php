@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Mail\InterviewInvitationMail;
+use App\Mail\MatchNotificationMail;
 use App\Models\MongoDB\ApplicantProfileDocument;
 use App\Models\PostgreSQL\ApplicantProfile;
 use App\Models\PostgreSQL\JobPosting;
@@ -13,14 +13,13 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 
-class SendInterviewInvitation implements ShouldQueue
+class SendMatchNotification implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
     public function __construct(
         private string $applicantId,
         private string $jobId,
-        private string $message
     ) {}
 
     public function handle(NotificationService $notificationService): void
@@ -33,35 +32,35 @@ class SendInterviewInvitation implements ShouldQueue
         // Create in-app notification
         $notificationService->create(
             userId: $user->id,
-            type: 'interview_invitation',
-            title: "Interview Invitation from {$job->company->company_name}",
-            body: "You've been invited to interview for {$job->title}",
+            type: 'match_found',
+            title: "🎉 You matched with {$job->company->company_name}!",
+            body: "Great news! {$job->company->company_name} is interested in your application for {$job->title}",
             data: [
                 'job_id' => $this->jobId,
                 'company_id' => $job->company_id,
-                'message' => $this->message,
+                'match_type' => 'company_interested',
             ]
         );
 
-        // Send email (respects user preferences)
+        // Send match notification email (respects user preferences)
         $notificationService->sendEmail(
             userId: $user->id,
-            mailable: new InterviewInvitationMail(
+            mailable: new MatchNotificationMail(
                 applicantName: $mongoProfile->first_name,
                 jobTitle: $job->title,
                 companyName: $job->company->company_name,
-                message: $this->message,
+                companyLogo: $job->company->logo_url ?? null,
                 jobUrl: config('app.frontend_url').'/jobs/'.$this->jobId,
             ),
-            type: 'interview_invitation'
+            type: 'match_found'
         );
 
         // Send push notification (respects user preferences)
         $notificationService->sendPush(
             userId: $user->id,
-            type: 'interview_invitation',
-            title: "Interview Invitation from {$job->company->company_name}",
-            body: "You've been invited to interview for {$job->title}",
+            type: 'match_found',
+            title: "🎉 You matched with {$job->company->company_name}!",
+            body: "They're interested in your application for {$job->title}",
             data: [
                 'job_id' => $this->jobId,
                 'company_id' => $job->company_id,

@@ -28,6 +28,7 @@ class ApplicantProfileDocument extends Model
         'work_experience',
         'education',
         'completed_profile_fields',
+        'notification_preferences',
     ];
 
     protected $casts = [
@@ -36,5 +37,29 @@ class ApplicantProfileDocument extends Model
         'education' => 'array',
         'social_links' => 'array',
         'completed_profile_fields' => 'array',
+        'notification_preferences' => 'array',
     ];
+
+    /**
+     * Get default notification preferences
+     */
+    public function getDefaultNotificationPreferences(): array
+    {
+        return [
+            'email_enabled' => true,
+            'push_enabled' => true,
+            'channels' => [
+                'match_found' => ['email' => true, 'push' => true],
+                'profile_tips' => ['email' => false, 'push' => false],
+            ],
+        ];
+    }
+
+    /**
+     * Get notification preferences with defaults
+     */
+    public function getNotificationPreferences(): array
+    {
+        return $this->notification_preferences ?? $this->getDefaultNotificationPreferences();
+    }
 }
