@@ -20,11 +20,21 @@ class SubscriptionController extends Controller
             'success_url' => ['required', 'url', 'max:2000'],
             'cancel_url' => ['required', 'url', 'max:2000'],
         ]);
+        $idempotencyKey = trim((string) $request->header('Idempotency-Key', ''));
+
+        if ($idempotencyKey !== '' && strlen($idempotencyKey) > 255) {
+            return $this->error(
+                'INVALID_IDEMPOTENCY_KEY',
+                'Idempotency key must be 255 characters or fewer.',
+                422
+            );
+        }
 
         $result = $this->subscriptions->createCheckoutSession(
             $request->user(),
             (string) $validated['success_url'],
-            (string) $validated['cancel_url']
+            (string) $validated['cancel_url'],
+            $idempotencyKey !== '' ? $idempotencyKey : null
         );
 
         return $this->success(data: $result, message: 'Checkout session created.');
@@ -48,7 +58,7 @@ class SubscriptionController extends Controller
     {
         $payload = $request->getContent();
         $signature = (string) $request->header('Stripe-Signature', '');
-        $secret = (string) config('cashier.webhook.secret');
+        $secret = (string) (config('services.stripe.webhook_secret') ?: config('cashier.webhook.secret', ''));
 
         if ($secret === '') {
             return $this->error('WEBHOOK_NOT_CONFIGURED', 'Stripe webhook secret is missing.', 500);
