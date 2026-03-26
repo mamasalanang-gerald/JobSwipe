@@ -1,119 +1,124 @@
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-// ─── Theme (keep in sync with jobs.tsx) ─────────────────────────────────────
+// ─── Theme ───────────────────────────────────────────────────────────────────
 const T = {
   bg:       '#0f0a1e',
-  surface:  '#1a1030',
-  border:   'rgba(255,255,255,0.08)',
-  primary:  '#a855f7',
-  pink:     '#ec4899',
-  inactive: 'rgba(255,255,255,0.35)',
+  surface:  '#130d22',
+  border:   'rgba(255,255,255,0.07)',
+  active:   '#e91e8c',   // hot pink — matches reference
+  inactive: 'rgba(255,255,255,0.38)',
 };
 
 type IconName =
-  | 'home' | 'home-outline'
-  | 'magnify'
-  | 'heart' | 'heart-outline'
-  | 'account' | 'account-outline';
+  | 'home-outline'
+  | 'compass-outline'
+  | 'heart-outline'
+  | 'chat-outline'
+  | 'account-circle-outline';
 
-function TabIcon({ name, color, focused }: { name: IconName; color: string; focused: boolean }) {
-  if (focused) {
-    return (
-      <View style={styles.activeIconWrap}>
-        <View style={styles.activeIconCircle}>
-          <MaterialCommunityIcons name={name as any} size={20} color="#fff" />
-        </View>
+const TABS: { name: string; label: string; icon: IconName; activeIcon: IconName }[] = [
+  { name: 'index',   label: 'Home',    icon: 'home-outline',           activeIcon: 'home-outline'           },
+  { name: 'jobs',    label: 'Explore', icon: 'compass-outline',        activeIcon: 'compass-outline'        },
+  { name: 'matches', label: 'Likes',   icon: 'heart-outline',          activeIcon: 'heart-outline'          },
+  { name: 'profile', label: 'Profile', icon: 'account-circle-outline', activeIcon: 'account-circle-outline' },
+];
+
+// Custom tab bar so we have full control over layout
+function CustomTabBar({ state, descriptors, navigation }: any) {
+  const insets = useSafeAreaInsets();
+  const bottomPad = Math.max(insets.bottom, 8);
+
+  return (
+    <View style={[styles.bar, { paddingBottom: bottomPad }]}>
+      {/* Top border line */}
+      <View style={styles.topBorder} />
+
+      <View style={styles.row}>
+        {state.routes.map((route: any, i: number) => {
+          const focused = state.index === i;
+          const tab = TABS[i];
+          const color = focused ? T.active : T.inactive;
+
+          const onPress = () => {
+            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+          };
+
+          return (
+            <TouchableOpacity
+              key={route.key}
+              onPress={onPress}
+              activeOpacity={0.7}
+              style={styles.tab}
+            >
+              <MaterialCommunityIcons
+                name={(tab?.icon ?? 'home-outline') as any}
+                size={24}
+                color={color}
+              />
+              <Text style={[styles.label, { color }]}>
+                {tab?.label ?? route.name}
+              </Text>
+              {/* Underline indicator */}
+              {focused && <View style={styles.indicator} />}
+            </TouchableOpacity>
+          );
+        })}
       </View>
-    );
-  }
-  return <MaterialCommunityIcons name={name as any} size={22} color={color} />;
+    </View>
+  );
 }
 
 export default function TabLayout() {
-  const insets = useSafeAreaInsets();
-  const bottomInset = Math.max(insets.bottom, 12);
-  const tabBarHeight = 60 + bottomInset;
-
   return (
     <Tabs
-      screenOptions={{
-        headerShown: false,
-        tabBarActiveTintColor: T.primary,
-        tabBarInactiveTintColor: T.inactive,
-        tabBarStyle: {
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: T.surface,
-          borderTopWidth: 1,
-          borderTopColor: T.border,
-          height: tabBarHeight,
-          paddingBottom: bottomInset > 0 ? bottomInset : 10,
-          paddingTop: 8,
-          elevation: 0,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: '600',
-          marginTop: 3,
-        },
-      }}
+      screenOptions={{ headerShown: false }}
+      tabBar={props => <CustomTabBar {...props} />}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'home' : 'home-outline'} color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="jobs"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name="magnify" color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="matches"
-        options={{
-          title: 'Matches',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'heart' : 'heart-outline'} color={color} focused={focused} />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            <TabIcon name={focused ? 'account' : 'account-outline'} color={color} focused={focused} />
-          ),
-        }}
-      />
+      <Tabs.Screen name="index"   options={{ title: 'Home'    }} />
+      <Tabs.Screen name="jobs"    options={{ title: 'Explore' }} />
+      <Tabs.Screen name="matches" options={{ title: 'Likes'   }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );
 }
 
 const styles = StyleSheet.create({
-  activeIconWrap: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  bar: {
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    backgroundColor: T.surface,
   },
-  activeIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#a855f7',
+  topBorder: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: T.border,
+  },
+  row: {
+    flexDirection: 'row',
+    paddingTop: 10,
+  },
+  tab: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 3,
+    paddingBottom: 4,
+    position: 'relative',
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '500',
+    letterSpacing: 0.1,
+  },
+  indicator: {
+    position: 'absolute',
+    bottom: -4,
+    width: 20,
+    height: 2,
+    borderRadius: 2,
+    backgroundColor: T.active,
   },
 });
