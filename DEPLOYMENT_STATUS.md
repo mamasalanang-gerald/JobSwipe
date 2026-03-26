@@ -13,9 +13,9 @@
   - Port: `6379`
 
 - ✅ MongoDB Atlas cluster created
-  - Cluster: `jobswipe-cluster.m0baanc.mongodb.net`
+  - Cluster: `your-cluster.mongodb.net`
   - Database: `jobswipe`
-  - User: `geraldkasan163_db_user`
+  - User: `your_mongodb_user`
   - IP Whitelist: `0.0.0.0/0` (Render access enabled)
 
 ### 2. Environment Variables
