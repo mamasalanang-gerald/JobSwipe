@@ -6,6 +6,9 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Stripe\Exception\ApiErrorException;
+use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\CheckSwipeLimit;
+use App\Http\Middleware\ClearStaleRouteCache;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -17,11 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         // CRITICAL: Must run first to clear stale route cache from Render's pre-start hooks
-        $middleware->prepend(\App\Http\Middleware\ClearStaleRouteCache::class);
+        $middleware->prepend(ClearStaleRouteCache::class);
 
         $middleware->alias([
-            'swipe.limit' => \App\Http\Middleware\CheckSwipeLimit::class,
-            'role' => \App\Http\Middleware\CheckRole::class,
+            'swipe.limit' => CheckSwipeLimit::class,
+            'role' => CheckRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
