@@ -4,6 +4,7 @@ namespace App\Repositories\MongoDB;
 
 use App\Models\MongoDB\SwipeHistory;
 use Carbon\Carbon;
+use Illuminate\Support\Collection;
 
 class SwipeHistoryRepository
 {
@@ -49,7 +50,7 @@ class SwipeHistoryRepository
             ->toArray();
     }
 
-    public function getUserHistory(string $userId, int $limit = 100): \Illuminate\Support\Collection
+    public function getUserHistory(string $userId, int $limit = 100): Collection
     {
         return SwipeHistory::where('user_id', $userId)
             ->orderBy('swiped_at', 'desc')
@@ -57,7 +58,7 @@ class SwipeHistoryRepository
             ->get();
     }
 
-    public function getByDirection(string $userId, string $direction): \Illuminate\Support\Collection
+    public function getByDirection(string $userId, string $direction): Collection
     {
         return SwipeHistory::where('user_id', $userId)
             ->where('direction', $direction)
@@ -72,7 +73,7 @@ class SwipeHistoryRepository
             ->count();
     }
 
-    public function getMutualSwipes(string $userId, string $targetId): \Illuminate\Support\Collection
+    public function getMutualSwipes(string $userId, string $targetId): Collection
     {
         return SwipeHistory::where(function ($query) use ($userId, $targetId) {
             $query->where('user_id', $userId)
