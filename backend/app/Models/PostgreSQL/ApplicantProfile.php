@@ -3,6 +3,8 @@
 namespace App\Models\PostgreSQL;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ApplicantProfile extends Model
 {
@@ -23,17 +25,17 @@ class ApplicantProfile extends Model
         'swipe_reset_at' => 'date',
     ];
 
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function applications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function applications(): HasMany
     {
         return $this->hasMany(Application::class, 'applicant_id');
     }
 
-    public function pointEvents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function pointEvents(): HasMany
     {
         return $this->hasMany(PointEvent::class, 'applicant_id');
     }

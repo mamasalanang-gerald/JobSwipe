@@ -3,6 +3,7 @@
 namespace App\Models\PostgreSQL;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CompanyReview extends Model
 {
@@ -25,17 +26,17 @@ class CompanyReview extends Model
         'is_visible' => 'boolean',
     ];
 
-    public function applicant(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function applicant(): BelongsTo
     {
         return $this->belongsTo(ApplicantProfile::class, 'applicant_id');
     }
 
-    public function company(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(CompanyProfile::class, 'company_id');
     }
 
-    public function jobPosting(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function jobPosting(): BelongsTo
     {
         return $this->belongsTo(JobPosting::class, 'job_posting_id');
     }
