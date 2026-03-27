@@ -3,6 +3,7 @@
 namespace App\Repositories\MongoDB;
 
 use App\Models\MongoDB\ApplicantProfileDocument;
+use Illuminate\Support\Collection;
 
 class ApplicantProfileDocumentRepository
 {
@@ -50,7 +51,7 @@ class ApplicantProfileDocumentRepository
         }
     }
 
-    public function searchBySkills(array $skills): \Illuminate\Support\Collection
+    public function searchBySkills(array $skills): Collection
     {
         return ApplicantProfileDocument::whereIn('skills.name', $skills)->get();
     }

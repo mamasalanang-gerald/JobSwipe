@@ -9,6 +9,7 @@ use App\Models\PostgreSQL\JobPosting;
 use App\Models\PostgreSQL\JobSkill;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Exceptions\ListingLimitReachedException;
 use Illuminate\Support\Facades\DB;
 
 class JobPostingController extends Controller
@@ -64,7 +65,7 @@ class JobPostingController extends Controller
                 $locked = CompanyProfile::lockForUpdate()->find($company->id);
 
                 if ($locked->subscription_tier === 'basic' && $locked->active_listings_count >= 5) {
-                    throw new \App\Exceptions\ListingLimitReachedException;
+                    throw new ListingLimitReachedException;
                 }
 
                 $job = JobPosting::create([
@@ -94,7 +95,7 @@ class JobPostingController extends Controller
 
                 $locked->increment('active_listings_count');
             });
-        } catch (\App\Exceptions\ListingLimitReachedException) {
+        } catch (ListingLimitReachedException) {
             return $this->error('LISTING_LIMIT_REACHED', 'Active listing limit reached for your subscription tier', 403);
         }
 

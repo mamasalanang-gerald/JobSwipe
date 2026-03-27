@@ -22,7 +22,7 @@ class ApplicantReviewController extends Controller
 
     public function getApplicants(Request $request, string $jobId): JsonResponse
     {
-        $this->authorizeJobAccess($request, $jobId);
+        $job = $this->authorizeJobAccess($request, $jobId);
 
         $applicants = $this->applications->getPrioritizedApplicants($jobId, perPage: 20);
 
@@ -37,7 +37,7 @@ class ApplicantReviewController extends Controller
 
     public function getApplicantDetail(Request $request, string $jobId, string $applicantId): JsonResponse
     {
-        $this->authorizeJobAccess($request, $jobId);
+        $job = $this->authorizeJobAccess($request, $jobId);
 
         $application = Application::where('job_posting_id', $jobId)
             ->where('applicant_id', $applicantId)
