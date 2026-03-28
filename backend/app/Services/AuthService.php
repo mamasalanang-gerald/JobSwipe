@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Jobs\SendWelcomeEmail;
 use App\Repositories\PostgreSQL\UserRepository;
+use Exception;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Laravel\Socialite\Contracts\User as SocialiteUser;
 
 class AuthService
@@ -19,13 +21,13 @@ class AuthService
 
     public function initiateRegistration(string $email, string $password, string $role): string
     {
-        \Log::info('AuthService: Starting registration', [
+        Log::info('AuthService: Starting registration', [
             'email' => $email,
             'role' => $role,
         ]);
 
         if ($this->users->emailExists($email)) {
-            \Log::warning('AuthService: Email already exists', ['email' => $email]);
+            Log::warning('AuthService: Email already exists', ['email' => $email]);
 
             return 'email_taken';
         }
@@ -34,9 +36,9 @@ class AuthService
 
         try {
             $this->otp->sendOtp($email, $passwordHash, $role);
-            \Log::info('AuthService: OTP sent successfully', ['email' => $email]);
-        } catch (\Exception $e) {
-            \Log::error('AuthService: Failed to send OTP', [
+            Log::info('AuthService: OTP sent successfully', ['email' => $email]);
+        } catch (Exception $e) {
+            Log::error('AuthService: Failed to send OTP', [
                 'email' => $email,
                 'error' => $e->getMessage(),
             ]);
