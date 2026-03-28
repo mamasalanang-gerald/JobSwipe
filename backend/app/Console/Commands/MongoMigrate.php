@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use DateTimeImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -9,9 +10,8 @@ use JsonException;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Database;
-use Symfony\Component\Finder\SplFileInfo;
-use DateTimeImmutable;
 use RuntimeException;
+use Symfony\Component\Finder\SplFileInfo;
 use Throwable;
 
 class MongoMigrate extends Command
