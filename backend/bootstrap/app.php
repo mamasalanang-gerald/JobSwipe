@@ -1,14 +1,15 @@
 <?php
 
+use App\Http\Middleware\CheckRole;
+use App\Http\Middleware\CheckSwipeLimit;
+use App\Http\Middleware\ClearStaleRouteCache;
+use App\Http\Middleware\EnsureEmailVerified;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Stripe\Exception\ApiErrorException;
-use App\Http\Middleware\CheckRole;
-use App\Http\Middleware\CheckSwipeLimit;
-use App\Http\Middleware\ClearStaleRouteCache;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -25,6 +26,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'swipe.limit' => CheckSwipeLimit::class,
             'role' => CheckRole::class,
+            'verified' => EnsureEmailVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
