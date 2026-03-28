@@ -6,7 +6,6 @@ use App\Mail\InterviewInvitationMail;
 use App\Models\MongoDB\ApplicantProfileDocument;
 use App\Models\PostgreSQL\ApplicantProfile;
 use App\Models\PostgreSQL\JobPosting;
-use App\Models\PostgreSQL\Notification;
 use App\Services\NotificationService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -27,10 +26,6 @@ class SendInterviewInvitation implements ShouldQueue
         $this->onQueue('notifications');
     }
 
-    public function handle(): void
-        private string $message
-    ) {}
-
     public function handle(NotificationService $notificationService): void
     {
         $applicant = ApplicantProfile::findOrFail($this->applicantId);
@@ -49,7 +44,7 @@ class SendInterviewInvitation implements ShouldQueue
                 'company_id' => $job->company_id,
                 'message' => $this->message,
             ],
-        ]);
+        );
 
         Mail::to($user->email)->send(new InterviewInvitationMail(
             applicantName: $mongoProfile->first_name,

@@ -4,6 +4,7 @@ namespace App\Models\PostgreSQL;
 
 use App\Services\UserDataCleanupService;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Support\Str;
 use Laravel\Cashier\Billable;
 use Laravel\Sanctum\HasApiTokens;
@@ -63,12 +64,12 @@ class User extends Authenticatable
         return $this->password_hash;
     }
 
-    public function applicantProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function applicantProfile(): HasOne
     {
         return $this->hasOne(ApplicantProfile::class, 'user_id');
     }
 
-    public function companyProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function companyProfile(): HasOne
     {
         return $this->hasOne(CompanyProfile::class, 'user_id');
     }
