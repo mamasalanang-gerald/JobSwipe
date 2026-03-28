@@ -9,13 +9,15 @@ use Stripe\Exception\ApiErrorException;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckSwipeLimit;
 use App\Http\Middleware\ClearStaleRouteCache;
+use App\Http\Middleware\EnsureEmailVerified;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
+
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
-        web: __DIR__.'/../routes/web.php',
-        api: __DIR__.'/../routes/api.php',
-        commands: __DIR__.'/../routes/console.php',
+        web: __DIR__ . '/../routes/web.php',
+        api: __DIR__ . '/../routes/api.php',
+        commands: __DIR__ . '/../routes/console.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
@@ -25,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'swipe.limit' => CheckSwipeLimit::class,
             'role' => CheckRole::class,
+            'verified' => EnsureEmailVerified::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -37,7 +40,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (ValidationException $exception, Request $request) {
-            if (! $request->is('api/*')) {
+            if (!$request->is('api/*')) {
                 return null;
             }
 
@@ -50,7 +53,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (NotFoundHttpException $exception, Request $request) {
-            if (! $request->is('api/*')) {
+            if (!$request->is('api/*')) {
                 return null;
             }
 
@@ -62,7 +65,7 @@ return Application::configure(basePath: dirname(__DIR__))
         });
 
         $exceptions->render(function (ApiErrorException $exception, Request $request) {
-            if (! $request->is('api/*')) {
+            if (!$request->is('api/*')) {
                 return null;
             }
 

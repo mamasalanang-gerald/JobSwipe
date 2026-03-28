@@ -77,7 +77,7 @@ Route::get('/debug/email-config', function () {
             Redis::ping();
             $config['redis']['status'] = 'CONNECTED';
         } catch (\Exception $e) {
-            $config['redis']['status'] = 'ERROR: '.$e->getMessage();
+            $config['redis']['status'] = 'ERROR: ' . $e->getMessage();
         }
 
         // Check pending jobs
@@ -85,7 +85,7 @@ Route::get('/debug/email-config', function () {
             $pendingJobs = Redis::llen('queues:default');
             $config['queue']['pending_jobs'] = $pendingJobs;
         } catch (\Exception $e) {
-            $config['queue']['pending_jobs'] = 'ERROR: '.$e->getMessage();
+            $config['queue']['pending_jobs'] = 'ERROR: ' . $e->getMessage();
         }
 
         return response()->json([
@@ -150,7 +150,7 @@ Route::get('/debug/database', function () {
             try {
                 $tableCounts[$table] = DB::table($table)->count();
             } catch (\Exception $e) {
-                $tableCounts[$table] = 'Error: '.$e->getMessage();
+                $tableCounts[$table] = 'Error: ' . $e->getMessage();
             }
         }
 
@@ -158,7 +158,7 @@ Route::get('/debug/database', function () {
             $redisKeys = Redis::keys('*');
             $redisSize = Redis::dbSize();
         } catch (\Exception $e) {
-            $redisKeys = ['Error: '.$e->getMessage()];
+            $redisKeys = ['Error: ' . $e->getMessage()];
             $redisSize = 0;
         }
 
@@ -192,7 +192,7 @@ Route::prefix('v1')->group(function () {
 
     Route::post('webhooks/stripe', [SubscriptionController::class, 'handleWebhook']);
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:sanctum', 'verified')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
 
