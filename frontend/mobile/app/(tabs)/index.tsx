@@ -133,6 +133,8 @@ export default function HomeTab() {
   const [history, setHistory]       = useState<{ id: number; dir: number }[]>([]);
   const [cardSize, setCardSize]     = useState({ width: SW, height: SH });
   const [topBarHeight, setTopBarHeight] = useState(0);
+  const [galleryIndex, setGalleryIndex] = useState(0);
+  const [galleryFullscreen, setGalleryFullscreen] = useState(false);
 
   // ── Settings state ───────────────────────────────────────────────────────────
   const [settingsOpen, setSettingsOpen]   = useState(false);
@@ -181,84 +183,54 @@ export default function HomeTab() {
   const position   = useRef(new Animated.ValueXY()).current;
   const expandAnim = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
-  const photoScrollRef   = useRef<ScrollView>(null);
-  const PHOTO_DURATION   = 5000;
-  const timerRef         = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const isPausedRef      = useRef(false);
-  const elapsedRef       = useRef(0);   // ms already spent on the current photo
-  const photoIndexRef    = useRef(0);   // mirror of photoIndex for use inside callbacks
+  const photoScrollRef = useRef<ScrollView>(null);
 
-  // Keep the ref in sync with state
-  useEffect(() => { photoIndexRef.current = photoIndex; }, [photoIndex]);
+  // ── Timer pause/resume tracking ──────────────────────────────────────────────
+  const TIMER_DURATION   = 5000;
+  const isDraggingRef    = useRef(false);
+  const pausedElapsedRef = useRef(0);
+  const dragStartRef     = useRef(0);
 
-  // ── Helpers that start / stop the progress bar animation ────────────────────
-  const startProgressFrom = (elapsed: number) => {
-    const remaining = PHOTO_DURATION - elapsed;
-    const from      = elapsed / PHOTO_DURATION;
-    progressAnim.setValue(from);
-    Animated.timing(progressAnim, {
-      toValue: 1,
-      duration: remaining,
-      useNativeDriver: false,
-    }).start();
-  };
-
-  const advancePhoto = (currentCardWidth: number, totalPhotos: number) => {
-    elapsedRef.current = 0;
-    setPhotoIndex(p => {
-      const isLast = p === totalPhotos - 1;
-      const next   = isLast ? 0 : p + 1;
-      if (isLast) {
-        photoScrollRef.current?.scrollTo({ x: totalPhotos * currentCardWidth, animated: true });
-        setTimeout(() => photoScrollRef.current?.scrollTo({ x: 0, animated: false }), 400);
-      } else {
-        photoScrollRef.current?.scrollTo({ x: next * currentCardWidth, animated: true });
-      }
-      return next;
-    });
-    startProgressFrom(0);
-    scheduleNext(currentCardWidth, totalPhotos);
-  };
-
-  const scheduleNext = (currentCardWidth: number, totalPhotos: number) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(
-      () => advancePhoto(currentCardWidth, totalPhotos),
-      PHOTO_DURATION,
-    );
-  };
-
-  // ── Public pause / resume ────────────────────────────────────────────────────
-  const pauseTimer = () => {
-    if (isPausedRef.current) return;
-    isPausedRef.current = true;
-    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
-    progressAnim.stopAnimation(snapshot => { elapsedRef.current = snapshot * PHOTO_DURATION; });
-  };
-
-  const resumeTimer = (currentCardWidth: number, totalPhotos: number) => {
-    if (!isPausedRef.current) return;
-    isPausedRef.current = false;
-    const remaining = PHOTO_DURATION - elapsedRef.current;
-    startProgressFrom(elapsedRef.current);
-    timerRef.current = setTimeout(
-      () => advancePhoto(currentCardWidth, totalPhotos),
-      remaining,
-    );
-  };
-
-  // ── Effect: kick off timer whenever the card / photo changes ────────────────
+  // Auto-cycle photos every 5 seconds — pauses while card is being dragged
   useEffect(() => {
     const total = filteredJobs[index]?.photos.length ?? 1;
     if (total <= 1) return;
 
-    isPausedRef.current = false;
-    elapsedRef.current  = 0;
-    startProgressFrom(0);
-    scheduleNext(cardSize.width, total);
+    let accumulatedMs = pausedElapsedRef.current;
+    let lastTick      = Date.now();
 
-    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Drive progressAnim directly from accumulatedMs every tick.
+    // This way pausing is just "stop incrementing" — no Animated.timing involved,
+    // so there is no async mismatch between the animation clock and real elapsed time.
+    const id = setInterval(() => {
+      const now = Date.now();
+
+      if (!isDraggingRef.current) {
+        accumulatedMs += now - lastTick;
+      }
+      lastTick = now;
+
+      progressAnim.setValue(Math.min(accumulatedMs / TIMER_DURATION, 1));
+
+      if (accumulatedMs >= TIMER_DURATION) {
+        pausedElapsedRef.current = 0;
+        clearInterval(id);
+        setPhotoIndex(p => {
+          const isLast = p === total - 1;
+          const next   = isLast ? 0 : p + 1;
+          if (isLast) {
+            photoScrollRef.current?.scrollTo({ x: total * cardSize.width, animated: true });
+            setTimeout(() => photoScrollRef.current?.scrollTo({ x: 0, animated: false }), 400);
+          } else {
+            photoScrollRef.current?.scrollTo({ x: next * cardSize.width, animated: true });
+          }
+          return next;
+        });
+        setTimerKey(k => k + 1);
+      }
+    }, 100);
+
+    return () => clearInterval(id);
   }, [index, cardSize.width, timerKey, filteredJobs.length]);
 
   const onCardLayout = (e: LayoutChangeEvent) => {
@@ -276,26 +248,24 @@ export default function HomeTab() {
 
   const settingsOpenRef = useRef(false);
   const isHoldingRef    = useRef(false);
-  const isDraggingRef   = useRef(false);
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (_e, { dx, dy }) => !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy),
       onMoveShouldSetPanResponder:  (_e, { dx, dy }) => !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5,
-      onPanResponderMove:    (_e, { dx, dy }) => {
-        if (!isDraggingRef.current) {
-          isDraggingRef.current = true;
-          pauseTimer();
-        }
-        position.setValue({ x: dx, y: dy * 0.25 });
+      onPanResponderGrant: () => {
+        isDraggingRef.current = true;
       },
+      onPanResponderMove:    (_e, { dx, dy }) => { isDraggingRef.current = true; position.setValue({ x: dx, y: dy * 0.25 }); },
       onPanResponderRelease: (_e, { dx, vx }) => {
         isDraggingRef.current = false;
-        isHoldingRef.current  = false;
+        isHoldingRef.current = false;
         if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.6) {
+          pausedElapsedRef.current = 0;
           commitSwipe(dx > 0 ? 1 : -1);
         } else {
           resetCard();
-          resumeTimer(cardSize.width, filteredJobs[index]?.photos.length ?? 1);
+          // Don't bump timerKey — the interval is still running and will resume
+          // automatically now that isDraggingRef is false. No reset needed.
         }
       },
     })
@@ -312,6 +282,7 @@ export default function HomeTab() {
       if (dir > 0) setLiked(prev => [...prev, filteredJobs[index].id]);
       setHistory(prev => [...prev, { id: filteredJobs[index].id, dir }]);
       setPhotoIndex(0);
+      setGalleryIndex(0);
       setIndex(i => i + 1);
     });
   };
@@ -331,6 +302,7 @@ export default function HomeTab() {
     setHistory(h => h.slice(0, -1));
     setLiked(l => l.filter(id => id !== last.id));
     setPhotoIndex(0);
+    pausedElapsedRef.current = 0;
     collapsePanel();
     setIndex(i => Math.max(0, i - 1));
   };
@@ -347,6 +319,7 @@ export default function HomeTab() {
         return next;
       });
       setTimerKey(k => k + 1); // resets the interval
+      pausedElapsedRef.current = 0;
     }
   };
 
@@ -492,14 +465,12 @@ export default function HomeTab() {
           onPress={handleImageTap}
           onPressIn={() => {
             isHoldingRef.current = true;
-            pauseTimer();
+            progressAnim.stopAnimation();
           }}
           onPressOut={() => {
-            if (!isHoldingRef.current) return;
+            if (!isHoldingRef.current || isDraggingRef.current) return;
             isHoldingRef.current = false;
-            if (!isDraggingRef.current) {
-              resumeTimer(cardSize.width, filteredJobs[index]?.photos.length ?? 1);
-            }
+            setTimerKey(k => k + 1);
           }}
         >
           <ScrollView
@@ -650,6 +621,50 @@ export default function HomeTab() {
           <Text style={s.exSectionTitle}>About the role</Text>
           <Text style={s.exDesc}>{job.description}</Text>
 
+          {/* ── Company photo gallery ── */}
+          <View style={s.exDivider} />
+          <Text style={s.exSectionTitle}>Company photos</Text>
+          {/* Main large preview */}
+          <TouchableOpacity
+            activeOpacity={0.92}
+            style={s.galleryMain}
+            onPress={() => setGalleryFullscreen(true)}
+          >
+            <Image
+              source={job.photos[galleryIndex]}
+              style={s.galleryMainImg}
+              resizeMode="cover"
+            />
+            <View style={s.galleryMainOverlay}>
+              <MaterialCommunityIcons name="magnify-plus-outline" size={22} color="rgba(255,255,255,0.85)" />
+            </View>
+            {/* Dot indicators */}
+            <View style={s.galleryDots}>
+              {job.photos.map((_, i) => (
+                <View key={i} style={[s.galleryDot, i === galleryIndex && s.galleryDotActive]} />
+              ))}
+            </View>
+          </TouchableOpacity>
+          {/* Thumbnail strip */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={s.galleryStrip}
+            contentContainerStyle={{ gap: 8, paddingHorizontal: 2 }}
+          >
+            {job.photos.map((p, i) => (
+              <TouchableOpacity
+                key={i}
+                activeOpacity={0.8}
+                onPress={() => setGalleryIndex(i)}
+                style={[s.galleryThumb, i === galleryIndex && s.galleryThumbActive]}
+              >
+                <Image source={p} style={s.galleryThumbImg} resizeMode="cover" />
+                {i === galleryIndex && <View style={s.galleryThumbOverlay} />}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
           <View style={s.exDivider} />
           <Text style={s.exSectionTitle}>Requirements</Text>
           <View style={s.exMetaRow}>
@@ -669,6 +684,32 @@ export default function HomeTab() {
       {/* Tap outside panel to close */}
       {expanded && (
         <TouchableOpacity style={s.panelBackdrop} activeOpacity={1} onPress={collapsePanel} />
+      )}
+
+      {/* ── Fullscreen gallery lightbox ───────────────────────────────────── */}
+      {galleryFullscreen && (
+        <View style={s.lightbox}>
+          <TouchableOpacity style={s.lightboxClose} onPress={() => setGalleryFullscreen(false)} hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}>
+            <MaterialCommunityIcons name="close" size={24} color={Colors.white} />
+          </TouchableOpacity>
+          <Image
+            source={job.photos[galleryIndex]}
+            style={s.lightboxImg}
+            resizeMode="contain"
+          />
+          {/* Prev / Next */}
+          {galleryIndex > 0 && (
+            <TouchableOpacity style={[s.lightboxArrow, s.lightboxArrowLeft]} onPress={() => setGalleryIndex(i => i - 1)}>
+              <MaterialCommunityIcons name="chevron-left" size={32} color={Colors.white} />
+            </TouchableOpacity>
+          )}
+          {galleryIndex < job.photos.length - 1 && (
+            <TouchableOpacity style={[s.lightboxArrow, s.lightboxArrowRight]} onPress={() => setGalleryIndex(i => i + 1)}>
+              <MaterialCommunityIcons name="chevron-right" size={32} color={Colors.white} />
+            </TouchableOpacity>
+          )}
+          <Text style={s.lightboxCounter}>{galleryIndex + 1} / {job.photos.length}</Text>
+        </View>
       )}
 
       {/* ── Settings panel ─────────────────────────────────────────────────── */}
@@ -898,6 +939,57 @@ const s = StyleSheet.create({
   exDesc:        { fontSize: Typography.md,    color: 'rgba(255,255,255,0.78)', lineHeight: Typography.md * 1.65, marginBottom: Spacing['2'] },
   exMetaRow:     { flexDirection: 'row', alignItems: 'center', gap: 6,          marginBottom: Spacing['2'] },
   exMeta:        { fontSize: Typography.md,    color: 'rgba(255,255,255,0.7)' },
+
+  // Gallery
+  galleryMain: {
+    borderRadius: Radii.lg, overflow: 'hidden',
+    height: 180, marginBottom: Spacing['3'], position: 'relative',
+  },
+  galleryMainImg:     { width: '100%', height: '100%' },
+  galleryMainOverlay: {
+    position: 'absolute', top: 10, right: 10,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    borderRadius: Radii.full, padding: 6,
+  },
+  galleryDots: {
+    position: 'absolute', bottom: 10, alignSelf: 'center',
+    flexDirection: 'row', gap: 5, left: 0, right: 0, justifyContent: 'center',
+  },
+  galleryDot:       { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(255,255,255,0.4)' },
+  galleryDotActive: { backgroundColor: Colors.white, width: 18 },
+  galleryStrip:     { marginBottom: Spacing['2'] },
+  galleryThumb: {
+    width: 72, height: 56, borderRadius: Radii.md, overflow: 'hidden',
+    borderWidth: 2, borderColor: 'transparent',
+  },
+  galleryThumbActive: { borderColor: Colors.primary },
+  galleryThumbImg:    { width: '100%', height: '100%' },
+  galleryThumbOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(99,102,241,0.18)',
+  },
+
+  // Lightbox
+  lightbox: {
+    position: 'absolute', top: 0, bottom: 0, left: 0, right: 0,
+    backgroundColor: 'rgba(0,0,0,0.96)', zIndex: 100,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lightboxImg:   { width: SW, height: SH * 0.7 },
+  lightboxClose: {
+    position: 'absolute', top: 52, right: Spacing['5'],
+    backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: Radii.full, padding: 8, zIndex: 101,
+  },
+  lightboxArrow: {
+    position: 'absolute', top: '50%', marginTop: -24,
+    backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: Radii.full, padding: 8,
+  },
+  lightboxArrowLeft:  { left: Spacing['4'] },
+  lightboxArrowRight: { right: Spacing['4'] },
+  lightboxCounter: {
+    position: 'absolute', bottom: 60,
+    fontSize: Typography.md, color: 'rgba(255,255,255,0.6)', fontWeight: Typography.medium,
+  },
 
   emptyScreen:   { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background, padding: Spacing['8'] },
   emptyIconWrap: { width: 80, height: 80, borderRadius: Radii.full, backgroundColor: Colors.primaryLight, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing['5'] },
