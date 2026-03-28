@@ -118,7 +118,7 @@ class ProfileOnboardingService
         return $this->calculateCompanyCompletion($profile, $companyProfile);
     }
 
-    private function ensureApplicantDocument(string $userId): ApplicantProfileDocument
+    public function ensureApplicantDocument(string $userId): ApplicantProfileDocument
     {
         $profile = $this->applicantDocs->findByUserId($userId);
 
@@ -151,7 +151,7 @@ class ProfileOnboardingService
         ]);
     }
 
-    private function ensureCompanyDocument(string $userId, CompanyProfile $companyProfile): CompanyProfileDocument
+    public function ensureCompanyDocument(string $userId, CompanyProfile $companyProfile): CompanyProfileDocument
     {
         $profile = $this->companyDocs->findByUserId($userId);
 
@@ -187,7 +187,7 @@ class ProfileOnboardingService
         ]);
     }
 
-    private function findCompanyProfileByUserId(string $userId): CompanyProfile
+    public function findCompanyProfileByUserId(string $userId): CompanyProfile
     {
         $companyProfile = $this->companyProfiles->findByUserId($userId);
 
@@ -442,7 +442,7 @@ class ProfileOnboardingService
         $this->calculateCompanyCompletion($profile->fresh(), $companyProfile);
     }
 
-    private function filled(mixed $value): bool
+    public function filled(mixed $value): bool
     {
         return is_string($value) ? trim($value) !== '' : ! empty($value);
     }
