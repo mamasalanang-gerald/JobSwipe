@@ -3,6 +3,8 @@
 namespace App\Models\PostgreSQL;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Laravel\Scout\Searchable;
 
 class JobPosting extends Model
@@ -30,17 +32,17 @@ class JobPosting extends Model
         'published_at' => 'datetime',
     ];
 
-    public function company(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function company(): BelongsTo
     {
         return $this->belongsTo(CompanyProfile::class, 'company_id');
     }
 
-    public function skills(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function skills(): HasMany
     {
         return $this->hasMany(JobSkill::class, 'job_posting_id');
     }
 
-    public function applications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function applications(): HasMany
     {
         return $this->hasMany(Application::class, 'job_posting_id');
     }
