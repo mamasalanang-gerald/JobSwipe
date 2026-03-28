@@ -80,6 +80,8 @@ class AuthService
             $token = $this->tokens->generateToken($user);
         });
 
+        $this->otp->clearStoredData($email);
+
         // Dispatch welcome email job
         SendWelcomeEmail::dispatch($user->id)->onQueue('emails');
 
