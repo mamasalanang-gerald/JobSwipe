@@ -9,6 +9,7 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class ExpireJobPostingsJob implements ShouldQueue
 {
@@ -42,7 +43,7 @@ class ExpireJobPostingsJob implements ShouldQueue
                         $job->unsearchable();
 
                         $expiredCount++;
-                    } catch (\Throwable $e) {
+                    } catch (Throwable $e) {
                         $failedCount++;
                         Log::error("Failed to expire job posting {$job->id}: {$e->getMessage()}");
                     }
@@ -55,7 +56,7 @@ class ExpireJobPostingsJob implements ShouldQueue
     /**
      * Handle a job failure after all retries are exhausted.
      */
-    public function failed(\Throwable $exception): void
+    public function failed(Throwable $exception): void
     {
         Log::critical("ExpireJobPostingsJob failed permanently: {$exception->getMessage()}");
     }
