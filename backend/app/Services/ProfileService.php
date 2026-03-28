@@ -24,9 +24,8 @@ class ProfileService
         private ApplicantProfileRepository $applicantProfiles,
         private CompanyProfileRepository $companyProfiles,
         private ApplicantProfileDocumentRepository $applicantDocs,
-        private PointService $points,
-    ) {}
         private CompanyProfileDocumentRepository $companyDocs,
+        private PointService $points,
         ?ProfileCompletionService $completion = null,
         ?ProfileOnboardingService $onboarding = null,
         ?ProfileSocialLinksValidator $socialLinksValidator = null,
