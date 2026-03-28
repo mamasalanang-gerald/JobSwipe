@@ -26,9 +26,14 @@ const T = {
 };
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
-const SKILLS = [
+const HARD_SKILLS = [
   'React', 'TypeScript', 'Node.js', 'Python',
-  'AWS', 'GraphQL', 'Figma', 'Leadership',
+  'AWS', 'GraphQL', 'Figma',
+];
+
+const SOFT_SKILLS = [
+  'Leadership', 'Communication', 'Problem Solving',
+  'Teamwork', 'Adaptability',
 ];
 
 const EXPERIENCE = [
@@ -265,15 +270,43 @@ export default function ProfileTab() {
               </TouchableOpacity>
             )}
           </View>
-          <View style={s.chips}>
-            {SKILLS.map((sk, i) => (
-              <View key={i} style={s.chip}>
-                <Text style={s.chipText}>{sk}</Text>
-                {editMode && (
-                  <MaterialCommunityIcons name="close" size={10} color={T.textHint} style={{ marginLeft: 4 }} />
-                )}
-              </View>
-            ))}
+
+          {/* Hard Skills */}
+          <View style={s.skillSegment}>
+            <View style={s.skillSegmentHeader}>
+              <MaterialCommunityIcons name="code-braces" size={13} color={T.primary} />
+              <Text style={s.skillSegmentLabel}>Hard Skills</Text>
+            </View>
+            <View style={s.chips}>
+              {HARD_SKILLS.map((sk, i) => (
+                <View key={i} style={[s.chip, s.chipHard]}>
+                  <Text style={[s.chipText, { color: T.primary }]}>{sk}</Text>
+                  {editMode && (
+                    <MaterialCommunityIcons name="close" size={10} color={T.primary} style={{ marginLeft: 4 }} />
+                  )}
+                </View>
+              ))}
+            </View>
+          </View>
+
+          <View style={s.skillDivider} />
+
+          {/* Soft Skills */}
+          <View style={s.skillSegment}>
+            <View style={s.skillSegmentHeader}>
+              <MaterialCommunityIcons name="account-heart-outline" size={13} color="#4ade80" />
+              <Text style={[s.skillSegmentLabel, { color: '#4ade80' }]}>Soft Skills</Text>
+            </View>
+            <View style={s.chips}>
+              {SOFT_SKILLS.map((sk, i) => (
+                <View key={i} style={[s.chip, s.chipSoft]}>
+                  <Text style={[s.chipText, { color: '#4ade80' }]}>{sk}</Text>
+                  {editMode && (
+                    <MaterialCommunityIcons name="close" size={10} color="#4ade80" style={{ marginLeft: 4 }} />
+                  )}
+                </View>
+              ))}
+            </View>
           </View>
         </View>
 
@@ -453,9 +486,15 @@ const s = StyleSheet.create({
   // Skills
   chips:     { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
   chip:      { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border },
+  chipHard:  { borderColor: 'rgba(168,85,247,0.35)', backgroundColor: 'rgba(168,85,247,0.09)' },
+  chipSoft:  { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' },
   chipText:  { fontSize: 12, fontWeight: '600', color: T.textSub },
   addBtn:    { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(168,85,247,0.28)', backgroundColor: 'rgba(168,85,247,0.08)' },
   addBtnText:{ fontSize: 11, fontWeight: '700', color: T.primary },
+  skillSegment:       { gap: 10 },
+  skillSegmentHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+  skillSegmentLabel:  { fontSize: 11, fontWeight: '700', color: T.primary, letterSpacing: 0.4 },
+  skillDivider:       { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginVertical: 14 },
 
   // Preferences
   prefChip:   { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border },
