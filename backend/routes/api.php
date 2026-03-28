@@ -9,13 +9,13 @@ use App\Http\Controllers\File\FileUploadController;
 use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Subscription\SubscriptionController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Redis;
 use App\Mail\EmailVerificationMail;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
@@ -192,7 +192,7 @@ Route::prefix('v1')->group(function () {
 
     Route::post('webhooks/stripe', [SubscriptionController::class, 'handleWebhook']);
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:sanctum', 'verified')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
         Route::get('auth/me', [AuthController::class, 'me']);
 
