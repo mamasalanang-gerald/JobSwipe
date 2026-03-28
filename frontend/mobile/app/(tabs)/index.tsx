@@ -68,6 +68,11 @@ const JOBS = [
     ],
     lookingFor: 'React Native · TypeScript · 5+ yrs',
     distanceKm: 3.9,
+    reviews: [
+      { author: 'Sarah M.',  role: 'Software Engineer',    rating: 5, date: 'Mar 2024', text: 'Amazing culture and work-life balance. The team is brilliant and leadership actually listens. Shipped some of the most impactful features of my career here.' },
+      { author: 'James K.',  role: 'Senior Developer',     rating: 5, date: 'Jan 2024', text: 'Best engineering environment I have worked in. Strong processes, fast feedback loops, and real ownership over the product.' },
+      { author: 'Priya L.',  role: 'Mobile Engineer',      rating: 4, date: 'Nov 2023', text: 'Great pay and perks. Occasional crunch around big releases but the team is supportive and management is transparent.' },
+    ],
   },
   {
     id: 2,
@@ -91,6 +96,11 @@ const JOBS = [
     ],
     lookingFor: 'Figma · UX Research · 3+ yrs',
     distanceKm: 8.2,
+    reviews: [
+      { author: 'Elena R.',  role: 'UX Designer',          rating: 5, date: 'Feb 2024', text: 'Love the creative freedom here. The design system is world-class and your work genuinely reaches millions of users every day.' },
+      { author: 'Tom B.',    role: 'Product Designer',     rating: 4, date: 'Dec 2023', text: 'Collaborative team and strong mentorship. Hybrid setup works really well — good balance of in-office energy and remote flexibility.' },
+      { author: 'Nina C.',   role: 'UI Designer',          rating: 5, date: 'Oct 2023', text: 'One of the most design-forward companies I have seen. Leadership invests heavily in tooling, learning budgets, and the team.' },
+    ],
   },
   {
     id: 3,
@@ -114,6 +124,11 @@ const JOBS = [
     ],
     lookingFor: 'Python · PyTorch · MLOps · 4+ yrs',
     distanceKm: 20.4,
+    reviews: [
+      { author: 'David W.',  role: 'ML Engineer',          rating: 5, date: 'Mar 2024', text: 'Cutting-edge research environment. You will work on problems that truly push the field forward. The calibre of colleagues is outstanding.' },
+      { author: 'Aisha T.',  role: 'Data Scientist',       rating: 5, date: 'Feb 2024', text: 'Exceptional resources and compute budget. Leadership encourages publishing and the internal knowledge sharing culture is incredible.' },
+      { author: 'Leo S.',    role: 'Research Engineer',    rating: 4, date: 'Jan 2024', text: 'Great place if you want to grow fast. On-site requirement is a trade-off but the office and perks more than compensate.' },
+    ],
   },
 ] as const;
 
@@ -525,10 +540,17 @@ export default function HomeTab() {
           </View>
         </View>
 
-        {/* Gradient scrim for text legibility */}
+        {/* Top gradient scrim — nearly solid block covering ~25% */}
         <LinearGradient
-          colors={['transparent', 'rgba(0,0,0,0.35)', 'rgba(0,0,0,0.75)']}
-          style={[StyleSheet.absoluteFill, { top: '45%', zIndex: 3 }]}
+          colors={['rgba(15,10,30,1)', 'rgba(15,10,30,1)', 'rgba(15,10,30,0.85)', 'rgba(15,10,30,0.3)', 'transparent']}
+          style={[StyleSheet.absoluteFill, { bottom: '75%', zIndex: 3 }]}
+          pointerEvents="none"
+        />
+
+        {/* Bottom gradient scrim — nearly solid block covering ~25% */}
+        <LinearGradient
+          colors={['transparent', 'rgba(15,10,30,0.3)', 'rgba(15,10,30,0.85)', 'rgba(15,10,30,1)', 'rgba(15,10,30,1)']}
+          style={[StyleSheet.absoluteFill, { top: '75%', zIndex: 3 }]}
           pointerEvents="none"
         />
 
@@ -678,6 +700,55 @@ export default function HomeTab() {
             <MaterialCommunityIcons name="star" size={14} color={Colors.warning} />
             <Text style={s.exMeta}>{job.rating} · Glassdoor</Text>
           </View>
+
+          {/* ── Employee reviews ── */}
+          <View style={s.exDivider} />
+          <View style={s.reviewsTitleRow}>
+            <Text style={s.exSectionTitle}>Employee reviews</Text>
+            <Text style={s.reviewsCount}>{job.reviews.length} reviews</Text>
+          </View>
+          <View style={{ gap: 10 }}>
+            {job.reviews.slice(0, 3).map((review, i) => (
+              <View key={i} style={[s.reviewCard, i === 2 && s.reviewCardFaded]}>
+                <View style={s.reviewHeader}>
+                  <View style={s.reviewAvatar}>
+                    <Text style={s.reviewAvatarText}>{review.author.charAt(0)}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.reviewAuthor}>{review.author}</Text>
+                    <Text style={s.reviewRole}>{review.role}</Text>
+                  </View>
+                  <View style={s.reviewMeta}>
+                    <View style={s.reviewStars}>
+                      {Array.from({ length: 5 }).map((_, si) => (
+                        <MaterialCommunityIcons
+                          key={si}
+                          name={si < review.rating ? 'star' : 'star-outline'}
+                          size={11}
+                          color={si < review.rating ? Colors.warning : 'rgba(255,255,255,0.2)'}
+                        />
+                      ))}
+                    </View>
+                    <Text style={s.reviewDate}>{review.date}</Text>
+                  </View>
+                </View>
+                <Text style={[s.reviewText, i === 2 && { opacity: 0.35 }]}>{review.text}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Locked "View more reviews" button */}
+          <TouchableOpacity style={s.viewMoreBtn} activeOpacity={0.8}>
+            <View style={s.viewMoreLockBadge}>
+              <MaterialCommunityIcons name="lock" size={11} color="#fff" />
+            </View>
+            <Text style={s.viewMoreText}>View all reviews</Text>
+            <View style={s.viewMorePremiumBadge}>
+              <MaterialCommunityIcons name="lightning-bolt" size={10} color="#0f0a1e" />
+              <Text style={s.viewMorePremiumText}>Premium</Text>
+            </View>
+            <MaterialCommunityIcons name="chevron-right" size={16} color="rgba(255,255,255,0.3)" style={{ marginLeft: 'auto' }} />
+          </TouchableOpacity>
         </ScrollView>
       </Animated.View>
 
@@ -1066,6 +1137,122 @@ const s = StyleSheet.create({
     fontSize: Typography.md,
     fontWeight: Typography.bold,
     color: Colors.white,
+    letterSpacing: 0.3,
+  },
+
+  // Reviews
+  reviewsTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing['3'],
+  },
+  reviewsCount: {
+    fontSize: Typography.xs,
+    color: 'rgba(255,255,255,0.3)',
+    fontWeight: Typography.medium,
+  },
+  reviewCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    padding: Spacing['4'],
+    gap: 10,
+  },
+  reviewCardFaded: {
+    opacity: 0.5,
+  },
+  reviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  reviewAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(99,102,241,0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(99,102,241,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  reviewAvatarText: {
+    fontSize: Typography.md,
+    fontWeight: Typography.bold,
+    color: Colors.primary,
+  },
+  reviewAuthor: {
+    fontSize: Typography.base,
+    fontWeight: Typography.semibold,
+    color: Colors.white,
+  },
+  reviewRole: {
+    fontSize: Typography.xs,
+    color: 'rgba(255,255,255,0.4)',
+    marginTop: 1,
+  },
+  reviewMeta: {
+    alignItems: 'flex-end',
+    gap: 3,
+  },
+  reviewStars: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  reviewDate: {
+    fontSize: Typography.xs,
+    color: 'rgba(255,255,255,0.3)',
+  },
+  reviewText: {
+    fontSize: Typography.sm,
+    color: 'rgba(255,255,255,0.65)',
+    lineHeight: Typography.sm * 1.6,
+  },
+
+  // View more locked button
+  viewMoreBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 12,
+    paddingVertical: 13,
+    paddingHorizontal: Spacing['4'],
+    borderRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.25)',
+    backgroundColor: 'rgba(245,158,11,0.06)',
+  },
+  viewMoreLockBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(245,158,11,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewMoreText: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    color: 'rgba(255,255,255,0.65)',
+    flex: 1,
+  },
+  viewMorePremiumBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: Colors.warning,
+    borderRadius: Radii.full,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  viewMorePremiumText: {
+    fontSize: 10,
+    fontWeight: Typography.bold,
+    color: '#0f0a1e',
     letterSpacing: 0.3,
   },
 });
