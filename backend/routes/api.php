@@ -9,13 +9,13 @@ use App\Http\Controllers\File\FileUploadController;
 use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Subscription\SubscriptionController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Redis;
 use App\Mail\EmailVerificationMail;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
@@ -77,7 +77,7 @@ Route::get('/debug/email-config', function () {
             Redis::ping();
             $config['redis']['status'] = 'CONNECTED';
         } catch (\Exception $e) {
-            $config['redis']['status'] = 'ERROR: ' . $e->getMessage();
+            $config['redis']['status'] = 'ERROR: '.$e->getMessage();
         }
 
         // Check pending jobs
@@ -85,7 +85,7 @@ Route::get('/debug/email-config', function () {
             $pendingJobs = Redis::llen('queues:default');
             $config['queue']['pending_jobs'] = $pendingJobs;
         } catch (\Exception $e) {
-            $config['queue']['pending_jobs'] = 'ERROR: ' . $e->getMessage();
+            $config['queue']['pending_jobs'] = 'ERROR: '.$e->getMessage();
         }
 
         return response()->json([
@@ -150,7 +150,7 @@ Route::get('/debug/database', function () {
             try {
                 $tableCounts[$table] = DB::table($table)->count();
             } catch (\Exception $e) {
-                $tableCounts[$table] = 'Error: ' . $e->getMessage();
+                $tableCounts[$table] = 'Error: '.$e->getMessage();
             }
         }
 
@@ -158,7 +158,7 @@ Route::get('/debug/database', function () {
             $redisKeys = Redis::keys('*');
             $redisSize = Redis::dbSize();
         } catch (\Exception $e) {
-            $redisKeys = ['Error: ' . $e->getMessage()];
+            $redisKeys = ['Error: '.$e->getMessage()];
             $redisSize = 0;
         }
 

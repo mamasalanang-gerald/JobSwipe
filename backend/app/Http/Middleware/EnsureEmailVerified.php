@@ -12,7 +12,7 @@ class EnsureEmailVerified
     {
         $user = $request->user();
 
-        if (!$user || !$user->hasVerifiedEmail()) {
+        if (! $user || ! $user->hasVerifiedEmail()) {
             return response()->json([
                 'success' => false,
                 'message' => 'Your email address is not verified.',
