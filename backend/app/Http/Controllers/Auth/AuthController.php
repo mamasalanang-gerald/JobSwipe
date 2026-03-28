@@ -12,16 +12,12 @@ use Illuminate\Http\Request;
 
 class AuthController extends Controller
 {
-    public function __construct(private AuthService $auth) {}
+    public function __construct(private AuthService $auth)
+    {
+    }
 
     public function register(RegisterRequest $request): JsonResponse
     {
-        error_log('=== REGISTRATION START: '.$request->input('email').' ===');
-        \Log::info('AuthController: Registration request received', [
-            'email' => $request->input('email'),
-            'role' => $request->input('role'),
-            'has_oauth' => $request->has('oauth_provider'),
-        ]);
 
         if (in_array($request->input('role'), ['hr', 'company_admin'], true) && $request->has('oauth_provider')) {
             \Log::warning('AuthController: OAuth not permitted for HR/Company', [

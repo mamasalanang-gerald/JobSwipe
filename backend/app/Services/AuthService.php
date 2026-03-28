@@ -17,7 +17,8 @@ class AuthService
         private OTPService $otp,
         private ProfileService $profiles,
         private TokenService $tokens,
-    ) {}
+    ) {
+    }
 
     public function initiateRegistration(string $email, string $password, string $role): string
     {
@@ -59,7 +60,7 @@ class AuthService
         // Get stored registration data from Redis
         $storedData = $this->otp->getStoredData($email);
 
-        if (! $storedData || ! isset($storedData['password_hash'], $storedData['role'])) {
+        if (!$storedData || !isset($storedData['password_hash'], $storedData['role'])) {
             return ['status' => 'expired'];
         }
 
@@ -80,6 +81,8 @@ class AuthService
             $token = $this->tokens->generateToken($user);
         });
 
+        $this->otp->clearStoredData($email);
+
         // Dispatch welcome email job
         SendWelcomeEmail::dispatch($user->id)->onQueue('emails');
 
@@ -94,7 +97,7 @@ class AuthService
     {
         $user = $this->users->findByEmail($email);
 
-        if (! $user || ! Hash::check($password, $user->getAuthPassword())) {
+        if (!$user || !Hash::check($password, $user->getAuthPassword())) {
             return ['status' => 'invalid_credentials'];
         }
 
@@ -102,7 +105,7 @@ class AuthService
             return ['status' => 'banned'];
         }
 
-        if (! $user->hasVerifiedEmail()) {
+        if (!$user->hasVerifiedEmail()) {
             $this->otp->sendOtp($email, $user->password_hash, $user->role);
 
             return ['status' => 'unverified'];
@@ -130,7 +133,7 @@ class AuthService
             return ['status' => 'role_not_allowed'];
         }
 
-        if (! $user) {
+        if (!$user) {
             $user = $this->users->findByEmail($googleUser->getEmail());
 
             if ($user) {
@@ -190,7 +193,7 @@ class AuthService
 
         $user = $this->users->findByEmail($email);
 
-        if (! $user || $user->hasVerifiedEmail()) {
+        if (!$user || $user->hasVerifiedEmail()) {
             return;
         }
 
