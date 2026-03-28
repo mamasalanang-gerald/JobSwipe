@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Company;
 
+use App\Exceptions\ListingLimitReachedException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Company\CreateJobPostingRequest;
 use App\Models\PostgreSQL\CompanyProfile;
@@ -9,7 +10,6 @@ use App\Models\PostgreSQL\JobPosting;
 use App\Models\PostgreSQL\JobSkill;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Exceptions\ListingLimitReachedException;
 use Illuminate\Support\Facades\DB;
 
 class JobPostingController extends Controller
