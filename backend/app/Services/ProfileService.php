@@ -14,12 +14,6 @@ use InvalidArgumentException;
 
 class ProfileService
 {
-    public const APPLICANT_ONBOARDING_STEPS = 6;
-
-    public const COMPANY_ONBOARDING_STEPS = 4;
-
-    public const MAX_OFFICE_IMAGES = 6;
-
     public function __construct(
         private ApplicantProfileRepository $applicantProfiles,
         private CompanyProfileRepository $companyProfiles,
@@ -108,7 +102,7 @@ class ProfileService
         $profile = $this->ensureApplicantDocument($userId);
         $items = $profile->work_experience ?? [];
 
-        if (! array_key_exists($index, $items)) {
+        if (!array_key_exists($index, $items)) {
             throw new InvalidArgumentException('WORK_EXPERIENCE_NOT_FOUND');
         }
 
@@ -124,7 +118,7 @@ class ProfileService
         $profile = $this->ensureApplicantDocument($userId);
         $items = $profile->work_experience ?? [];
 
-        if (! array_key_exists($index, $items)) {
+        if (!array_key_exists($index, $items)) {
             throw new InvalidArgumentException('WORK_EXPERIENCE_NOT_FOUND');
         }
 
@@ -150,7 +144,7 @@ class ProfileService
         $profile = $this->ensureApplicantDocument($userId);
         $items = $profile->education ?? [];
 
-        if (! array_key_exists($index, $items)) {
+        if (!array_key_exists($index, $items)) {
             throw new InvalidArgumentException('EDUCATION_NOT_FOUND');
         }
 
@@ -166,7 +160,7 @@ class ProfileService
         $profile = $this->ensureApplicantDocument($userId);
         $items = $profile->education ?? [];
 
-        if (! array_key_exists($index, $items)) {
+        if (!array_key_exists($index, $items)) {
             throw new InvalidArgumentException('EDUCATION_NOT_FOUND');
         }
 
@@ -268,7 +262,7 @@ class ProfileService
         $document = $this->ensureCompanyDocument($userId, $companyProfile);
         $images = $document->office_images ?? [];
 
-        if (count($images) >= self::MAX_OFFICE_IMAGES) {
+        if (count($images) >= ProfileOnboardingService::MAX_OFFICE_IMAGES) {
             throw new InvalidArgumentException('MAX_IMAGES_EXCEEDED');
         }
 
@@ -284,7 +278,7 @@ class ProfileService
         $document = $this->ensureCompanyDocument($userId, $companyProfile);
         $images = $document->office_images ?? [];
 
-        if (! array_key_exists($index, $images)) {
+        if (!array_key_exists($index, $images)) {
             throw new InvalidArgumentException('OFFICE_IMAGE_NOT_FOUND');
         }
 
@@ -413,82 +407,17 @@ class ProfileService
 
     private function ensureApplicantDocument(string $userId): ApplicantProfileDocument
     {
-        $profile = $this->applicantDocs->findByUserId($userId);
-
-        if ($profile) {
-            if (! $this->filled($profile->user_id ?? null)) {
-                $profile = $this->applicantDocs->update($profile, ['user_id' => $userId]);
-            }
-
-            return $profile;
-        }
-
-        return $this->applicantDocs->create([
-            'user_id' => $userId,
-            'first_name' => '',
-            'last_name' => '',
-            'profile_photo_url' => null,
-            'bio' => null,
-            'location' => null,
-            'location_city' => null,
-            'location_region' => null,
-            'skills' => [],
-            'work_experience' => [],
-            'education' => [],
-            'social_links' => [],
-            'completed_profile_fields' => [],
-            'notification_preferences' => [],
-            'onboarding_step' => 1,
-            'onboarding_completed_at' => null,
-            'profile_completion_percentage' => 0,
-        ]);
+        return $this->onboarding->ensureApplicantDocument($userId);
     }
 
-    private function ensureCompanyDocument(string $userId, CompanyProfile $companyProfile): CompanyProfileDocument
+    private function ensureCompanyDocument(string $userId, CompanyProfile $companyProfile)
     {
-        $profile = $this->companyDocs->findByUserId($userId);
-
-        if (! $profile) {
-            $profile = $this->companyDocs->findByCompanyId($companyProfile->id);
-        }
-
-        if ($profile) {
-            return $profile;
-        }
-
-        return $this->companyDocs->create([
-            'user_id' => $userId,
-            'company_id' => $companyProfile->id,
-            'company_name' => $companyProfile->company_name,
-            'tagline' => null,
-            'description' => null,
-            'industry' => null,
-            'company_size' => null,
-            'founded_year' => null,
-            'website_url' => null,
-            'logo_url' => null,
-            'office_images' => [],
-            'social_links' => [],
-            'address' => [],
-            'benefits' => [],
-            'culture_tags' => [],
-            'notification_preferences' => [],
-            'verification_documents' => [],
-            'onboarding_step' => 1,
-            'onboarding_completed_at' => null,
-            'profile_completion_percentage' => 0,
-        ]);
+        return $this->onboarding->ensureCompanyDocument($userId, $companyProfile);
     }
 
     private function findCompanyProfileByUserId(string $userId): CompanyProfile
     {
-        $companyProfile = $this->companyProfiles->findByUserId($userId);
-
-        if (! $companyProfile) {
-            throw new InvalidArgumentException('COMPANY_PROFILE_NOT_FOUND');
-        }
-
-        return $companyProfile;
+        return $this->onboarding->findCompanyProfileByUserId($userId);
     }
 
     private function withApplicantCompletion(ApplicantProfileDocument $profile): array
@@ -521,7 +450,7 @@ class ProfileService
 
     private function filled(mixed $value): bool
     {
-        return is_string($value) ? trim($value) !== '' : ! empty($value);
+        return $this->onboarding->filled($value);
     }
 
     public function updateApplicantProfile(string $userId, array $data): void
