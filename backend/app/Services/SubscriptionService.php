@@ -5,7 +5,12 @@ namespace App\Services;
 use App\Exceptions\SubscriptionException;
 use App\Models\PostgreSQL\Subscription;
 use App\Models\PostgreSQL\User;
+use App\Repositories\PostgreSQL\ApplicantProfileRepository;
 use App\Repositories\PostgreSQL\CompanyProfileRepository;
+use App\Services\Subscription\AppleIAPProvider;
+use App\Services\Subscription\GooglePlayProvider;
+use App\Services\Subscription\StripeProvider;
+use App\Services\Subscription\SubscriptionProviderInterface;
 use Carbon\Carbon;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -21,9 +26,23 @@ class SubscriptionService
 
     private const CHECKOUT_IDEMPOTENCY_PENDING_TIMEOUT_SECONDS = 30;
 
+    /** @var array<string, SubscriptionProviderInterface> */
+    private array $providers;
+
     public function __construct(
         private CompanyProfileRepository $companyProfiles,
-    ) {}
+        private ApplicantProfileRepository $applicantProfiles,
+    ) {
+        $this->providers = [
+            'stripe' => new StripeProvider,
+            'apple_iap' => new AppleIAPProvider,
+            'google_play' => new GooglePlayProvider,
+        ];
+    }
+
+    // =========================================================================
+    // Existing Stripe Checkout Flow (kept for web-based verification badge)
+    // =========================================================================
 
     public function createCheckoutSession(
         User $user,
@@ -81,6 +100,7 @@ class SubscriptionService
                     'user_id' => $user->id,
                     'company_id' => $companyProfile->id,
                     'tier' => 'basic',
+                    'subscription_type' => 'verification',
                 ],
             ];
 
@@ -136,6 +156,366 @@ class SubscriptionService
         }
     }
 
+    // =========================================================================
+    // Cross-Platform Subscription Methods
+    // =========================================================================
+
+    /**
+     * Validate an IAP receipt/token from a mobile client.
+     */
+    public function validateIAPPurchase(User $user, string $provider, string $receiptOrToken, string $productId): array
+    {
+        $providerInstance = $this->getProvider($provider);
+        $receipt = $providerInstance->validateReceipt($receiptOrToken, $productId);
+
+        if (! $receipt->isActive()) {
+            throw new SubscriptionException(
+                'PURCHASE_NOT_ACTIVE',
+                'The purchase is not in an active state.',
+                400
+            );
+        }
+
+        // Check if user can subscribe to this type
+        $eligibility = $this->canSubscribe($user, $receipt->subscriptionType);
+
+        if (! $eligibility['can_subscribe']) {
+            throw new SubscriptionException(
+                'ALREADY_SUBSCRIBED',
+                $eligibility['reason'] ?? 'You already have an active subscription of this type.',
+                409
+            );
+        }
+
+        // Determine subscriber type from user role
+        $subscriberType = in_array($user->role, ['hr', 'company_admin'], true) ? 'company' : 'applicant';
+
+        // Calculate amount based on product mapping
+        $amount = $this->resolveAmount($receipt->tier, $receipt->billingCycle);
+
+        // Upsert subscription record
+        Subscription::updateOrCreate(
+            [
+                'user_id' => $user->id,
+                'subscription_type' => $receipt->subscriptionType,
+                'payment_provider' => $provider,
+            ],
+            [
+                'subscriber_type' => $subscriberType,
+                'tier' => $receipt->tier,
+                'billing_cycle' => $receipt->billingCycle,
+                'amount_paid' => $amount,
+                'currency' => 'PHP',
+                'provider_sub_id' => $receipt->providerTransactionId,
+                'provider_transaction_id' => $receipt->providerTransactionId,
+                'provider_receipt' => $receipt->rawReceipt,
+                'provider_status' => $receipt->status,
+                'status' => 'active',
+                'auto_renew_enabled' => $receipt->autoRenewEnabled,
+                'current_period_start' => now(),
+                'current_period_end' => $receipt->expiresAt,
+            ]
+        );
+
+        // Apply benefits to profile
+        $this->applySubscriptionBenefits($user->id, $user->role, $receipt->tier, $receipt->subscriptionType);
+
+        return [
+            'status' => 'activated',
+            'subscription_type' => $receipt->subscriptionType,
+            'tier' => $receipt->tier,
+            'provider' => $provider,
+            'expires_at' => $receipt->expiresAt->toIso8601String(),
+        ];
+    }
+
+    /**
+     * Pre-purchase guard: check if user can subscribe to a given type.
+     */
+    public function canSubscribe(User $user, string $subscriptionType = 'subscription'): array
+    {
+        $existingActive = Subscription::query()
+            ->forUser($user->id)
+            ->forType($subscriptionType)
+            ->active()
+            ->first();
+
+        if ($existingActive) {
+            return [
+                'can_subscribe' => false,
+                'reason' => "You already have an active {$subscriptionType} on {$existingActive->payment_provider}.",
+                'existing_provider' => $existingActive->payment_provider,
+                'existing_tier' => $existingActive->tier,
+            ];
+        }
+
+        // For verification: HR/company only
+        if ($subscriptionType === 'verification') {
+            if (! in_array($user->role, ['hr', 'company_admin'], true)) {
+                return [
+                    'can_subscribe' => false,
+                    'reason' => 'Only company users can purchase a verification badge.',
+                ];
+            }
+        }
+
+        return [
+            'can_subscribe' => true,
+            'reason' => null,
+        ];
+    }
+
+    /**
+     * Unified subscription status across all providers.
+     */
+    public function getUnifiedSubscriptionStatus(User $user): array
+    {
+        $subscriptions = Subscription::query()
+            ->forUser($user->id)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $isCompany = in_array($user->role, ['hr', 'company_admin'], true);
+
+        $result = [
+            'role' => $user->role,
+            'subscriptions' => [],
+        ];
+
+        if ($isCompany) {
+            $companyProfile = $this->companyProfiles->findByUserId($user->id);
+            $result['verification'] = [
+                'status' => 'inactive',
+                'tier' => null,
+                'provider' => null,
+                'can_post_jobs' => false,
+            ];
+            $result['gold'] = [
+                'status' => 'inactive',
+                'tier' => null,
+                'provider' => null,
+            ];
+            $result['is_verified'] = $companyProfile?->is_verified ?? false;
+        } else {
+            $applicantProfile = $this->applicantProfiles->findByUserId($user->id);
+            $result['subscription_tier'] = $applicantProfile?->subscription_tier ?? 'free';
+            $result['daily_swipe_limit'] = $applicantProfile?->daily_swipe_limit ?? 15;
+        }
+
+        foreach ($subscriptions as $sub) {
+            $entry = [
+                'id' => $sub->id,
+                'type' => $sub->subscription_type,
+                'tier' => $sub->tier,
+                'status' => $sub->status,
+                'provider' => $sub->payment_provider,
+                'billing_cycle' => $sub->billing_cycle,
+                'auto_renew' => $sub->auto_renew_enabled,
+                'current_period_end' => $sub->current_period_end?->toIso8601String(),
+            ];
+
+            $result['subscriptions'][] = $entry;
+
+            // Populate convenience fields for active subs
+            if ($sub->status === 'active' && $isCompany) {
+                if ($sub->subscription_type === 'verification') {
+                    $result['verification'] = [
+                        'status' => 'active',
+                        'tier' => $sub->tier,
+                        'provider' => $sub->payment_provider,
+                        'can_post_jobs' => true,
+                    ];
+                } elseif ($sub->subscription_type === 'subscription') {
+                    $result['gold'] = [
+                        'status' => 'active',
+                        'tier' => $sub->tier,
+                        'provider' => $sub->payment_provider,
+                    ];
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Apply subscription benefits to the user's profile.
+     */
+    public function applySubscriptionBenefits(string $userId, string $role, string $tier, string $subscriptionType): void
+    {
+        $isCompany = in_array($role, ['hr', 'company_admin'], true);
+
+        if ($isCompany) {
+            $companyProfile = $this->companyProfiles->findByUserId($userId);
+
+            if (! $companyProfile) {
+                return;
+            }
+
+            if ($subscriptionType === 'verification') {
+                $this->companyProfiles->update($companyProfile, [
+                    'subscription_status' => 'active',
+                    'subscription_tier' => 'basic',
+                    'is_verified' => true,
+                    'verification_status' => 'approved',
+                ]);
+            } elseif ($subscriptionType === 'subscription') {
+                $this->companyProfiles->update($companyProfile, [
+                    'subscription_tier' => 'pro',
+                ]);
+            }
+        } else {
+            $applicantProfile = $this->applicantProfiles->findByUserId($userId);
+
+            if (! $applicantProfile) {
+                return;
+            }
+
+            $this->applicantProfiles->update($applicantProfile, [
+                'subscription_tier' => $tier,
+                'subscription_status' => 'active',
+                'daily_swipe_limit' => 999999,
+            ]);
+        }
+    }
+
+    /**
+     * Revoke subscription benefits from the user's profile.
+     */
+    public function revokeSubscriptionBenefits(string $userId, string $role, string $subscriptionType): void
+    {
+        $isCompany = in_array($role, ['hr', 'company_admin'], true);
+
+        if ($isCompany) {
+            $companyProfile = $this->companyProfiles->findByUserId($userId);
+
+            if (! $companyProfile) {
+                return;
+            }
+
+            if ($subscriptionType === 'verification') {
+                // Check if there's still an active verification from another provider
+                $otherActive = Subscription::query()
+                    ->forUser($userId)
+                    ->forType('verification')
+                    ->active()
+                    ->exists();
+
+                if (! $otherActive) {
+                    $this->companyProfiles->update($companyProfile, [
+                        'subscription_status' => 'cancelled',
+                        'is_verified' => false,
+                        'verification_status' => 'unverified',
+                    ]);
+                }
+            } elseif ($subscriptionType === 'subscription') {
+                $otherActive = Subscription::query()
+                    ->forUser($userId)
+                    ->forType('subscription')
+                    ->active()
+                    ->exists();
+
+                if (! $otherActive) {
+                    $this->companyProfiles->update($companyProfile, [
+                        'subscription_tier' => 'basic',
+                    ]);
+                }
+            }
+        } else {
+            $applicantProfile = $this->applicantProfiles->findByUserId($userId);
+
+            if (! $applicantProfile) {
+                return;
+            }
+
+            // Check if there's still an active sub from another provider
+            $otherActive = Subscription::query()
+                ->forUser($userId)
+                ->forType('subscription')
+                ->active()
+                ->exists();
+
+            if (! $otherActive) {
+                $this->applicantProfiles->update($applicantProfile, [
+                    'subscription_tier' => 'free',
+                    'subscription_status' => 'inactive',
+                    'daily_swipe_limit' => 15,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Handle a provider notification/webhook.
+     */
+    public function handleProviderNotification(string $providerName, array $payload): void
+    {
+        $provider = $this->getProvider($providerName);
+        $event = $provider->handleNotification($payload);
+
+        if ($event === null) {
+            return;
+        }
+
+        // Find the subscription by provider transaction ID
+        $subscription = Subscription::query()
+            ->where('provider_transaction_id', $event->providerTransactionId)
+            ->orWhere('provider_sub_id', $event->providerTransactionId)
+            ->latest('created_at')
+            ->first();
+
+        if (! $subscription) {
+            return;
+        }
+
+        $user = User::find($subscription->user_id);
+
+        if (! $user) {
+            return;
+        }
+
+        if ($event->isActivation()) {
+            $subscription->update(array_filter([
+                'status' => 'active',
+                'auto_renew_enabled' => $event->autoRenewEnabled,
+                'current_period_end' => $event->expiresAt,
+            ], static fn ($v) => $v !== null));
+
+            $this->applySubscriptionBenefits(
+                $user->id,
+                $user->role,
+                $subscription->tier,
+                $subscription->subscription_type
+            );
+        } elseif ($event->isCancellation()) {
+            $subscription->update([
+                'status' => 'cancelled',
+                'auto_renew_enabled' => false,
+            ]);
+
+            $this->revokeSubscriptionBenefits(
+                $user->id,
+                $user->role,
+                $subscription->subscription_type
+            );
+        } elseif ($event->isExpiration()) {
+            $subscription->update([
+                'status' => 'expired',
+                'auto_renew_enabled' => false,
+            ]);
+
+            $this->revokeSubscriptionBenefits(
+                $user->id,
+                $user->role,
+                $subscription->subscription_type
+            );
+        }
+    }
+
+    // =========================================================================
+    // Refactored existing methods (now use unified benefits)
+    // =========================================================================
+
     public function activateSubscription(User $user, ?string $providerSubscriptionId = null, string $stripeStatus = 'active'): void
     {
         $companyProfile = $this->companyProfiles->findByUserId($user->id);
@@ -143,11 +523,6 @@ class SubscriptionService
         if (! $companyProfile) {
             throw new SubscriptionException('COMPANY_PROFILE_NOT_FOUND', 'Company profile not found.', 404);
         }
-
-        $this->companyProfiles->update($companyProfile, [
-            'subscription_tier' => 'basic',
-            'subscription_status' => 'active',
-        ]);
 
         $subscription = Subscription::query()
             ->where('user_id', $user->id)
@@ -166,17 +541,19 @@ class SubscriptionService
             'provider_sub_id' => $providerSubscriptionId,
             'status' => 'active',
             'stripe_status' => $stripeStatus,
+            'subscription_type' => 'verification',
             'current_period_start' => now(),
             'current_period_end' => now()->addMonth(),
         ];
 
         if ($subscription) {
             $subscription->update($payload);
-
-            return;
+        } else {
+            Subscription::create($payload);
         }
 
-        Subscription::create($payload);
+        // Use unified benefit application
+        $this->applySubscriptionBenefits($user->id, $user->role, 'basic', 'verification');
     }
 
     public function deactivateSubscription(User $user): void
@@ -187,10 +564,6 @@ class SubscriptionService
             throw new SubscriptionException('COMPANY_PROFILE_NOT_FOUND', 'Company profile not found.', 404);
         }
 
-        $this->companyProfiles->update($companyProfile, [
-            'subscription_status' => 'cancelled',
-        ]);
-
         Subscription::query()
             ->where('user_id', $user->id)
             ->where('payment_provider', 'stripe')
@@ -200,6 +573,9 @@ class SubscriptionService
                 'status' => 'cancelled',
                 'stripe_status' => 'canceled',
             ]);
+
+        // Use unified benefit revocation
+        $this->revokeSubscriptionBenefits($user->id, $user->role, 'verification');
     }
 
     public function handleSubscriptionUpdated(array $event): void
@@ -245,7 +621,8 @@ class SubscriptionService
             return;
         }
 
-        $status = $this->mapStripeStatus((string) ($object['status'] ?? 'inactive'));
+        $stripeProvider = $this->getProvider('stripe');
+        $status = $stripeProvider->mapStripeStatus((string) ($object['status'] ?? 'inactive'));
         $stripeStatus = (string) ($object['status'] ?? 'inactive');
 
         $subscription = Subscription::query()
@@ -268,19 +645,23 @@ class SubscriptionService
             'current_period_end' => $currentPeriodEnd,
         ], static fn ($value) => $value !== null));
 
-        $companyProfile = $this->companyProfiles->findByUserId((string) $subscription->user_id);
+        $user = User::find($subscription->user_id);
 
-        if ($companyProfile) {
-            $companySubscriptionStatus = match ($status) {
-                'active' => 'active',
-                'cancelled' => 'cancelled',
-                default => 'inactive',
-            };
-
-            $this->companyProfiles->update($companyProfile, [
-                'subscription_status' => $companySubscriptionStatus,
-                'subscription_tier' => $companySubscriptionStatus === 'active' ? 'basic' : $companyProfile->subscription_tier,
-            ]);
+        if ($user) {
+            if ($status === 'active') {
+                $this->applySubscriptionBenefits(
+                    $user->id,
+                    $user->role,
+                    $subscription->tier,
+                    $subscription->subscription_type ?? 'verification'
+                );
+            } else {
+                $this->revokeSubscriptionBenefits(
+                    $user->id,
+                    $user->role,
+                    $subscription->subscription_type ?? 'verification'
+                );
+            }
         }
     }
 
@@ -293,17 +674,38 @@ class SubscriptionService
 
     public function getSubscriptionStatus(User $user): array
     {
-        $companyProfile = $this->companyProfiles->findByUserId($user->id);
+        return $this->getUnifiedSubscriptionStatus($user);
+    }
 
-        if (! $companyProfile) {
-            throw new SubscriptionException('COMPANY_PROFILE_NOT_FOUND', 'Company profile not found.', 404);
+    // =========================================================================
+    // Private helpers
+    // =========================================================================
+
+    private function getProvider(string $name): SubscriptionProviderInterface
+    {
+        if ($name === 'stripe') {
+            return $this->providers['stripe'];
         }
 
-        return [
-            'tier' => $companyProfile->subscription_tier,
-            'status' => $companyProfile->subscription_status,
-            'can_post_jobs' => $companyProfile->subscription_status === 'active',
-        ];
+        if (! isset($this->providers[$name])) {
+            throw new SubscriptionException(
+                'INVALID_PROVIDER',
+                "Unknown payment provider: {$name}",
+                400
+            );
+        }
+
+        return $this->providers[$name];
+    }
+
+    private function resolveAmount(string $tier, string $billingCycle): float
+    {
+        return match (true) {
+            $tier === 'basic' => 120.00,
+            $tier === 'pro' && $billingCycle === 'monthly' => 200.00,
+            $tier === 'pro' && $billingCycle === 'yearly' => 2000.00,
+            default => 0.00,
+        };
     }
 
     private function stripeClient(): StripeClient
@@ -315,16 +717,6 @@ class SubscriptionService
         }
 
         return new StripeClient($secret);
-    }
-
-    private function mapStripeStatus(string $stripeStatus): string
-    {
-        return match ($stripeStatus) {
-            'active', 'trialing' => 'active',
-            'past_due', 'incomplete', 'incomplete_expired', 'unpaid' => 'past_due',
-            'canceled' => 'cancelled',
-            default => 'expired',
-        };
     }
 
     private function resolveCheckoutIdempotencyKey(

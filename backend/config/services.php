@@ -38,4 +38,19 @@ return [
         'redirect' => env('GOOGLE_REDIRECT_URI'),
     ],
 
+    'apple_iap' => [
+        'bundle_id' => env('APPLE_BUNDLE_ID'),
+        'issuer_id' => env('APPLE_ISSUER_ID'),
+        'key_id' => env('APPLE_KEY_ID'),
+        'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
+        'environment' => env('APPLE_IAP_ENVIRONMENT', 'sandbox'),
+    ],
+
+    'google_play' => [
+        'package_name' => env('GOOGLE_PLAY_PACKAGE_NAME'),
+        'credentials_path' => env('GOOGLE_PLAY_CREDENTIALS_PATH'),
+    ],
+
+    'iap_mock_mode' => env('IAP_MOCK_MODE', false),
+
 ];

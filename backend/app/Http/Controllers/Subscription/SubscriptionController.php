@@ -40,9 +40,39 @@ class SubscriptionController extends Controller
         return $this->success(data: $result, message: 'Checkout session created.');
     }
 
+    public function validatePurchase(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'provider' => ['required', 'string', 'in:apple_iap,google_play'],
+            'receipt_token' => ['required', 'string', 'max:10000'],
+            'product_id' => ['required', 'string', 'max:255'],
+        ]);
+
+        $result = $this->subscriptions->validateIAPPurchase(
+            $request->user(),
+            (string) $validated['provider'],
+            (string) $validated['receipt_token'],
+            (string) $validated['product_id']
+        );
+
+        return $this->success(data: $result, message: 'Purchase validated and activated.');
+    }
+
+    public function canSubscribe(Request $request): JsonResponse
+    {
+        $subscriptionType = $request->query('type', 'subscription');
+
+        $result = $this->subscriptions->canSubscribe(
+            $request->user(),
+            (string) $subscriptionType
+        );
+
+        return $this->success(data: $result);
+    }
+
     public function getSubscriptionStatus(Request $request): JsonResponse
     {
-        $status = $this->subscriptions->getSubscriptionStatus($request->user());
+        $status = $this->subscriptions->getUnifiedSubscriptionStatus($request->user());
 
         return $this->success(data: $status);
     }
@@ -74,5 +104,23 @@ class SubscriptionController extends Controller
         $this->subscriptions->handleSubscriptionUpdated($eventData);
 
         return $this->success(message: 'Webhook processed.');
+    }
+
+    public function handleAppleNotification(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+
+        $this->subscriptions->handleProviderNotification('apple_iap', $payload);
+
+        return $this->success(message: 'Apple notification processed.');
+    }
+
+    public function handleGoogleNotification(Request $request): JsonResponse
+    {
+        $payload = $request->all();
+
+        $this->subscriptions->handleProviderNotification('google_play', $payload);
+
+        return $this->success(message: 'Google notification processed.');
     }
 }

@@ -191,6 +191,8 @@ Route::prefix('v1')->group(function () {
     Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback']);
 
     Route::post('webhooks/stripe', [SubscriptionController::class, 'handleWebhook']);
+    Route::post('webhooks/apple', [SubscriptionController::class, 'handleAppleNotification']);
+    Route::post('webhooks/google', [SubscriptionController::class, 'handleGoogleNotification']);
 
     Route::middleware('auth:sanctum', 'verified')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
@@ -246,7 +248,9 @@ Route::prefix('v1')->group(function () {
 
         Route::prefix('subscriptions')->group(function () {
             Route::middleware('role:hr,company_admin')->post('checkout', [SubscriptionController::class, 'createCheckoutSession']);
-            Route::middleware('role:hr,company_admin')->get('status', [SubscriptionController::class, 'getSubscriptionStatus']);
+            Route::get('status', [SubscriptionController::class, 'getSubscriptionStatus']);
+            Route::get('can-subscribe', [SubscriptionController::class, 'canSubscribe']);
+            Route::post('validate-purchase', [SubscriptionController::class, 'validatePurchase']);
             Route::middleware('role:company_admin')->post('cancel', [SubscriptionController::class, 'cancelSubscription']);
         });
 
