@@ -348,11 +348,6 @@ export default function ExploreTab() {
           <View>
             <Text style={s.pageTitle}>Discover Jobs</Text>
           </View>
-          <TouchableOpacity activeOpacity={0.8}>
-            <View style={s.filterBtn}>
-              <MaterialCommunityIcons name="tune-variant" size={20} color="#fff" />
-            </View>
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -488,7 +483,7 @@ export default function ExploreTab() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: T.bg },
 
-  header:    { paddingHorizontal: 20, paddingBottom: 8 },
+  header:    { paddingHorizontal: 20, paddingBottom: 16 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pageTitle: { fontSize: 28, fontWeight: '800', color: T.textPrimary, letterSpacing: -0.5 },
   filterBtn: {

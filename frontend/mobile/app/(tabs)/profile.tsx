@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, StatusBar, Dimensions, FlatList, Image,
+  StyleSheet, StatusBar, Dimensions, FlatList, Image, TextInput,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -36,9 +36,33 @@ const SOFT_SKILLS = [
   'Teamwork', 'Adaptability',
 ];
 
-const EXPERIENCE = [
-  { role: 'Senior Developer',    company: 'Tech Company', period: '2021 – Present', icon: 'code-braces' as const, color: T.primary   },
-  { role: 'Full Stack Developer', company: 'Startup Inc',  period: '2019 – 2021',   icon: 'laptop'      as const, color: '#4ade80' },
+type ExperienceItem = {
+  id: number; role: string; company: string; period: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name']; color: string;
+};
+
+type EducationItem = {
+  id: number; degree: string; school: string; period: string;
+};
+
+type PrefItem = {
+  id: number; label: string;
+  icon: React.ComponentProps<typeof MaterialCommunityIcons>['name']; on: boolean;
+};
+
+const INITIAL_EXPERIENCE: ExperienceItem[] = [
+  { id: 1, role: 'Senior Developer',    company: 'Tech Company', period: '2021 – Present', icon: 'code-braces', color: T.primary   },
+  { id: 2, role: 'Full Stack Developer', company: 'Startup Inc',  period: '2019 – 2021',   icon: 'laptop',      color: '#4ade80' },
+];
+
+const INITIAL_EDUCATION: EducationItem[] = [
+  { id: 1, degree: 'BS Computer Science', school: 'University of California', period: '2015 – 2019' },
+];
+
+const INITIAL_PREFS: PrefItem[] = [
+  { id: 1, label: 'Remote',    icon: 'home-outline',      on: true },
+  { id: 2, label: 'Full-time', icon: 'briefcase-outline', on: true },
+  { id: 3, label: '$120k+',    icon: 'currency-usd',      on: true },
 ];
 
 type Plan = {
@@ -102,6 +126,46 @@ export default function ProfileTab() {
   const [photos, setPhotos]           = useState<(string | null)[]>([null, null, null]);
   const [activePlan, setActivePlan]   = useState(0);
   const planRef = useRef<FlatList<Plan>>(null);
+
+  // Editable sections
+  const [experience, setExperience] = useState<ExperienceItem[]>(INITIAL_EXPERIENCE);
+  const [education, setEducation]   = useState<EducationItem[]>(INITIAL_EDUCATION);
+  const [prefs, setPrefs]           = useState<PrefItem[]>(INITIAL_PREFS);
+
+  // Inline add forms
+  const [showAddExp,  setShowAddExp]  = useState(false);
+  const [showAddEdu,  setShowAddEdu]  = useState(false);
+  const [showAddPref, setShowAddPref] = useState(false);
+
+  const [newExp,  setNewExp]  = useState({ role: '', company: '', period: '' });
+  const [newEdu,  setNewEdu]  = useState({ degree: '', school: '', period: '' });
+  const [newPref, setNewPref] = useState('');
+
+  const EXP_COLORS = [T.primary, '#4ade80', '#60a5fa', '#f472b6', '#fb923c'];
+  const EXP_ICONS: React.ComponentProps<typeof MaterialCommunityIcons>['name'][] =
+    ['code-braces', 'laptop', 'briefcase-outline', 'rocket-launch-outline', 'office-building-outline'];
+
+  const addExperience = () => {
+    if (!newExp.role.trim()) return;
+    const idx = experience.length % EXP_COLORS.length;
+    setExperience(prev => [...prev, { id: Date.now(), ...newExp, icon: EXP_ICONS[idx], color: EXP_COLORS[idx] }]);
+    setNewExp({ role: '', company: '', period: '' });
+    setShowAddExp(false);
+  };
+
+  const addEducation = () => {
+    if (!newEdu.degree.trim()) return;
+    setEducation(prev => [...prev, { id: Date.now(), ...newEdu }]);
+    setNewEdu({ degree: '', school: '', period: '' });
+    setShowAddEdu(false);
+  };
+
+  const addPref = () => {
+    if (!newPref.trim()) return;
+    setPrefs(prev => [...prev, { id: Date.now(), label: newPref.trim(), icon: 'tag-outline', on: true }]);
+    setNewPref('');
+    setShowAddPref(false);
+  };
 
   const pickAvatar = async () => {
     const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.85 });
@@ -314,10 +378,18 @@ export default function ProfileTab() {
 
         {/* ── Experience ───────────────────────────────────────────────────── */}
         <View style={s.section}>
-          <SectionLabel title="Experience" />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <SectionLabel title="Experience" />
+            {editMode && (
+              <TouchableOpacity style={s.addBtn} onPress={() => setShowAddExp(v => !v)}>
+                <MaterialCommunityIcons name={showAddExp ? 'minus' : 'plus'} size={12} color={T.primary} />
+                <Text style={s.addBtnText}>{showAddExp ? 'Cancel' : 'Add'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={{ gap: 16 }}>
-            {EXPERIENCE.map((exp, i) => (
-              <View key={i} style={s.expRow}>
+            {experience.map((exp) => (
+              <View key={exp.id} style={s.expRow}>
                 <View style={[s.expIcon, { backgroundColor: exp.color + '18' }]}>
                   <MaterialCommunityIcons name={exp.icon} size={15} color={exp.color} />
                 </View>
@@ -325,44 +397,103 @@ export default function ProfileTab() {
                   <Text style={s.expRole}>{exp.role}</Text>
                   <Text style={s.expMeta}>{exp.company} · {exp.period}</Text>
                 </View>
+                {editMode && (
+                  <TouchableOpacity onPress={() => setExperience(prev => prev.filter(e => e.id !== exp.id))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <MaterialCommunityIcons name="close-circle" size={18} color={T.danger} />
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </View>
+          {editMode && showAddExp && (
+            <View style={s.addForm}>
+              <TextInput style={s.addInput} placeholder="Role / Title" placeholderTextColor={T.textHint} value={newExp.role} onChangeText={t => setNewExp(p => ({ ...p, role: t }))} />
+              <TextInput style={s.addInput} placeholder="Company" placeholderTextColor={T.textHint} value={newExp.company} onChangeText={t => setNewExp(p => ({ ...p, company: t }))} />
+              <TextInput style={s.addInput} placeholder="Period (e.g. 2022 – Present)" placeholderTextColor={T.textHint} value={newExp.period} onChangeText={t => setNewExp(p => ({ ...p, period: t }))} />
+              <TouchableOpacity style={s.addConfirmBtn} onPress={addExperience}>
+                <Text style={s.addConfirmText}>Add Experience</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <Sep />
 
         {/* ── Education ────────────────────────────────────────────────────── */}
         <View style={s.section}>
-          <SectionLabel title="Education" />
-          <View style={s.expRow}>
-            <View style={[s.expIcon, { backgroundColor: 'rgba(168,85,247,0.12)' }]}>
-              <MaterialCommunityIcons name="school-outline" size={15} color={T.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={s.expRole}>BS Computer Science</Text>
-              <Text style={s.expMeta}>University of California · 2015 – 2019</Text>
-            </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <SectionLabel title="Education" />
+            {editMode && (
+              <TouchableOpacity style={s.addBtn} onPress={() => setShowAddEdu(v => !v)}>
+                <MaterialCommunityIcons name={showAddEdu ? 'minus' : 'plus'} size={12} color={T.primary} />
+                <Text style={s.addBtnText}>{showAddEdu ? 'Cancel' : 'Add'}</Text>
+              </TouchableOpacity>
+            )}
           </View>
+          <View style={{ gap: 16 }}>
+            {education.map((edu) => (
+              <View key={edu.id} style={s.expRow}>
+                <View style={[s.expIcon, { backgroundColor: 'rgba(168,85,247,0.12)' }]}>
+                  <MaterialCommunityIcons name="school-outline" size={15} color={T.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={s.expRole}>{edu.degree}</Text>
+                  <Text style={s.expMeta}>{edu.school} · {edu.period}</Text>
+                </View>
+                {editMode && (
+                  <TouchableOpacity onPress={() => setEducation(prev => prev.filter(e => e.id !== edu.id))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <MaterialCommunityIcons name="close-circle" size={18} color={T.danger} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))}
+          </View>
+          {editMode && showAddEdu && (
+            <View style={s.addForm}>
+              <TextInput style={s.addInput} placeholder="Degree / Program" placeholderTextColor={T.textHint} value={newEdu.degree} onChangeText={t => setNewEdu(p => ({ ...p, degree: t }))} />
+              <TextInput style={s.addInput} placeholder="School / University" placeholderTextColor={T.textHint} value={newEdu.school} onChangeText={t => setNewEdu(p => ({ ...p, school: t }))} />
+              <TextInput style={s.addInput} placeholder="Period (e.g. 2015 – 2019)" placeholderTextColor={T.textHint} value={newEdu.period} onChangeText={t => setNewEdu(p => ({ ...p, period: t }))} />
+              <TouchableOpacity style={s.addConfirmBtn} onPress={addEducation}>
+                <Text style={s.addConfirmText}>Add Education</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <Sep />
 
         {/* ── Preferences ──────────────────────────────────────────────────── */}
         <View style={s.section}>
-          <SectionLabel title="Job preferences" />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <SectionLabel title="Job preferences" />
+            {editMode && (
+              <TouchableOpacity style={s.addBtn} onPress={() => setShowAddPref(v => !v)}>
+                <MaterialCommunityIcons name={showAddPref ? 'minus' : 'plus'} size={12} color={T.primary} />
+                <Text style={s.addBtnText}>{showAddPref ? 'Cancel' : 'Add'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
           <View style={s.chips}>
-            {[
-              { label: 'Remote',    icon: 'home-outline'     as const, on: true  },
-              { label: 'Full-time', icon: 'briefcase-outline' as const, on: true  },
-              { label: '$120k+',    icon: 'currency-usd'     as const, on: true  },
-            ].map((p, i) => (
-              <View key={i} style={[s.prefChip, p.on && s.prefChipOn]}>
+            {prefs.map((p) => (
+              <View key={p.id} style={[s.prefChip, p.on && s.prefChipOn]}>
                 <MaterialCommunityIcons name={p.icon} size={13} color={p.on ? T.primary : T.textHint} />
                 <Text style={[s.chipText, p.on && { color: T.primary }]}>{p.label}</Text>
+                {editMode && (
+                  <TouchableOpacity onPress={() => setPrefs(prev => prev.filter(x => x.id !== p.id))} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} style={{ marginLeft: 4 }}>
+                    <MaterialCommunityIcons name="close" size={11} color={p.on ? T.primary : T.textHint} />
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </View>
+          {editMode && showAddPref && (
+            <View style={[s.addForm, { marginTop: 12 }]}>
+              <TextInput style={s.addInput} placeholder="e.g. Hybrid, Contract, $150k+" placeholderTextColor={T.textHint} value={newPref} onChangeText={setNewPref} />
+              <TouchableOpacity style={s.addConfirmBtn} onPress={addPref}>
+                <Text style={s.addConfirmText}>Add Preference</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <Sep />
@@ -518,4 +649,20 @@ const s = StyleSheet.create({
     backgroundColor: T.dangerBg, borderWidth: 1, borderColor: 'rgba(239,68,68,0.15)',
   },
   signOutText: { fontSize: 13, fontWeight: '700', color: T.danger },
+
+  // Add forms
+  addForm: {
+    marginTop: 16, padding: 14, borderRadius: 14,
+    backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border, gap: 10,
+  },
+  addInput: {
+    backgroundColor: T.surface, borderRadius: 10, borderWidth: 1, borderColor: T.border,
+    paddingHorizontal: 12, paddingVertical: 10,
+    fontSize: 13, color: T.textPrimary,
+  },
+  addConfirmBtn: {
+    backgroundColor: T.primary, borderRadius: 10,
+    paddingVertical: 11, alignItems: 'center',
+  },
+  addConfirmText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 });
