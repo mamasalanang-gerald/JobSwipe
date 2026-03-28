@@ -102,7 +102,7 @@ class ProfileService
         $profile = $this->ensureApplicantDocument($userId);
         $items = $profile->work_experience ?? [];
 
-        if (!array_key_exists($index, $items)) {
+        if (! array_key_exists($index, $items)) {
             throw new InvalidArgumentException('WORK_EXPERIENCE_NOT_FOUND');
         }
 
@@ -118,7 +118,7 @@ class ProfileService
         $profile = $this->ensureApplicantDocument($userId);
         $items = $profile->work_experience ?? [];
 
-        if (!array_key_exists($index, $items)) {
+        if (! array_key_exists($index, $items)) {
             throw new InvalidArgumentException('WORK_EXPERIENCE_NOT_FOUND');
         }
 
@@ -144,7 +144,7 @@ class ProfileService
         $profile = $this->ensureApplicantDocument($userId);
         $items = $profile->education ?? [];
 
-        if (!array_key_exists($index, $items)) {
+        if (! array_key_exists($index, $items)) {
             throw new InvalidArgumentException('EDUCATION_NOT_FOUND');
         }
 
@@ -160,7 +160,7 @@ class ProfileService
         $profile = $this->ensureApplicantDocument($userId);
         $items = $profile->education ?? [];
 
-        if (!array_key_exists($index, $items)) {
+        if (! array_key_exists($index, $items)) {
             throw new InvalidArgumentException('EDUCATION_NOT_FOUND');
         }
 
@@ -278,7 +278,7 @@ class ProfileService
         $document = $this->ensureCompanyDocument($userId, $companyProfile);
         $images = $document->office_images ?? [];
 
-        if (!array_key_exists($index, $images)) {
+        if (! array_key_exists($index, $images)) {
             throw new InvalidArgumentException('OFFICE_IMAGE_NOT_FOUND');
         }
 

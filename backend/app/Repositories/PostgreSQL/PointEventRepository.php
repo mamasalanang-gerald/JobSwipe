@@ -11,19 +11,19 @@ class PointEventRepository
     {
         return PointEvent::create($data);
     }
-    
+
     public function getHistory(string $applicantId): Collection
     {
         return PointEvent::where('applicant_id', $applicantId)
             ->orderBy('created_at', 'desc')
             ->get();
     }
-    
+
     public function getTotalPoints(string $applicantId): int
     {
         return PointEvent::where('applicant_id', $applicantId)->sum('points');
     }
-    
+
     public function hasEvent(string $applicantId, string $eventType): bool
     {
         return PointEvent::where('applicant_id', $applicantId)
