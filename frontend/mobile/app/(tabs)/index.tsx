@@ -215,6 +215,7 @@ export default function HomeTab() {
       if (accumulatedMs >= TIMER_DURATION) {
         pausedElapsedRef.current = 0;
         clearInterval(id);
+        progressAnim.setValue(0);
         setPhotoIndex(p => {
           const isLast = p === total - 1;
           const next   = isLast ? 0 : p + 1;
@@ -465,12 +466,11 @@ export default function HomeTab() {
           onPress={handleImageTap}
           onPressIn={() => {
             isHoldingRef.current = true;
-            progressAnim.stopAnimation();
+            isDraggingRef.current = true;
           }}
           onPressOut={() => {
-            if (!isHoldingRef.current || isDraggingRef.current) return;
             isHoldingRef.current = false;
-            setTimerKey(k => k + 1);
+            isDraggingRef.current = false;
           }}
         >
           <ScrollView
