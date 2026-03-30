@@ -3,7 +3,6 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -13,10 +12,7 @@ class PasswordResetMail extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct()
-    {
-        
-    }
+    public function __construct() {}
 
     public function envelope(): Envelope
     {
@@ -25,7 +21,6 @@ class PasswordResetMail extends Mailable
         );
     }
 
-    
     public function content(): Content
     {
         return new Content(
@@ -33,7 +28,6 @@ class PasswordResetMail extends Mailable
         );
     }
 
-  
     public function attachments(): array
     {
         return [];

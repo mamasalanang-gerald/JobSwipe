@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Mail\PasswordResetMail;
 use App\Repositories\Redis\PasswordResetCacheRepository;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class PasswordResetService
@@ -31,27 +30,28 @@ class PasswordResetService
     {
         $stored = $this->resetCache->get($email);
 
-        if($stored === null){
+        if ($stored === null) {
             return 'expired';
         }
 
         $attempts = (int) ($stored['attempts'] ?? 0);
 
-        if ($attempts >= self::MAX_ATTEMPTS){
+        if ($attempts >= self::MAX_ATTEMPTS) {
             return 'max_attempts';
         }
 
         $submittedHash = $this->hashCode($submittedCode);
 
-        if(!hash_equals($stored['code_hash'], $submittedCode)){
+        if (! hash_equals($stored['code_hash'], $submittedCode)) {
             $this->passwordResetCache->incrementAttempts($email);
+
             return 'invalid';
         }
 
         return 'valid';
     }
 
-    public function clearResetData(string $email): void 
+    public function clearResetData(string $email): void
     {
         $this->passwordResetCache->delete($email);
     }
@@ -61,8 +61,8 @@ class PasswordResetService
         return str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
     }
 
-    private function hashCode(string $code): string 
+    private function hashCode(string $code): string
     {
-        return hash ('sha256', $code);
+        return hash('sha256', $code);
     }
 }
