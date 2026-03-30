@@ -26,7 +26,7 @@ class PasswordResetCacheRepository
     {
         $key = $this->key($email);
 
-        if (!Redis::exist($key)){
+        if (! Redis::exist($key)) {
             return null;
         }
 
@@ -38,7 +38,7 @@ class PasswordResetCacheRepository
         return (int) Redis::hincrby($this->key($email), 'attempts', 1);
     }
 
-    public function delete(string $email): void 
+    public function delete(string $email): void
     {
         Redis::del($this->key($email));
     }
