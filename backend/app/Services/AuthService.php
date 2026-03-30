@@ -92,15 +92,15 @@ class AuthService
         ];
     }
 
-    public function initiateForgotPassword(string $email): string 
+    public function initiateForgotPassword(string $email): string
     {
         $user = $this->users->findByEmail($email);
 
-        if(!$user) {
+        if (! $user) {
             return 'code_sent';
         }
 
-        if ($user->google_id && !$user->password_hash){
+        if ($user->google_id && ! $user->password_hash) {
             return 'code_sent';
         }
 
@@ -109,18 +109,18 @@ class AuthService
         return 'code_sent';
     }
 
-    public function resetPassword(string $email, string $code, string $newPassword): array 
+    public function resetPassword(string $email, string $code, string $newPassword): array
     {
         $user = $this->users->findByEmail($email);
 
-        if (!$user){
+        if (! $user) {
             return ['status' => 'invalid'];
         }
 
         $passwordResetService = app(PasswordResetService::class);
         $result = $passwordResetService->verifyCode($email, $code);
 
-        if($result !== 'valid'){
+        if ($result !== 'valid') {
             return ['status' => $result];
         }
 
