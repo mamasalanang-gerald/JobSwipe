@@ -12,9 +12,9 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['*'],
+    'allowed_headers' => ['application/json'],
 
-    'exposed_headers' => [],
+    'exposed_headers' => ['GET', 'POST'],
 
     'max_age' => 0,
 
