@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
 class ResetPasswordRequest extends FormRequest
 {
@@ -11,12 +12,27 @@ class ResetPasswordRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        // Ensure this request expects JSON response
+        $this->headers->set('Accept', 'application/json');
+    }
+
     public function rules(): array
     {
         return [
             'email' => ['required', 'email', 'max:255'],
             'code' => ['required', 'string', 'size:6', 'regex:/^[0-9]{6}$/'],
-            'password' => ['required', 'string', 'min:8', 'max:255'],
+            'password' => [
+                'required',
+                'string',
+                Password::min(8)
+                    ->mixedCase()
+                    ->letters()
+                    ->numbers()
+                    ->symbols()
+                    ->uncompromised(),
+            ],
         ];
     }
 
