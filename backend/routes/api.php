@@ -187,6 +187,9 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/verify-email', [AuthController::class, 'verifyEmail']);
     Route::post('auth/resend-verification', [AuthController::class, 'resendVerification']);
 
+    Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
+
     Route::get('auth/google/redirect', [OAuthController::class, 'redirectToGoogle']);
     Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback']);
 
