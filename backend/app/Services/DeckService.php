@@ -153,19 +153,17 @@ class DeckService
      */
     private function getSeenJobIds(string $userId): array
     {
-        // Try to get from Redis first
-        $redisKey = "swipe:deck:seen:{$userId}";
+        // Use repository method instead of raw Redis facade
+        $seenIds = $this->cache->getSeenJobs($userId);
 
-        if (\Illuminate\Support\Facades\Redis::exists($redisKey)) {
-            return \Illuminate\Support\Facades\Redis::smembers($redisKey);
-        }
+        // If cache miss, fallback to MongoDB
+        if ($seenIds === null || empty($seenIds)) {
+            $seenIds = $this->swipeHistory->getSeenJobIds($userId);
 
-        // Fallback to MongoDB
-        $seenIds = $this->swipeHistory->getSeenJobIds($userId);
-
-        // Rehydrate Redis cache
-        if (! empty($seenIds)) {
-            $this->cache->refreshDeckSeen($userId, $seenIds);
+            // Rehydrate Redis cache
+            if (! empty($seenIds)) {
+                $this->cache->refreshDeckSeen($userId, $seenIds);
+            }
         }
 
         return $seenIds;
