@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { useNavigation } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   View,
@@ -135,6 +136,7 @@ const JOBS = [
 export default function HomeTab() {
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
+  const navigation = useNavigation();
   // Dynamic bottom positions — keep buttons above tab bar on all devices
   const actionsBottom  = tabBarHeight + 20;
   const overlayBottom  = actionsBottom + ACTIONS_HEIGHT + 8;
@@ -525,7 +527,7 @@ export default function HomeTab() {
         <View style={[s.topBar, { paddingTop: topInset > 0 ? topInset + 8 : (Platform.OS === 'ios' ? 54 : 40) }]} pointerEvents="box-none" onLayout={e => setTopBarHeight(e.nativeEvent.layout.height)}>
           <View style={s.tabRow}>
             <TouchableOpacity style={s.iconPill} onPress={openSettings}><MaterialCommunityIcons name="tune-variant"   size={19} color={Colors.white} /></TouchableOpacity>
-            <TouchableOpacity style={s.iconPill}><MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA"      /></TouchableOpacity>
+            <TouchableOpacity style={s.iconPill} onPress={() => navigation.navigate('subscription' as never)}><MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA"      /></TouchableOpacity>
           </View>
           <View style={s.dotsRow}>
             {job.photos.map((_, i) => (
@@ -738,7 +740,7 @@ export default function HomeTab() {
           </View>
 
           {/* Locked "View more reviews" button */}
-          <TouchableOpacity style={s.viewMoreBtn} activeOpacity={0.8}>
+          <TouchableOpacity style={s.viewMoreBtn} activeOpacity={0.8} onPress={() => navigation.navigate('subscription' as never)}>
             <View style={s.viewMoreLockBadge}>
               <MaterialCommunityIcons name="lock" size={11} color="#fff" />
             </View>
