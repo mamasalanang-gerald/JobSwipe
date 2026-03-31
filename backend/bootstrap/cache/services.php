@@ -26,11 +26,11 @@
     22 => 'Illuminate\\View\\ViewServiceProvider',
     23 => 'Laravel\\Cashier\\CashierServiceProvider',
     24 => 'Laravel\\Horizon\\HorizonServiceProvider',
-    25 => 'Laravel\\Passport\\PassportServiceProvider',
-    26 => 'Laravel\\Sail\\SailServiceProvider',
-    27 => 'Laravel\\Sanctum\\SanctumServiceProvider',
-    28 => 'Laravel\\Scout\\ScoutServiceProvider',
-    29 => 'Laravel\\Sentinel\\SentinelServiceProvider',
+    25 => 'Laravel\\Sail\\SailServiceProvider',
+    26 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    27 => 'Laravel\\Scout\\ScoutServiceProvider',
+    28 => 'Laravel\\Sentinel\\SentinelServiceProvider',
+    29 => 'Laravel\\Socialite\\SocialiteServiceProvider',
     30 => 'Laravel\\Tinker\\TinkerServiceProvider',
     31 => 'MongoDB\\Laravel\\MongoDBServiceProvider',
     32 => 'MongoDB\\Laravel\\MongoDBBusServiceProvider',
@@ -38,7 +38,6 @@
     34 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
     35 => 'Termwind\\Laravel\\TermwindServiceProvider',
     36 => 'Spatie\\LaravelIgnition\\IgnitionServiceProvider',
-    37 => 'Tymon\\JWTAuth\\Providers\\LaravelServiceProvider',
   ),
   'eager' => 
   array (
@@ -54,16 +53,14 @@
     9 => 'Illuminate\\View\\ViewServiceProvider',
     10 => 'Laravel\\Cashier\\CashierServiceProvider',
     11 => 'Laravel\\Horizon\\HorizonServiceProvider',
-    12 => 'Laravel\\Passport\\PassportServiceProvider',
-    13 => 'Laravel\\Sanctum\\SanctumServiceProvider',
-    14 => 'Laravel\\Scout\\ScoutServiceProvider',
-    15 => 'Laravel\\Sentinel\\SentinelServiceProvider',
-    16 => 'MongoDB\\Laravel\\MongoDBServiceProvider',
-    17 => 'Carbon\\Laravel\\ServiceProvider',
-    18 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
-    19 => 'Termwind\\Laravel\\TermwindServiceProvider',
-    20 => 'Spatie\\LaravelIgnition\\IgnitionServiceProvider',
-    21 => 'Tymon\\JWTAuth\\Providers\\LaravelServiceProvider',
+    12 => 'Laravel\\Sanctum\\SanctumServiceProvider',
+    13 => 'Laravel\\Scout\\ScoutServiceProvider',
+    14 => 'Laravel\\Sentinel\\SentinelServiceProvider',
+    15 => 'MongoDB\\Laravel\\MongoDBServiceProvider',
+    16 => 'Carbon\\Laravel\\ServiceProvider',
+    17 => 'NunoMaduro\\Collision\\Adapters\\Laravel\\CollisionServiceProvider',
+    18 => 'Termwind\\Laravel\\TermwindServiceProvider',
+    19 => 'Spatie\\LaravelIgnition\\IgnitionServiceProvider',
   ),
   'deferred' => 
   array (
@@ -218,6 +215,7 @@
     'Illuminate\\Contracts\\Validation\\UncompromisedVerifier' => 'Illuminate\\Validation\\ValidationServiceProvider',
     'Laravel\\Sail\\Console\\InstallCommand' => 'Laravel\\Sail\\SailServiceProvider',
     'Laravel\\Sail\\Console\\PublishCommand' => 'Laravel\\Sail\\SailServiceProvider',
+    'Laravel\\Socialite\\Contracts\\Factory' => 'Laravel\\Socialite\\SocialiteServiceProvider',
     'command.tinker' => 'Laravel\\Tinker\\TinkerServiceProvider',
     'MongoDB\\Laravel\\Bus\\MongoBatchRepository' => 'MongoDB\\Laravel\\MongoDBBusServiceProvider',
   ),
@@ -263,6 +261,9 @@
     array (
     ),
     'Laravel\\Sail\\SailServiceProvider' => 
+    array (
+    ),
+    'Laravel\\Socialite\\SocialiteServiceProvider' => 
     array (
     ),
     'Laravel\\Tinker\\TinkerServiceProvider' => 

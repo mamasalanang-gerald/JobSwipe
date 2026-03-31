@@ -1,0 +1,159 @@
+<?php
+
+namespace App\Services;
+
+use App\Repositories\PostgreSQL\UserRepository;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Laravel\Socialite\Contracts\User as SocialiteUser;
+
+class AuthService
+{
+    public function __construct(
+        private UserRepository $users,
+        private OTPService $otp,
+        private ProfileService $profiles,
+        private TokenService $tokens,
+    ) {}
+
+    public function initiateRegistration(string $email, string $password, string $role): string
+    {
+        if ($this->users->emailExists($email)) {
+            return 'email_taken';
+        }
+
+        $passwordHash = Hash::make($password, ['rounds' => config('hashing.bcrypt.rounds', 10)]);
+        $this->otp->sendOtp($email, $passwordHash, $role);
+
+        return 'otp_sent';
+    }
+
+    public function completeRegistration(string $email, string $code): array
+    {
+        $result = $this->otp->verify($email, $code);
+
+        if ($result !== 'valid') {
+            return ['status' => $result];
+        }
+
+        // Get stored registration data from Redis
+        $storedData = $this->otp->getStoredData($email);
+
+        if (! $storedData || ! isset($storedData['password_hash'], $storedData['role'])) {
+            return ['status' => 'expired'];
+        }
+
+        // Use transaction to ensure atomicity
+        DB::transaction(function () use ($email, $storedData, &$user, &$token) {
+            // Create user with stored password hash
+            $user = $this->users->create([
+                'email' => strtolower(trim($email)),
+                'password_hash' => $storedData['password_hash'],
+                'role' => $storedData['role'],
+                'email_verified_at' => now(),
+            ]);
+
+            // Create profile
+            $this->profiles->createProfileForUser($user);
+
+            // Generate token
+            $token = $this->tokens->generateToken($user);
+        });
+
+        return [
+            'status' => 'verified',
+            'token' => $token,
+            'user' => $user,
+        ];
+    }
+
+    public function login(string $email, string $password): array
+    {
+        $user = $this->users->findByEmail($email);
+
+        if (! $user || ! Hash::check($password, $user->getAuthPassword())) {
+            return ['status' => 'invalid_credentials'];
+        }
+
+        if ($user->is_banned) {
+            return ['status' => 'banned'];
+        }
+
+        if (! $user->hasVerifiedEmail()) {
+            $this->otp->sendOtp($email);
+
+            return ['status' => 'unverified'];
+        }
+
+        $token = $this->tokens->generateToken($user);
+
+        return [
+            'status' => 'success',
+            'token' => $token,
+            'user' => $user,
+        ];
+    }
+
+    public function logout($user): void
+    {
+        $this->tokens->revokeCurrentToken($user);
+    }
+
+    public function handleGoogleCallback(SocialiteUser $googleUser): array
+    {
+        $user = $this->users->findByGoogleId($googleUser->getId());
+
+        if ($user && $user->role !== 'applicant') {
+            return ['status' => 'role_not_allowed'];
+        }
+
+        if (! $user) {
+            $user = $this->users->findByEmail($googleUser->getEmail());
+
+            if ($user) {
+                if ($user->role !== 'applicant') {
+                    return ['status' => 'role_not_allowed'];
+                }
+
+                // Link Google account
+                $this->users->update($user, [
+                    'google_id' => $googleUser->getId(),
+                ]);
+
+                // Update profile photo if empty
+                $this->profiles->updateApplicantPhoto($user->id, $googleUser->getAvatar());
+            } else {
+                // Create new user with transaction
+                DB::transaction(function () use ($googleUser, &$user) {
+                    $user = $this->users->create([
+                        'email' => strtolower(trim($googleUser->getEmail())),
+                        'password_hash' => Hash::make(str()->random(40)),
+                        'role' => 'applicant',
+                        'google_id' => $googleUser->getId(),
+                        'email_verified_at' => now(),
+                    ]);
+
+                    $this->profiles->createProfileForUser($user, $googleUser->getAvatar());
+                });
+            }
+        }
+
+        if ($user->is_banned) {
+            return ['status' => 'banned'];
+        }
+
+        $token = $this->tokens->generateToken($user);
+
+        return [
+            'status' => 'success',
+            'token' => $token,
+            'user' => $user,
+            'is_new_user' => $user->wasRecentlyCreated,
+        ];
+    }
+
+    public function resendOtp(string $email): void
+    {
+        $this->otp->sendOtp($email);
+    }
+}

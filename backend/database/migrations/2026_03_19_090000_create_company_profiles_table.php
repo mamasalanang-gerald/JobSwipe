@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('subscription_tier', 10)->default('none');
             $table->string('subscription_status', 15)->default('inactive');
             $table->integer('active_listings_count')->default(0);
-            $table->timestamps();
+            $table->timestampsTz();
 
             $table->foreign('user_id')->references('id')->on('users')->onDelete('cascade');
         });

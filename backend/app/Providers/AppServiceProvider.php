@@ -18,8 +18,8 @@ class AppServiceProvider extends ServiceProvider
      * Phase 1 — Repositories (add as you build them):
      *   \App\Repositories\Redis\SwipeCacheRepository::class
      *   \App\Repositories\Mongo\SwipeHistoryRepository::class
-     *   \App\Repositories\Postgres\ApplicationRepository::class
-     *   \App\Repositories\Postgres\ApplicantProfileRepository::class
+     *   \App\Repositories\PostgreSQL\ApplicationRepository::class
+     *   \App\Repositories\PostgreSQL\ApplicantProfileRepository::class
      *
      * Phase 2 — Services (add after their repository dependencies exist):
      *   \App\Services\SwipeService::class
@@ -34,10 +34,13 @@ class AppServiceProvider extends ServiceProvider
         // Uncomment each line only after you have created the class file.
         // -----------------------------------------------------------------
 
-        // $this->app->singleton(\App\Repositories\Redis\SwipeCacheRepository::class);
-        // $this->app->singleton(\App\Repositories\Mongo\SwipeHistoryRepository::class);
-        // $this->app->singleton(\App\Repositories\Postgres\ApplicationRepository::class);
-        // $this->app->singleton(\App\Repositories\Postgres\ApplicantProfileRepository::class);
+        $this->app->singleton(\App\Repositories\Redis\SwipeCacheRepository::class);
+        $this->app->singleton(\App\Repositories\MongoDB\SwipeHistoryRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\ApplicationRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\ApplicantProfileRepository::class);
+        $this->app->singleton(\App\Repositories\Redis\OTPCacheRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\UserRepository::class);
+        $this->app->singleton(\App\Repositories\PostgreSQL\JobPostingRepository::class);
 
         // -----------------------------------------------------------------
         // Services
@@ -45,10 +48,15 @@ class AppServiceProvider extends ServiceProvider
         // are already registered as singletons.
         // -----------------------------------------------------------------
 
-        // $this->app->singleton(\App\Services\SwipeService::class);
+        $this->app->singleton(\App\Services\SwipeService::class);
+        $this->app->singleton(\App\Services\DeckService::class);
         // $this->app->singleton(\App\Services\PointService::class);
-        // $this->app->singleton(\App\Services\DeckService::class);
         // $this->app->singleton(\App\Services\InvitationService::class);
+
+        $this->app->singleton(\App\Services\OTPService::class);
+        $this->app->singleton(\App\Services\ProfileService::class);
+        $this->app->singleton(\App\Services\TokenService::class);
+        $this->app->singleton(\App\Services\AuthService::class);
     }
 
     /**
