@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\VerifyEmailRequest;
 use App\Services\AuthService;
 use Illuminate\Http\JsonResponse;
@@ -91,6 +93,46 @@ class AuthController extends Controller
 
         // Always return success to prevent email enumeration
         return $this->success(message: 'If that email is registered, a new code has been sent.');
+    }
+
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
+    {
+        $this->auth->initiateForgotPassword($request->email);
+
+        // Always return success to prevent email enumeration
+        return $this->success(
+            message: 'If that email is registered, a password reset code has been sent.'
+        );
+    }
+
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
+    {
+        $result = $this->auth->resetPassword(
+            email: $request->email,
+            code: $request->code,
+            newPassword: $request->password
+        );
+
+        return match ($result['status']) {
+            'success' => $this->success(
+                message: 'Password reset successfully. Please login with your new password.'
+            ),
+            'expired' => $this->error(
+                'CODE_EXPIRED',
+                'Reset code has expired. Please request a new one.',
+                422
+            ),
+            'invalid' => $this->error(
+                'CODE_INVALID',
+                'Incorrect reset code.',
+                422
+            ),
+            'max_attempts' => $this->error(
+                'CODE_MAX_ATTEMPTS',
+                'Too many incorrect attempts. Please request a new code.',
+                429
+            ),
+        };
     }
 
     public function login(LoginRequest $request): JsonResponse
