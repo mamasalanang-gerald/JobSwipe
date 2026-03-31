@@ -11,7 +11,7 @@ class SwipeCacheRepository
 
     private function counterKey(string $userId): string
     {
-        $date = Carbon::now('Asia/Manila')->toDateString();
+        $date = Carbon::now(config('app.timezone'))->toDateString();
 
         return "swipe:counter:{$userId}:{$date}";
     }
