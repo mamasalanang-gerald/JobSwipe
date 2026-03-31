@@ -17,22 +17,8 @@
     "laravel/tinker": "^2.8",
     "meilisearch/meilisearch-php": "^1.16",
     "mongodb/laravel-mongodb": "^5.6",
-    "nesbot/carbon": "^2.72.6",
     "predis/predis": "^2.0",
-    "resend/resend-php": "^0.13.0",
-    "symfony/clock": "^7.1",
-    "symfony/console": "^7.1",
-    "symfony/css-selector": "^7.1",
-    "symfony/event-dispatcher": "^7.1",
-    "symfony/http-kernel": "^7.1",
-    "symfony/mailer": "^7.1",
-    "symfony/mime": "^7.1",
-    "symfony/process": "^7.1",
-    "symfony/routing": "^7.1",
-    "symfony/string": "^7.1",
-    "symfony/translation": "^7.1",
-    "symfony/var-dumper": "^7.1",
-    "symfony/yaml": "^7.1"
+    "resend/resend-php": "^0.13.0"
   },
   "require-dev": {
     "barryvdh/laravel-ide-helper": "^3.7",
@@ -73,9 +59,6 @@
     "allow-plugins": {
       "pestphp/pest-plugin": true,
       "php-http/discovery": true
-    },
-    "platform": {
-      "php": "8.2.30"
     },
     "process-timeout": 1800
   },
