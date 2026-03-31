@@ -28,8 +28,9 @@ import {
 } from '../../components/ui';
 
 // ─── MOCK AUTH ────────────────────────────────────────────────────────────────
-const MOCK_AUTH = true;
-const MOCK_APPLICANT = { email: 'demo@example.com',    password: 'password' };
+// TODO: Remove this block once the backend is live.
+const MOCK_AUTH      = true; // flip to false to re-enable the real API call
+const MOCK_APPLICANT = { email: 'demo@example.com',    password: 'password'   };
 const MOCK_COMPANY   = { email: 'company@example.com', password: 'company123' };
 const MOCK_TOKEN     = 'mock-token-123';
 // ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +51,7 @@ export default function LoginScreen() {
 
     // ── Mock path ──────────────────────────────────────────────────────────
     if (MOCK_AUTH) {
-      await new Promise((r) => setTimeout(r, 600));
+      await new Promise((r) => setTimeout(r, 600)); // simulate network delay
 
       if (email === MOCK_APPLICANT.email && password === MOCK_APPLICANT.password) {
         setToken(MOCK_TOKEN);
@@ -87,12 +88,19 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background, paddingTop: topInset }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: Colors.background, paddingTop: topInset }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <StatusBar barStyle="dark-content" />
 
       <PageHeader title="Sign In" subtitle="Welcome back to JobSwipe" />
 
-      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
 
         {/* ── Brand ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['4'] }}>
@@ -106,7 +114,7 @@ export default function LoginScreen() {
         </View>
 
         {/* ── Mock-mode hint banner ── */}
-        {MOCK_AUTH ? (
+        {MOCK_AUTH && (
           <View style={{ backgroundColor: '#FFF8E1', borderWidth: 1, borderColor: '#FFE082', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'], gap: Spacing['2'] }}>
 
             {/* Header */}
@@ -119,7 +127,10 @@ export default function LoginScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], paddingLeft: Spacing['1'] }}>
               <MaterialCommunityIcons name="account-outline" size={13} color="#795548" />
               <Text style={{ color: '#795548', fontSize: Typography.sm }}>
-                Applicant: <Text style={{ fontWeight: '600' }}>{MOCK_APPLICANT.email}</Text> / <Text style={{ fontWeight: '600' }}>{MOCK_APPLICANT.password}</Text>
+                Applicant:{' '}
+                <Text style={{ fontWeight: '600' }}>{MOCK_APPLICANT.email}</Text>
+                {' / '}
+                <Text style={{ fontWeight: '600' }}>{MOCK_APPLICANT.password}</Text>
               </Text>
             </View>
 
@@ -127,12 +138,15 @@ export default function LoginScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], paddingLeft: Spacing['1'] }}>
               <MaterialCommunityIcons name="office-building-outline" size={13} color="#795548" />
               <Text style={{ color: '#795548', fontSize: Typography.sm }}>
-                Company: <Text style={{ fontWeight: '600' }}>{MOCK_COMPANY.email}</Text> / <Text style={{ fontWeight: '600' }}>{MOCK_COMPANY.password}</Text>
+                Company:{' '}
+                <Text style={{ fontWeight: '600' }}>{MOCK_COMPANY.email}</Text>
+                {' / '}
+                <Text style={{ fontWeight: '600' }}>{MOCK_COMPANY.password}</Text>
               </Text>
             </View>
 
           </View>
-        ) : null}
+        )}
 
         {/* ── Error banner ── */}
         {error ? (
@@ -149,7 +163,16 @@ export default function LoginScreen() {
             <Text style={s.fieldLabel}>Email</Text>
             <View style={s.inputRow}>
               <MaterialCommunityIcons name="email-outline" size={16} color={Colors.gray400} />
-              <TextInput style={s.input} placeholder="you@example.com" placeholderTextColor={Colors.gray300} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
+              <TextInput
+                style={s.input}
+                placeholder="you@example.com"
+                placeholderTextColor={Colors.gray300}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
             </View>
           </View>
 
@@ -164,7 +187,15 @@ export default function LoginScreen() {
             </View>
             <View style={s.inputRow}>
               <MaterialCommunityIcons name="lock-outline" size={16} color={Colors.gray400} />
-              <TextInput style={[s.input, { flex: 1 }]} placeholder="••••••••" placeholderTextColor={Colors.gray300} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" />
+              <TextInput
+                style={[s.input, { flex: 1 }]}
+                placeholder="••••••••"
+                placeholderTextColor={Colors.gray300}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+              />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: Spacing['1'] }}>
                 <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.gray400} />
               </TouchableOpacity>
@@ -182,7 +213,12 @@ export default function LoginScreen() {
         >
           {loading
             ? <ActivityIndicator color={Colors.white} />
-            : <><Text style={{ color: Colors.white, fontSize: Typography.lg, fontWeight: Typography.semibold }}>Sign in</Text><MaterialCommunityIcons name="arrow-right" size={18} color={Colors.white} /></>
+            : (
+              <>
+                <Text style={{ color: Colors.white, fontSize: Typography.lg, fontWeight: Typography.semibold }}>Sign in</Text>
+                <MaterialCommunityIcons name="arrow-right" size={18} color={Colors.white} />
+              </>
+            )
           }
         </TouchableOpacity>
 
@@ -211,6 +247,7 @@ export default function LoginScreen() {
   );
 }
 
+// Only styles reused across multiple elements live here
 const s = StyleSheet.create({
   fieldLabel: {
     fontSize: Typography.sm,
