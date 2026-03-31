@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  StatusBar, Dimensions, TextInput, Image,
+  StatusBar, Dimensions, TextInput, Image, Keyboard, KeyboardEvent, Platform,
 } from 'react-native';
 import {
   StatusPill, CountBadge, CompanyLogo,
@@ -131,6 +131,278 @@ type Review = {
   date: string;
 };
 
+// ─── Chat types & seed data ───────────────────────────────────────────────────
+type ChatMessage = {
+  id: number;
+  from: 'me' | 'them';
+  text: string;
+  time: string;
+};
+
+const SEED_MESSAGES: Record<number, ChatMessage[]> = {
+  10: [
+    { id: 1, from: 'them', text: "Hi Alex! We loved your portfolio 🎨 — are you available for a quick call this week?", time: '10:02 AM' },
+    { id: 2, from: 'me',   text: "Thanks so much! I'd love that. I'm free Thursday or Friday afternoon.", time: '10:15 AM' },
+    { id: 3, from: 'them', text: "Perfect, let's do Friday at 2 PM EST. I'll send a calendar invite shortly.", time: '10:18 AM' },
+    { id: 4, from: 'me',   text: "Sounds great, looking forward to it!", time: '10:20 AM' },
+    { id: 5, from: 'them', text: "Hi Alex! We loved your portfolio — available for a call this week?", time: '2m ago' },
+  ],
+  11: [
+    { id: 1, from: 'them', text: "Hey Alex, thanks for applying to the iOS Engineer role!", time: 'Yesterday' },
+    { id: 2, from: 'me',   text: "Thanks for considering me. I'm really excited about what Pixel Works is building.", time: 'Yesterday' },
+    { id: 3, from: 'them', text: "Moving you to the technical interview stage 🎉 Our team will reach out to schedule.", time: '1h ago' },
+  ],
+  12: [
+    { id: 1, from: 'me',   text: "Hi, I just submitted my application for the Sr. RN Engineer role. Looking forward to hearing from you!", time: '3h ago' },
+    { id: 2, from: 'them', text: "Thanks for applying! We'll review your profile and get back to you soon.", time: '3h ago' },
+  ],
+  13: [
+    { id: 1, from: 'me',   text: "Hi, I'm very interested in the ML Engineer position at DataStream.", time: 'Mon' },
+    { id: 2, from: 'them', text: "Great to meet you, Alex! Your background in ML is impressive.", time: 'Mon' },
+    { id: 3, from: 'me',   text: "Thank you! I've been following DataStream's research publications closely.", time: 'Tue' },
+    { id: 4, from: 'them', text: "We'd like to extend a formal offer — congratulations! 🎉 Details incoming.", time: 'Yesterday' },
+  ],
+};
+
+// ─── Conversation Screen ──────────────────────────────────────────────────────
+type ConvMsg = ChatMessage;
+
+const AUTO_REPLIES: Record<number, string[]> = {
+  10: [
+    "Sounds great, we'll confirm the time shortly!",
+    "Looking forward to connecting with you 😊",
+    "Feel free to ask any questions before the call.",
+  ],
+  11: [
+    "Our engineering team will reach out within 24 hours.",
+    "Excited to have you move forward in the process!",
+    "Let us know if you have any questions in the meantime.",
+  ],
+  12: [
+    "We appreciate your patience while we review.",
+    "Our team carefully reviews every application.",
+    "We'll be in touch soon!",
+  ],
+  13: [
+    "Congratulations again — we're thrilled to have you!",
+    "HR will send over the formal offer letter shortly.",
+    "Feel free to reach out with any questions about the offer.",
+  ],
+};
+
+function ConversationScreen({
+  conversation,
+  onBack,
+  tabBarHeight,
+}: {
+  conversation: typeof PIPELINE[number];
+  onBack: () => void;
+  tabBarHeight: number;
+}) {
+  const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
+  const [messages, setMessages] = useState<ConvMsg[]>(
+    SEED_MESSAGES[conversation.id] ?? []
+  );
+  const [draft, setDraft] = useState('');
+const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+useEffect(() => {
+  const SCREEN_H = Dimensions.get('screen').height;
+  const show = Keyboard.addListener('keyboardDidShow', (e: KeyboardEvent) => {
+    // screenY is the top of the keyboard on screen — subtract from screen height
+    // to get true height including toolbar row
+    setKeyboardHeight(SCREEN_H - e.endCoordinates.screenY);
+  });
+  const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+  return () => { show.remove(); hide.remove(); };
+}, []);
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const replyIndexRef = useRef(0);
+
+  // Header height: back btn row ~62px + divider 1px
+  const HEADER_H = 63;
+
+  useEffect(() => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
+  }, []);
+
+  const scrollToBottom = (animated = true) => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated }), 100);
+  };
+
+  const sendMessage = () => {
+    const text = draft.trim();
+    if (!text) return;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setMessages(prev => [...prev, { id: Date.now(), from: 'me', text, time: now }]);
+    setDraft('');
+    scrollToBottom();
+
+    const replies = AUTO_REPLIES[conversation.id] ?? ["Thanks for your message!"];
+    const replyText = replies[replyIndexRef.current % replies.length];
+    replyIndexRef.current += 1;
+    setIsTyping(true);
+    scrollToBottom();
+    setTimeout(() => {
+      setIsTyping(false);
+      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setMessages(prev => [...prev, { id: Date.now() + 1, from: 'them', text: replyText, time: replyTime }]);
+      scrollToBottom();
+    }, 1400);
+  };
+
+  return (
+    <View style={[cs.screen, { paddingTop: topInset }]}>
+      <StatusBar barStyle="light-content" />
+
+      {/* ── Conversation header (outside KAV so it never moves) ── */}
+      <View style={cs.header}>
+        <TouchableOpacity onPress={onBack} style={cs.backBtn} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="arrow-left" size={22} color={T.primary} />
+        </TouchableOpacity>
+        <View style={[cs.headerLogo, { backgroundColor: conversation.color }]}>
+          <Text style={cs.headerLogoText}>{conversation.abbr}</Text>
+        </View>
+        <View style={cs.headerInfo}>
+          <Text style={cs.headerCompany}>{conversation.company}</Text>
+          {isTyping
+            ? <Text style={cs.typingLabel}>typing…</Text>
+            : <Text style={cs.headerRole}>{conversation.role}</Text>
+          }
+        </View>
+        <View style={[cs.statusBadge, { backgroundColor: statusBg(conversation.status) }]}>
+          <Text style={[cs.statusBadgeText, { color: statusColor(conversation.status) }]}>
+            {conversation.status.charAt(0).toUpperCase() + conversation.status.slice(1)}
+          </Text>
+        </View>
+      </View>
+      <View style={cs.headerDivider} />
+
+      {/* ── Plain View, margin = true keyboard height from screenY ── */}
+      <View style={[{ flex: 1 }, keyboardHeight > 0 && { marginBottom: keyboardHeight }]}>
+        <ScrollView
+          ref={scrollRef}
+          style={cs.msgScroll}
+          contentContainerStyle={[cs.msgContent, { paddingBottom: keyboardHeight > 0 ? 16 : tabBarHeight + 16 }]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => scrollToBottom(false)}
+        >
+          {messages.map((msg, i) => {
+            const isMe = msg.from === 'me';
+            const prevMsg = messages[i - 1];
+            const isFirstInGroup = i === 0 || prevMsg.from !== msg.from;
+            const isLastInGroup  = i === messages.length - 1 || messages[i + 1].from !== msg.from;
+            const showAvatar = !isMe && isFirstInGroup;
+            const showSpacer = !isMe && !isFirstInGroup;
+            return (
+              <View
+                key={msg.id}
+                style={[
+                  cs.bubbleWrap,
+                  isMe ? cs.bubbleWrapMe : cs.bubbleWrapThem,
+                  isFirstInGroup && { marginTop: 8 },
+                ]}
+              >
+                {showAvatar && (
+                  <View style={[cs.bubbleAvatar, { backgroundColor: conversation.color }]}>
+                    <Text style={cs.bubbleAvatarText}>{conversation.abbr}</Text>
+                  </View>
+                )}
+                {showSpacer && <View style={cs.bubbleAvatarSpacer} />}
+                <View style={cs.bubbleCol}>
+                  <View style={[
+                    cs.bubble,
+                    isMe ? cs.bubbleMe : cs.bubbleThem,
+                    !isMe && isFirstInGroup  && cs.bubbleThemFirst,
+                    !isMe && isLastInGroup   && cs.bubbleThemLast,
+                    isMe  && isFirstInGroup  && cs.bubbleMeFirst,
+                    isMe  && isLastInGroup   && cs.bubbleMeLast,
+                  ]}>
+                    <Text style={[cs.bubbleText, isMe ? cs.bubbleTextMe : cs.bubbleTextThem]}>
+                      {msg.text}
+                    </Text>
+                  </View>
+                  {isLastInGroup && (
+                    <Text style={[cs.bubbleTime, isMe ? cs.bubbleTimeMe : cs.bubbleTimeThem]}>
+                      {msg.time}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+
+          {isTyping && (
+            <View style={[cs.bubbleWrap, cs.bubbleWrapThem, { marginTop: 8 }]}>
+              <View style={[cs.bubbleAvatar, { backgroundColor: conversation.color }]}>
+                <Text style={cs.bubbleAvatarText}>{conversation.abbr}</Text>
+              </View>
+              <View style={[cs.bubble, cs.bubbleThem, cs.typingBubble]}>
+                <View style={cs.typingDots}>
+                  <View style={[cs.typingDot, cs.typingDot1]} />
+                  <View style={[cs.typingDot, cs.typingDot2]} />
+                  <View style={[cs.typingDot, cs.typingDot3]} />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {conversation.expired && (
+            <View style={cs.expiredBanner}>
+              <MaterialCommunityIcons name="lock-outline" size={13} color={T.textHint} />
+              <Text style={cs.expiredBannerText}>This conversation has closed</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {!conversation.expired && (
+          <View style={[cs.inputBar, { paddingBottom: keyboardHeight > 0 ? 8 : tabBarHeight + 8 }]}>
+            <TextInput
+              style={cs.input}
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="Message…"
+              placeholderTextColor={T.textHint}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[cs.sendBtn, !draft.trim() && cs.sendBtnDisabled]}
+              onPress={sendMessage}
+              activeOpacity={0.85}
+              disabled={!draft.trim()}
+            >
+              <MaterialCommunityIcons name="send" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function statusBg(status: Status) {
+  const map: Record<Status, string> = {
+    applied:   'rgba(255,255,255,0.07)',
+    screening: 'rgba(245,158,11,0.12)',
+    interview: 'rgba(168,85,247,0.15)',
+    offer:     'rgba(34,197,94,0.12)',
+  };
+  return map[status];
+}
+
+function statusColor(status: Status) {
+  const map: Record<Status, string> = {
+    applied:   'rgba(255,255,255,0.5)',
+    screening: '#fbbf24',
+    interview: '#c084fc',
+    offer:     '#4ade80',
+  };
+  return map[status];
+}
+
 // ─── Ghost cards for empty state ──────────────────────────────────────────────
 function GhostCard({
   avatarColor,
@@ -243,6 +515,7 @@ export default function MatchesTab() {
   const hasMatches = NEW_MATCHES.length > 0;
 
   // ── Review form state ──────────────────────────────────────────────────────
+  const [selectedConversation, setSelectedConversation] = useState<typeof PIPELINE[number] | null>(null);
   const [selectedCompanyId, setSelectedCompanyId] = useState<number | null>(null);
   const [reviewRating, setReviewRating]           = useState(0);
   const [reviewTitle, setReviewTitle]             = useState('');
@@ -284,8 +557,19 @@ export default function MatchesTab() {
   const tabs = [
     { key: 'matches',  label: 'Matches',  badge: NEW_MATCHES.length },
     { key: 'messages', label: 'Messages', badge: totalUnread },
-    { key: 'reviews',  label: 'Review',  badge: 0 },
+    { key: 'reviews',  label: 'Reviews',  badge: 0 },
   ];
+
+  // ── Conversation detail (full-screen swap) ─────────────────────────────────
+  if (selectedConversation) {
+    return (
+      <ConversationScreen
+        conversation={selectedConversation}
+        onBack={() => setSelectedConversation(null)}
+        tabBarHeight={tabBarHeight}
+      />
+    );
+  }
 
   return (
     <View style={[s.screen, { paddingTop: topInset }]}>
@@ -390,7 +674,8 @@ export default function MatchesTab() {
                   {i > 0 && <View style={s.divider} />}
                   <TouchableOpacity
                     style={[s.msgRow, msg.expired && s.msgRowExpired]}
-                    activeOpacity={msg.expired ? 1 : 0.85}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedConversation(msg)}
                   >
                     <View style={{ position: 'relative' }}>
                       <View style={msg.expired ? s.msgLogoExpired : undefined}>
@@ -1041,4 +1326,135 @@ const s = StyleSheet.create({
   reviewDate:      { fontSize: 11, color: T.textHint, marginLeft: 6 },
   reviewTitle:     { fontSize: 14, fontWeight: '600', color: T.textPrimary },
   reviewBody:      { fontSize: 13, color: T.textSub, lineHeight: 20 },
+});
+
+// ─── Conversation screen styles ───────────────────────────────────────────────
+const cs = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: T.bg },
+
+  // Header
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12,
+    gap: 10,
+  },
+  backBtn: {
+    width: 38, height: 38, borderRadius: 19,
+    backgroundColor: T.surface,
+    borderWidth: 1, borderColor: T.borderFaint,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerLogo: {
+    width: 40, height: 40, borderRadius: 12,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  headerLogoText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  headerInfo:    { flex: 1 },
+  headerCompany: { fontSize: 15, fontWeight: '700', color: T.textPrimary },
+  headerRole:    { fontSize: 12, color: T.textSub, marginTop: 1 },
+  statusBadge: {
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20,
+  },
+  statusBadgeText: { fontSize: 11, fontWeight: '700' },
+  headerDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: T.borderFaint,
+  },
+
+  // Message scroll
+  msgScroll:   { flex: 1 },
+  msgContent:  { paddingHorizontal: 16, paddingTop: 16, gap: 4 },
+
+  // Bubble rows
+  bubbleWrap: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 2,
+  },
+  bubbleWrapMe:   { justifyContent: 'flex-end' },
+  bubbleWrapThem: { justifyContent: 'flex-start' },
+
+  bubbleAvatar: {
+    width: 28, height: 28, borderRadius: 9,
+    alignItems: 'center', justifyContent: 'center',
+    marginBottom: 2,
+  },
+  bubbleAvatarText:   { fontSize: 9, fontWeight: '800', color: '#fff' },
+  bubbleAvatarSpacer: { width: 28 },
+
+  bubbleCol: { maxWidth: SCREEN_WIDTH * 0.72, gap: 3 },
+
+  bubble: {
+    borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10,
+  },
+  bubbleMe: {
+    backgroundColor: T.primary,
+    borderBottomRightRadius: 4,
+  },
+  bubbleThem: {
+    backgroundColor: T.surfaceHigh,
+    borderWidth: 1, borderColor: T.borderFaint,
+    borderBottomLeftRadius: 4,
+  },
+  bubbleText:     { fontSize: 14, lineHeight: 20 },
+  bubbleTextMe:   { color: '#fff' },
+  bubbleTextThem: { color: T.textPrimary },
+
+  bubbleTime:     { fontSize: 10, color: T.textHint },
+  bubbleTimeMe:   { textAlign: 'right' },
+  bubbleTimeThem: { textAlign: 'left' },
+
+  // Expired banner
+  expiredBanner: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, marginTop: 16, marginBottom: 8,
+    paddingVertical: 8, paddingHorizontal: 16,
+    backgroundColor: T.surface, borderRadius: 12,
+    borderWidth: 1, borderColor: T.borderFaint,
+    alignSelf: 'center',
+  },
+  expiredBannerText: { fontSize: 12, color: T.textHint, fontWeight: '600' },
+
+  // Input bar
+  inputBar: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
+    paddingHorizontal: 16, paddingTop: 10,
+    backgroundColor: T.bg,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: T.borderFaint,
+  },
+  input: {
+    flex: 1,
+    minHeight: 44, maxHeight: 120,
+    backgroundColor: T.surface,
+    borderRadius: 22,
+    borderWidth: 1, borderColor: T.borderFaint,
+    paddingHorizontal: 16, paddingVertical: 11,
+    fontSize: 14, color: T.textPrimary,
+  },
+  sendBtn: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: T.primary,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sendBtnDisabled: { opacity: 0.35 },
+
+  // Bubble shape variants (grouped messages)
+  bubbleMeFirst:   { borderTopRightRadius: 18 },
+  bubbleMeLast:    { borderBottomRightRadius: 4 },
+  bubbleThemFirst: { borderTopLeftRadius: 18 },
+  bubbleThemLast:  { borderBottomLeftRadius: 4 },
+
+  // "typing…" label in header
+  typingLabel: { fontSize: 12, color: T.primary, fontStyle: 'italic', marginTop: 1 },
+
+  // Typing indicator bubble
+  typingBubble: { paddingVertical: 12, paddingHorizontal: 16 },
+  typingDots:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  typingDot: {
+    width: 7, height: 7, borderRadius: 4,
+    backgroundColor: T.textHint,
+  },
+  typingDot1: {},
+  typingDot2: { opacity: 0.65 },
+  typingDot3: { opacity: 0.35 },
 });
