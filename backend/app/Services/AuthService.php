@@ -92,6 +92,51 @@ class AuthService
         ];
     }
 
+    public function initiateForgotPassword(string $email): string
+    {
+        $user = $this->users->findByEmail($email);
+
+        if (! $user) {
+            return 'code_sent';
+        }
+
+        if ($user->google_id && ! $user->password_hash) {
+            return 'code_sent';
+        }
+
+        app(PasswordResetService::class)->sendResetCode($email);
+
+        return 'code_sent';
+    }
+
+    public function resetPassword(string $email, string $code, string $newPassword): array
+    {
+        $user = $this->users->findByEmail($email);
+
+        if (! $user) {
+            return ['status' => 'invalid'];
+        }
+
+        $passwordResetService = app(PasswordResetService::class);
+        $result = $passwordResetService->verifyCode($email, $code);
+
+        if ($result !== 'valid') {
+            return ['status' => $result];
+        }
+
+        $newPasswordHash = Hash::make($newPassword, ['rounds' => config('hashing.bcrypt.rounds', 10)]);
+
+        $this->users->update($user, [
+            'password_hash' => $newPasswordHash,
+        ]);
+
+        $passwordResetService->clearResetData($email);
+
+        $user->tokens()->delete();
+
+        return ['status' => 'success'];
+    }
+
     public function login(string $email, string $password): array
     {
         $user = $this->users->findByEmail($email);

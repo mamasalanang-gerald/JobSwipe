@@ -15,7 +15,6 @@ class OTPService
 
     public function sendOtp(string $email, ?string $passwordHash = null, ?string $role = null): bool
     {
-        error_log('=== OTP SERVICE: Sending OTP to '.$email.' ===');
         Log::info('OTPService: Starting sendOtp', [
             'email' => $email,
             'has_password_hash' => ! is_null($passwordHash),
