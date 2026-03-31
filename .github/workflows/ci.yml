@@ -345,7 +345,7 @@ jobs:
         image: mongo:7
         env:
           MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: password
+          MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.CI_MONGO_PASSWORD }}
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
           --health-interval 10s
