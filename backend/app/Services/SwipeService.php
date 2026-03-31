@@ -49,16 +49,10 @@ class SwipeService
         ]);
 
         try {
-<<<<<<< HEAD
             DB::transaction(function () use ($applicant, $userId, $jobId) {
                 $this->applications->create($applicant->id, $jobId);
                 $applicant->increment('daily_swipes_used');
                 $this->markJobSeenInPostgres($userId, $jobId);
-=======
-            DB::transaction(function () use ($applicant, $jobId) {
-                $this->applications->create($applicant->id, $jobId);
-                $applicant->increment('daily_swipes_used');
->>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
             });
         } catch (\Throwable $e) {
             // Rollback MongoDB write if PostgreSQL fails
@@ -104,14 +98,9 @@ class SwipeService
 
         // 4. Update PostgreSQL counter in transaction
         try {
-<<<<<<< HEAD
             DB::transaction(function () use ($applicant, $userId, $jobId) {
                 $applicant->increment('daily_swipes_used');
                 $this->markJobSeenInPostgres($userId, $jobId);
-=======
-            DB::transaction(function () use ($applicant) {
-                $applicant->increment('daily_swipes_used');
->>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
             });
         } catch (\Throwable $e) {
             // Rollback MongoDB write if PostgreSQL fails
@@ -219,16 +208,12 @@ class SwipeService
         // Rehydrate Redis cache if MongoDB had the data
         if ($exists) {
             $this->cache->markJobSeen($userId, $targetId);
-<<<<<<< HEAD
             $this->markJobSeenInPostgres($userId, $targetId);
-=======
->>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
         }
 
         return $exists;
     }
 
-<<<<<<< HEAD
     private function markJobSeenInPostgres(string $userId, string $jobId): void
     {
         $timestamp = now();
@@ -248,8 +233,6 @@ class SwipeService
             );
     }
 
-=======
->>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
     private function hasHrAlreadySwiped(string $hrUserId, string $jobId, string $applicantId): bool
     {
         // Try Redis first
