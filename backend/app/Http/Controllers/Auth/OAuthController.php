@@ -20,10 +20,7 @@ class OAuthController extends Controller
     {
         $url = Socialite::driver('google')->stateless()->redirect()->getTargetUrl();
 
-        return response()->json([
-            'success' => true,
-            'data' => ['redirect_url' => $url],
-        ]);
+        return $this->success(data: ['redirect_url' => $url]);
     }
 
     public function handleGoogleCallback(): JsonResponse
@@ -31,41 +28,40 @@ class OAuthController extends Controller
         try {
             $googleUser = Socialite::driver('google')->stateless()->user();
         } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Google authentication failed. Please try again.',
-                'code' => 'OAUTH_FAILED',
-            ], 422);
+            return $this->error(
+                code: 'OAUTH_FAILED',
+                message: 'Google authentication failed. Please try again.',
+                status: 422
+            );
         }
 
         $result = $this->auth->handleGoogleCallback($googleUser);
 
         if ($result['status'] === 'banned') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Your account has been suspended.',
-                'code' => 'ACCOUNT_BANNED',
-            ], 403);
+            return $this->error(
+                code: 'ACCOUNT_BANNED',
+                message: 'Your account has been suspended.',
+                status: 403
+            );
         }
 
         if ($result['status'] === 'role_not_allowed') {
-            return response()->json([
-                'success' => false,
-                'message' => 'Google OAuth is only available for applicant accounts.',
-                'code' => 'OAUTH_NOT_PERMITTED',
-            ], 403);
+            return $this->error(
+                code: 'OAUTH_NOT_PERMITTED',
+                message: 'Google OAuth is only available for applicant accounts.',
+                status: 403
+            );
         }
 
-        return response()->json([
-            'success' => true,
-            'data' => [
+        return $this->success(
+            data: [
                 'token' => $result['token'],
                 'user' => $result['user'],
                 'is_new_user' => $result['is_new_user'],
             ],
-            'message' => $result['is_new_user']
+            message: $result['is_new_user']
                 ? 'Account created via Google. Please complete your profile.'
                 : 'Logged in with Google.',
-        ]);
+        );
     }
 }
