@@ -127,13 +127,14 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: jobapp_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 5432:5432
 
@@ -143,7 +144,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 6379:6379
 
@@ -173,8 +174,8 @@ jobs:
           cp .env.example .env
           sed -i 's/DB_HOST=127.0.0.1/DB_HOST=127.0.0.1/' .env
           sed -i 's/REDIS_HOST=127.0.0.1/REDIS_HOST=127.0.0.1/' .env
-          sed -i "s/DB_PASSWORD=/DB_PASSWORD=${{ secrets.CI_POSTGRES_PASSWORD }}/" .env
-          sed -i "s/JWT_SECRET=/JWT_SECRET=${{ secrets.CI_JWT_SECRET }}/" .env
+          sed -i 's/DB_PASSWORD=/DB_PASSWORD=postgres/' .env
+          sed -i 's/JWT_SECRET=/JWT_SECRET=test-jwt-secret-key-for-ci-testing/' .env
           php artisan key:generate
 
       - name: 🗄️ Run Backend Migrations
@@ -225,13 +226,14 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_PASSWORD: ${{ secrets.CI_POSTGRES_PASSWORD }}
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
           POSTGRES_DB: jobapp_test
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 5432:5432
 
@@ -239,12 +241,12 @@ jobs:
         image: mongo:7
         env:
           MONGO_INITDB_ROOT_USERNAME: root
-          MONGO_INITDB_ROOT_PASSWORD: ${{ secrets.CI_MONGO_PASSWORD }}
+          MONGO_INITDB_ROOT_PASSWORD: password
         options: >-
           --health-cmd "mongosh --eval 'db.adminCommand(\"ping\")'"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 27017:27017
 
@@ -254,7 +256,7 @@ jobs:
           --health-cmd "redis-cli ping"
           --health-interval 10s
           --health-timeout 5s
-          --health-retries 5
+          --health-retries 10
         ports:
           - 6379:6379
 
@@ -284,9 +286,9 @@ jobs:
           sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
           sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
           sed -i 's/MONGO_HOST=mongodb/MONGO_HOST=127.0.0.1/' .env
-          sed -i "s/DB_PASSWORD=/DB_PASSWORD=${{ secrets.CI_POSTGRES_PASSWORD }}/" .env
-          sed -i "s/MONGO_ROOT_PASSWORD=/MONGO_ROOT_PASSWORD=${{ secrets.CI_MONGO_PASSWORD }}/" .env
-          sed -i "s/JWT_SECRET=/JWT_SECRET=${{ secrets.CI_JWT_SECRET }}/" .env
+          sed -i 's/DB_PASSWORD=/DB_PASSWORD=postgres/' .env
+          sed -i 's/MONGO_ROOT_PASSWORD=/MONGO_ROOT_PASSWORD=password/' .env
+          sed -i 's/JWT_SECRET=/JWT_SECRET=test-jwt-secret-key-for-ci-testing/' .env
           php artisan key:generate
 
       - name: 🗄️ Run Backend Migrations & Seeders
@@ -392,9 +394,9 @@ jobs:
           sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
           sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
           sed -i 's/MONGO_HOST=mongodb/MONGO_HOST=127.0.0.1/' .env
-          sed -i "s/DB_PASSWORD=/DB_PASSWORD=${{ secrets.CI_POSTGRES_PASSWORD }}/" .env
-          sed -i "s/MONGO_ROOT_PASSWORD=/MONGO_ROOT_PASSWORD=${{ secrets.CI_MONGO_PASSWORD }}/" .env
-          sed -i "s/JWT_SECRET=/JWT_SECRET=${{ secrets.CI_JWT_SECRET }}/" .env
+          sed -i 's/DB_PASSWORD=/DB_PASSWORD=postgres/' .env
+          sed -i 's/MONGO_ROOT_PASSWORD=/MONGO_ROOT_PASSWORD=password/' .env
+          sed -i 's/JWT_SECRET=/JWT_SECRET=test-jwt-secret-key-for-ci-testing/' .env
           php artisan key:generate
 
       - name: 🗄️ Setup Database
