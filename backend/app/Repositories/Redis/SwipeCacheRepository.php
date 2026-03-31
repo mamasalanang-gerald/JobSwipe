@@ -68,6 +68,16 @@ class SwipeCacheRepository
         Redis::expire($key, 90 * 86400); // 90 days
     }
 
+    public function getSeenJobs(string $userId): ?array
+    {
+        $redisKey = "swipe:deck:seen:{$userId}";
+
+        // smembers returns empty array if key doesn't exist, no race condition
+        $members = Redis::smembers($redisKey);
+
+        return $members !== false ? $members : null;
+    }
+
     public function refreshDeckSeen(string $userId, array $jobIds): void
     {
         if (empty($jobIds)) {

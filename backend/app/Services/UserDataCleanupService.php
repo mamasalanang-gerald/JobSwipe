@@ -35,16 +35,23 @@ class UserDataCleanupService
 
         Redis::del("swipe:deck:seen:{$user->id}");
 
-        $counterKeys = Redis::keys("swipe:counter:{$user->id}:*");
-        if (! empty($counterKeys)) {
-            Redis::del(...$counterKeys);
-        }
+        // Use SCAN instead of KEYS for counter cleanup
+        $this->scanAndDelete("swipe:counter:{$user->id}:*");
 
-        $hrSeenKeys = Redis::keys("swipe:hr:seen:{$user->id}:*");
-        if (! empty($hrSeenKeys)) {
-            Redis::del(...$hrSeenKeys);
-        }
+        // Use SCAN instead of KEYS for HR seen cleanup
+        $this->scanAndDelete("swipe:hr:seen:{$user->id}:*");
 
         Redis::del("points:{$user->id}");
+    }
+
+    private function scanAndDelete(string $pattern): void
+    {
+        $cursor = 0;
+        do {
+            [$cursor, $keys] = Redis::scan($cursor, ['MATCH' => $pattern, 'COUNT' => 100]);
+            if (! empty($keys)) {
+                Redis::del(...$keys);
+            }
+        } while ($cursor !== 0);
     }
 }
