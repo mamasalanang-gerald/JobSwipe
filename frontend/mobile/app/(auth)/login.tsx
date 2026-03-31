@@ -28,20 +28,20 @@ import {
 } from '../../components/ui';
 
 // ─── MOCK AUTH ────────────────────────────────────────────────────────────────
-// TODO: Remove this block once the backend is live.
-const MOCK_AUTH = true; // flip to false to re-enable the real API call
-const MOCK_CREDENTIALS = { email: 'demo@example.com', password: 'password' };
-const MOCK_TOKEN = 'mock-token-123';
+const MOCK_AUTH = true;
+const MOCK_APPLICANT = { email: 'demo@example.com',    password: 'password' };
+const MOCK_COMPANY   = { email: 'company@example.com', password: 'company123' };
+const MOCK_TOKEN     = 'mock-token-123';
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [email, setEmail]               = useState('');
+  const [password, setPassword]         = useState('');
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { top: topInset } = useSafeAreaInsets();
-  const setToken = useAuthStore((s) => s.setToken);
+  const { top: topInset }               = useSafeAreaInsets();
+  const setToken                        = useAuthStore((s) => s.setToken);
 
   const handleLogin = async () => {
     if (!email || !password) { setError('Please fill in all fields.'); return; }
@@ -50,17 +50,16 @@ export default function LoginScreen() {
 
     // ── Mock path ──────────────────────────────────────────────────────────
     if (MOCK_AUTH) {
-      await new Promise((r) => setTimeout(r, 600)); // simulate network delay
-      if (
-        email === MOCK_CREDENTIALS.email &&
-        password === MOCK_CREDENTIALS.password
-      ) {
+      await new Promise((r) => setTimeout(r, 600));
+
+      if (email === MOCK_APPLICANT.email && password === MOCK_APPLICANT.password) {
         setToken(MOCK_TOKEN);
         router.replace('/(tabs)');
+      } else if (email === MOCK_COMPANY.email && password === MOCK_COMPANY.password) {
+        setToken(MOCK_TOKEN);
+        router.replace('/(company-tabs)');
       } else {
-        setError(
-          `Invalid credentials.\nUse ${MOCK_CREDENTIALS.email} / ${MOCK_CREDENTIALS.password}`
-        );
+        setError('Invalid credentials. Use one of the demo accounts shown above.');
       }
       setLoading(false);
       return;
@@ -76,7 +75,7 @@ export default function LoginScreen() {
       const data = await response.json();
       if (data.success) {
         setToken(data.data.token);
-        router.replace('/(tabs)');
+        router.replace(data.data.role === 'hr' ? '/(company-tabs)' : '/(tabs)');
       } else {
         setError(data.message || 'Invalid email or password.');
       }
@@ -108,11 +107,30 @@ export default function LoginScreen() {
 
         {/* ── Mock-mode hint banner ── */}
         {MOCK_AUTH ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: '#FFF8E1', borderWidth: 1, borderColor: '#FFE082', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="information-outline" size={15} color="#F9A825" />
-            <Text style={{ flex: 1, color: '#795548', fontSize: Typography.sm }}>
-              Mock mode — use <Text style={{ fontWeight: '600' }}>{MOCK_CREDENTIALS.email}</Text> / <Text style={{ fontWeight: '600' }}>{MOCK_CREDENTIALS.password}</Text>
-            </Text>
+          <View style={{ backgroundColor: '#FFF8E1', borderWidth: 1, borderColor: '#FFE082', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'], gap: Spacing['2'] }}>
+
+            {/* Header */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
+              <MaterialCommunityIcons name="information-outline" size={15} color="#F9A825" />
+              <Text style={{ color: '#795548', fontSize: Typography.sm, fontWeight: '600' }}>Mock mode — demo accounts</Text>
+            </View>
+
+            {/* Applicant row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], paddingLeft: Spacing['1'] }}>
+              <MaterialCommunityIcons name="account-outline" size={13} color="#795548" />
+              <Text style={{ color: '#795548', fontSize: Typography.sm }}>
+                Applicant: <Text style={{ fontWeight: '600' }}>{MOCK_APPLICANT.email}</Text> / <Text style={{ fontWeight: '600' }}>{MOCK_APPLICANT.password}</Text>
+              </Text>
+            </View>
+
+            {/* Company row */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], paddingLeft: Spacing['1'] }}>
+              <MaterialCommunityIcons name="office-building-outline" size={13} color="#795548" />
+              <Text style={{ color: '#795548', fontSize: Typography.sm }}>
+                Company: <Text style={{ fontWeight: '600' }}>{MOCK_COMPANY.email}</Text> / <Text style={{ fontWeight: '600' }}>{MOCK_COMPANY.password}</Text>
+              </Text>
+            </View>
+
           </View>
         ) : null}
 
@@ -193,7 +211,6 @@ export default function LoginScreen() {
   );
 }
 
-// Only styles reused across multiple elements live here
 const s = StyleSheet.create({
   fieldLabel: {
     fontSize: Typography.sm,
