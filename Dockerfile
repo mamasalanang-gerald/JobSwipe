@@ -24,8 +24,8 @@ WORKDIR /var/www/html
 
 COPY backend/ .
 
-# Update composer.lock if needed, then install
-RUN composer update resend/resend-php --no-interaction --prefer-dist --no-scripts || true
+# Update composer dependencies to be compatible with PHP 8.2
+RUN composer update --no-interaction --prefer-dist --no-scripts --with-all-dependencies || true
 RUN composer install --optimize-autoloader --no-interaction --prefer-dist --no-scripts
 
 # CRITICAL FIX: Hide Laravel from Render's auto-detection
