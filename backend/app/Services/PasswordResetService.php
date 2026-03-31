@@ -42,7 +42,7 @@ class PasswordResetService
 
         $submittedHash = $this->hashCode($submittedCode);
 
-        if (! hash_equals($stored['code_hash'], $submittedCode)) {
+        if (! hash_equals($stored['code_hash'], $submittedHash)) {
             $this->passwordResetCache->incrementAttempts($email);
 
             return 'invalid';

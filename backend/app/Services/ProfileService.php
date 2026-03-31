@@ -345,7 +345,7 @@ class ProfileService
             'total_points' => 0,
             'daily_swipes_used' => 0,
             'daily_swipe_limit' => 15,
-            'extra_swipes_balance' => 0,
+            'extra_swipe_balance' => 0,
         ]);
 
         $this->applicantDocs->create([

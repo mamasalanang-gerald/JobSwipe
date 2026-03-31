@@ -28,7 +28,10 @@ use App\Services\SubscriptionService;
 use App\Services\SwipeService;
 use App\Services\TokenService;
 use App\Services\UserDataCleanupService;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -84,7 +87,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(DeckService::class);
         $this->app->singleton(PointService::class);
         $this->app->singleton(NotificationService::class);
-        // $this->app->singleton(PointService::class);
         // $this->app->singleton(InvitationService::class);
 
         $this->app->singleton(OTPService::class);
@@ -104,6 +106,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        RateLimiter::for('api-tiered', function (Request $request) {
+            if ($request->user()) {
+                return Limit::perMinute(60)->by((string) $request->user()->id);
+            }
+
+            return Limit::perMinute(20)->by($request->ip());
+        });
+
         // CRITICAL FIX: Disable route caching on Render.com
         // Render runs `php artisan route:cache` before our container starts,
         // caching routes before api.php is loaded. This causes all API routes to 404.
