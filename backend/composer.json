@@ -5,11 +5,7 @@
   "keywords": ["laravel", "api", "jobapp"],
   "license": "MIT",
   "require": {
-<<<<<<< HEAD
-    "php": "^8.1",
-=======
     "php": "^8.2",
->>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
     "aws/aws-sdk-php": "^3.374",
     "http-interop/http-factory-guzzle": "^1.2",
     "laravel/cashier": "^16.5",
@@ -21,7 +17,6 @@
     "laravel/tinker": "^2.8",
     "meilisearch/meilisearch-php": "^1.16",
     "mongodb/laravel-mongodb": "^5.6",
-<<<<<<< HEAD
     "nesbot/carbon": "^2.72.6",
     "predis/predis": "^2.0",
     "resend/resend-php": "^0.13.0",
@@ -38,20 +33,7 @@
     "symfony/translation": "^7.1",
     "symfony/var-dumper": "^7.1",
     "symfony/yaml": "^7.1"
-=======
-    "predis/predis": "^2.0",
-    "resend/resend-php": "^0.13.0"
->>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
-  },
-  "require-dev": {
-    "barryvdh/laravel-ide-helper": "^3.7",
-    "fakerphp/faker": "^1.9.1",
-    "laravel/pint": "^1.0",
-    "laravel/sail": "^1.26",
-    "mockery/mockery": "^1.5",
-    "nunomaduro/collision": "^8.0",
-    "phpunit/phpunit": "^10.5",
-    "spatie/laravel-ignition": "^2.4"
+  },"spatie/laravel-ignition": "^2.4"
   },
   "autoload": {
     "psr-4": {
