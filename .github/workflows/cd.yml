@@ -149,24 +149,45 @@ jobs:
               exit 1
             fi
             
+            # Check disk space first
+            echo "💿 Checking disk space..."
+            df -h /
+            
+            # Clean up old Docker resources BEFORE pulling new images
+            DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+            echo "Current disk usage: ${DISK_USAGE}%"
+            
+            if [ "$DISK_USAGE" -gt 70 ]; then
+              echo "⚠️  Disk usage is ${DISK_USAGE}%, cleaning up before pulling new images..."
+              
+              # Remove dangling images
+              echo "Removing dangling images..."
+              docker image prune -f
+              
+              # Remove unused containers
+              echo "Removing stopped containers..."
+              docker container prune -f
+              
+              # Remove unused volumes (be careful with this)
+              echo "Removing unused volumes..."
+              docker volume prune -f
+              
+              # Remove build cache
+              echo "Removing build cache..."
+              docker builder prune -af
+              
+              # Remove all unused images (not just dangling)
+              echo "Removing unused images..."
+              docker image prune -af --filter "until=24h"
+              
+              echo "✅ Cleanup complete"
+              df -h /
+            fi
+            
             # Pull latest images
             echo "📥 Pulling latest Docker images..."
             docker pull gm1026/jobapp-backend:latest
             docker pull gm1026/jobapp-web:latest
-            
-            # Check disk space
-            echo ""
-            echo "💿 Checking disk space..."
-            df -h /
-            
-            # Clean up old Docker resources if disk is getting full
-            DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
-            if [ "$DISK_USAGE" -gt 80 ]; then
-              echo "⚠️  Disk usage is ${DISK_USAGE}%, cleaning up..."
-              docker system prune -af --volumes --filter "until=24h"
-              echo "✅ Cleanup complete"
-              df -h /
-            fi
             
             # Create backup of current state
             echo "💾 Creating backup..."
