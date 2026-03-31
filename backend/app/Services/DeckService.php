@@ -8,6 +8,11 @@ use App\Repositories\MongoDB\SwipeHistoryRepository;
 use App\Repositories\Redis\SwipeCacheRepository;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+<<<<<<< HEAD
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Redis;
+=======
+>>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
 
 class DeckService
 {
@@ -27,8 +32,13 @@ class DeckService
     {
         $perPage = max(1, min($perPage, 50));
 
+<<<<<<< HEAD
+        // 1. Sync historical seen jobs once, then query via PostgreSQL anti-join
+        $this->ensureSeenJobsSynced($userId);
+=======
         // 1. Get seen job IDs from Redis (fallback to MongoDB)
         $seenJobIds = $this->getSeenJobIds($userId);
+>>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
 
         // 2. Get applicant's profile data for skill matching
         $applicantProfile = ApplicantProfileDocument::where('user_id', $userId)->first();
@@ -40,10 +50,17 @@ class DeckService
             self::MAX_CANDIDATE_POOL
         );
 
+<<<<<<< HEAD
+        $baseUnseenQuery = $this->unseenJobsQuery($userId);
+
+        // 3. Query a bounded candidate pool using cursor-based pagination
+        $query = (clone $baseUnseenQuery)
+=======
         // 3. Query a bounded candidate pool using cursor-based pagination
         $query = JobPosting::active()
             ->whereNotNull('published_at')
             ->whereNotIn('id', $seenJobIds)
+>>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->with(['skills', 'company']);
@@ -80,10 +97,14 @@ class DeckService
             $nextCursor = $this->encodeCursor($jobs->last());
         }
 
+<<<<<<< HEAD
+        $totalUnseen = (clone $baseUnseenQuery)->count();
+=======
         $totalUnseen = JobPosting::active()
             ->whereNotNull('published_at')
             ->whereNotIn('id', $seenJobIds)
             ->count();
+>>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
 
         return [
             'jobs' => $sortedJobs,
@@ -149,6 +170,81 @@ class DeckService
     }
 
     /**
+<<<<<<< HEAD
+     * Get seen job IDs from MongoDB (authoritative) with Redis fallback
+     */
+    private function getSeenJobIds(string $userId): array
+    {
+        $seenIds = $this->swipeHistory->getSeenJobIds($userId);
+
+        if (! empty($seenIds)) {
+            $this->cache->refreshDeckSeen($userId, $seenIds);
+
+            return $seenIds;
+        }
+
+        return $this->cache->getSeenJobs($userId) ?? [];
+    }
+
+    private function unseenJobsQuery(string $userId): Builder
+    {
+        return JobPosting::active()
+            ->whereNotNull('published_at')
+            ->whereNotExists(function ($query) use ($userId) {
+                $query->selectRaw('1')
+                    ->from('applicant_seen_jobs as seen_jobs')
+                    ->whereColumn('seen_jobs.job_id', 'job_postings.id')
+                    ->where('seen_jobs.user_id', $userId);
+            });
+    }
+
+    private function ensureSeenJobsSynced(string $userId): void
+    {
+        $syncKey = $this->seenJobsSyncKey($userId);
+
+        if (Redis::exists($syncKey)) {
+            return;
+        }
+
+        $seenJobIds = array_values(array_unique($this->getSeenJobIds($userId)));
+
+        if (empty($seenJobIds)) {
+            Redis::set($syncKey, '1', 'EX', 90 * 86400);
+
+            return;
+        }
+
+        $this->upsertSeenJobsToPostgres($userId, $seenJobIds);
+        Redis::set($syncKey, '1', 'EX', 90 * 86400);
+    }
+
+    private function upsertSeenJobsToPostgres(string $userId, array $jobIds): void
+    {
+        $timestamp = now();
+
+        foreach (array_chunk($jobIds, 1000) as $jobIdChunk) {
+            $rows = [];
+
+            foreach ($jobIdChunk as $jobId) {
+                $rows[] = [
+                    'user_id' => $userId,
+                    'job_id' => (string) $jobId,
+                    'seen_at' => $timestamp,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ];
+            }
+
+            DB::connection('pgsql')
+                ->table('applicant_seen_jobs')
+                ->upsert($rows, ['user_id', 'job_id'], ['seen_at', 'updated_at']);
+        }
+    }
+
+    private function seenJobsSyncKey(string $userId): string
+    {
+        return "swipe:deck:seen:pgsync:{$userId}";
+=======
      * Get seen job IDs with Redis cache and MongoDB fallback
      */
     private function getSeenJobIds(string $userId): array
@@ -167,6 +263,7 @@ class DeckService
         }
 
         return $seenIds;
+>>>>>>> cdeb7a8c4943047073e7bfce32d7e5ee962b5aa4
     }
 
     private function applyCursor(Builder $query, Carbon $publishedAt, string $jobId): void

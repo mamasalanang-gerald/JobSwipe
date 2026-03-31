@@ -29,13 +29,19 @@ use App\Services\SwipeService;
 use App\Services\TokenService;
 use App\Services\UserDataCleanupService;
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\RateLimiter;
+<<<<<<< HEAD
 =======
 use Illuminate\Routing\Router;
 >>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -92,9 +98,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PointService::class);
         $this->app->singleton(NotificationService::class);
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
         // $this->app->singleton(PointService::class);
 >>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
         // $this->app->singleton(InvitationService::class);
 
         $this->app->singleton(OTPService::class);
@@ -115,6 +124,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
         RateLimiter::for('api-tiered', function (Request $request) {
             if ($request->user()) {
                 return Limit::perMinute(60)->by((string) $request->user()->id);
@@ -123,8 +135,11 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(20)->by($request->ip());
         });
 
+<<<<<<< HEAD
 =======
 >>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
         // CRITICAL FIX: Disable route caching on Render.com
         // Render runs `php artisan route:cache` before our container starts,
         // caching routes before api.php is loaded. This causes all API routes to 404.

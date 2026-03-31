@@ -20,10 +20,14 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
 Route::middleware('throttle:api-tiered')->group(function () {
     Route::get('/health', function (Request $request) {
         return ['status' => 'ok', 'timestamp' => now()];
     });
+<<<<<<< HEAD
 =======
 Route::get('/health', function (Request $request) {
     return ['status' => 'ok', 'timestamp' => now()];
@@ -160,6 +164,8 @@ Route::get('/debug/database', function () {
             }
         }
 >>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
 
     // Clear cache endpoint (for free tier without shell access)
     Route::get('/clear-cache', function () {
@@ -219,6 +225,9 @@ Route::get('/debug/database', function () {
             }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
             // Check pending jobs
             try {
                 $pendingJobs = Redis::llen('queues:default');
@@ -226,6 +235,7 @@ Route::get('/debug/database', function () {
             } catch (\Exception $e) {
                 $config['queue']['pending_jobs'] = 'ERROR: '.$e->getMessage();
             }
+<<<<<<< HEAD
 =======
     Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
     Route::post('auth/reset-password', [AuthController::class, 'resetPassword']);
@@ -233,6 +243,8 @@ Route::get('/debug/database', function () {
     Route::get('auth/google/redirect', [OAuthController::class, 'redirectToGoogle']);
     Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback']);
 >>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
 
             return response()->json([
                 'status' => 'success',
@@ -254,12 +266,16 @@ Route::get('/debug/database', function () {
     });
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
     // Debug endpoint to test email sending
     Route::post('/debug/test-email', function (Request $request) {
         try {
             $email = $request->input('email', 'test@example.com');
 
             Log::info('Debug: Testing email send', ['email' => $email]);
+<<<<<<< HEAD
 =======
     Route::middleware('auth:sanctum', 'verified')->group(function () {
         Route::post('auth/logout', [AuthController::class, 'logout']);
@@ -270,6 +286,8 @@ Route::get('/debug/database', function () {
             Route::post('confirm-upload', [FileUploadController::class, 'confirmUpload']);
         });
 >>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
 
             // Try to queue an email
             Mail::to($email)->queue(
@@ -427,10 +445,14 @@ Route::get('/debug/database', function () {
                 Route::get('limits', [SwipeController::class, 'getLimits']);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
                 Route::middleware('swipe.limit')->group(function () {
                     Route::post('right/{jobId}', [SwipeController::class, 'swipeRight']);
                     Route::post('left/{jobId}', [SwipeController::class, 'swipeLeft']);
                 });
+<<<<<<< HEAD
 =======
             Route::get('onboarding/status', [ProfileController::class, 'getOnboardingStatus']);
             Route::post('onboarding/complete-step', [ProfileController::class, 'completeOnboardingStep']);
@@ -463,6 +485,8 @@ Route::get('/debug/database', function () {
                 Route::post('right/{jobId}', [SwipeController::class, 'swipeRight']);
                 Route::post('left/{jobId}', [SwipeController::class, 'swipeLeft']);
 >>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
+=======
+>>>>>>> ad5b5ac2eb98e83d3801268f775b57012676a747
             });
         });
     });
