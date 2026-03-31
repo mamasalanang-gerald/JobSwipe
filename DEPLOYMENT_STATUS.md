@@ -57,12 +57,12 @@ Get your connection string from MongoDB Atlas dashboard.
 
 Run the test script:
 ```bash
-bash test-deployment.sh https://jobswipe-eff8.onrender.com
+bash test-deployment.sh https://your-service-name.onrender.com
 ```
 
 Or test manually:
 ```bash
-curl https://jobswipe-eff8.onrender.com/api/health
+curl https://your-service-name.onrender.com/api/health
 ```
 
 Expected response:
@@ -101,7 +101,7 @@ APP_NAME=JobSwipe
 APP_ENV=production
 APP_DEBUG=false
 APP_KEY=<YOUR_GENERATED_APP_KEY>
-APP_URL=https://jobswipe-eff8.onrender.com
+APP_URL=https://your-service-name.onrender.com
 ```
 
 ### Database Connections
