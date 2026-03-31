@@ -49,9 +49,10 @@ class SwipeService
         ]);
 
         try {
-            DB::transaction(function () use ($applicant, $jobId) {
+            DB::transaction(function () use ($applicant, $userId, $jobId) {
                 $this->applications->create($applicant->id, $jobId);
                 $applicant->increment('daily_swipes_used');
+                $this->markJobSeenInPostgres($userId, $jobId);
             });
         } catch (\Throwable $e) {
             // Rollback MongoDB write if PostgreSQL fails
@@ -97,8 +98,9 @@ class SwipeService
 
         // 4. Update PostgreSQL counter in transaction
         try {
-            DB::transaction(function () use ($applicant) {
+            DB::transaction(function () use ($applicant, $userId, $jobId) {
                 $applicant->increment('daily_swipes_used');
+                $this->markJobSeenInPostgres($userId, $jobId);
             });
         } catch (\Throwable $e) {
             // Rollback MongoDB write if PostgreSQL fails
@@ -206,9 +208,29 @@ class SwipeService
         // Rehydrate Redis cache if MongoDB had the data
         if ($exists) {
             $this->cache->markJobSeen($userId, $targetId);
+            $this->markJobSeenInPostgres($userId, $targetId);
         }
 
         return $exists;
+    }
+
+    private function markJobSeenInPostgres(string $userId, string $jobId): void
+    {
+        $timestamp = now();
+
+        DB::connection('pgsql')
+            ->table('applicant_seen_jobs')
+            ->upsert(
+                [[
+                    'user_id' => $userId,
+                    'job_id' => $jobId,
+                    'seen_at' => $timestamp,
+                    'created_at' => $timestamp,
+                    'updated_at' => $timestamp,
+                ]],
+                ['user_id', 'job_id'],
+                ['seen_at', 'updated_at']
+            );
     }
 
     private function hasHrAlreadySwiped(string $hrUserId, string $jobId, string $applicantId): bool
