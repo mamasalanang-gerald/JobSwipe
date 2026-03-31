@@ -78,6 +78,7 @@ jobs:
         if: steps.changes.outputs.backend == 'true'
         run: |
           cd backend
+          mkdir -p bootstrap/cache
           composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: 🎨 Backend Lint (Laravel Pint)
@@ -162,6 +163,7 @@ jobs:
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
         run: |
           cd backend
+          mkdir -p bootstrap/cache
           composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: 🔧 Setup Backend Environment
@@ -271,6 +273,7 @@ jobs:
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
         run: |
           cd backend
+          mkdir -p bootstrap/cache
           composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: 🔧 Setup Backend Environment
@@ -379,6 +382,7 @@ jobs:
       - name: 📦 Install Backend Dependencies
         run: |
           cd backend
+          mkdir -p bootstrap/cache
           composer install --no-interaction --prefer-dist --optimize-autoloader
 
       - name: 🔧 Setup Backend Environment
