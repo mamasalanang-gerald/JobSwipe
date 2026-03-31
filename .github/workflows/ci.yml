@@ -479,18 +479,33 @@ jobs:
           docker run --rm -d --name jobapp-test -p 8080:8080 \
             -e SKIP_MIGRATIONS=true \
             -e APP_KEY=${{ secrets.CI_APP_KEY }} \
+            -e APP_ENV=testing \
+            -e APP_DEBUG=false \
+            -e DB_CONNECTION=sqlite \
+            -e DB_DATABASE=:memory: \
+            -e CACHE_DRIVER=array \
+            -e QUEUE_CONNECTION=sync \
+            -e SESSION_DRIVER=array \
             jobapp-test:latest
-          sleep 10
+          sleep 15
           
           # Test health endpoint
-          curl -f http://localhost:8080/api/health || {
-            echo "❌ Health check failed!"
-            docker logs jobapp-test
-            exit 1
-          }
+          echo "Testing health endpoint..."
+          for i in {1..10}; do
+            if curl -f http://localhost:8080/api/health 2>/dev/null; then
+              echo "✅ Docker image test passed!"
+              docker stop jobapp-test
+              exit 0
+            fi
+            echo "Attempt $i/10: Waiting for container to be ready..."
+            sleep 3
+          done
           
-          echo "✅ Docker image test passed!"
+          echo "❌ Health check failed after 10 attempts!"
+          echo "Container logs:"
+          docker logs jobapp-test
           docker stop jobapp-test
+          exit 1
 
       - name: ✅ Phase 5 Complete
         run: echo "✅ Phase 5 - Test & Build Docker completed successfully"
