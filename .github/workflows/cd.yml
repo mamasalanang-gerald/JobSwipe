@@ -184,11 +184,6 @@ jobs:
               df -h /
             fi
             
-            # Pull latest images
-            echo "📥 Pulling latest Docker images..."
-            docker pull gm1026/jobapp-backend:latest
-            docker pull gm1026/jobapp-web:latest
-            
             # Create backup of current state
             echo "💾 Creating backup..."
             docker-compose -f docker-compose.prod.yml ps > deployment_backup_$(date +%Y%m%d_%H%M%S).txt
@@ -206,6 +201,7 @@ jobs:
             
             # Rolling update - Backend (zero downtime)
             echo "🔄 Updating backend with zero downtime..."
+            docker-compose -f docker-compose.prod.yml pull backend
             docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate backend
             
             # Wait for backend to be healthy
@@ -221,11 +217,13 @@ jobs:
             
             # Rolling update - Horizon Worker
             echo "🔄 Updating Horizon worker..."
+            docker-compose -f docker-compose.prod.yml pull horizon
             docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate horizon
             sleep 5
             
             # Rolling update - Frontend
             echo "🔄 Updating frontend..."
+            docker-compose -f docker-compose.prod.yml pull frontend
             docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate frontend
             
             # Wait for frontend to be healthy
