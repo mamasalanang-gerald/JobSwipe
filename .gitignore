@@ -16,6 +16,13 @@ ios/Podfile.lock
 
 # Exception: Keep deployment templates (no actual secrets)
 !deploy/.env.render.template
+!deploy/.env.production.template
+
+# Production secrets - NEVER COMMIT
+deploy/.env.production
+deploy/SECRETS.txt
+deploy/connection-info.txt
+*.pem
 
 # IDE
 .vscode/
@@ -59,4 +66,3 @@ public/storage
 
 # Misc
 .turbo/
-*.pem
