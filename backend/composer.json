@@ -17,6 +17,7 @@
     "laravel/tinker": "^2.8",
     "meilisearch/meilisearch-php": "^1.16",
     "mongodb/laravel-mongodb": "^5.6",
+<<<<<<< HEAD
     "nesbot/carbon": "^2.72.6",
     "predis/predis": "^2.0",
     "resend/resend-php": "^0.13.0",
@@ -33,6 +34,10 @@
     "symfony/translation": "^7.1",
     "symfony/var-dumper": "^7.1",
     "symfony/yaml": "^7.1"
+=======
+    "predis/predis": "^2.0",
+    "resend/resend-php": "^0.13.0"
+>>>>>>> 61bd784a31472e0ab9cc82c3b8a6d171fea95ebc
   },
   "require-dev": {
     "barryvdh/laravel-ide-helper": "^3.7",
