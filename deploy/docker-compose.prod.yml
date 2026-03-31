@@ -57,7 +57,7 @@ services:
 
   # Backend API
   backend:
-    image: ${DOCKER_HUB_USERNAME}/jobapp-backend:latest
+    image: gm1026/jobapp-backend:latest
     container_name: jobapp_backend
     restart: unless-stopped
     ports:
@@ -108,7 +108,7 @@ services:
 
   # Horizon Worker
   horizon:
-    image: ${DOCKER_HUB_USERNAME}/jobapp-backend:latest
+    image: gm1026/jobapp-backend:latest
     container_name: jobapp_horizon
     restart: unless-stopped
     environment:
@@ -156,7 +156,7 @@ services:
 
   # Frontend Web
   frontend:
-    image: ${DOCKER_HUB_USERNAME}/jobapp-web:latest
+    image: gm1026/jobapp-web:latest
     container_name: jobapp_frontend
     restart: unless-stopped
     ports:
