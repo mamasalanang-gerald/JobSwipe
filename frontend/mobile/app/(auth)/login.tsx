@@ -88,19 +88,12 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: Colors.background, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background, paddingTop: topInset }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <StatusBar barStyle="dark-content" />
 
       <PageHeader title="Sign In" subtitle="Welcome back to JobSwipe" />
 
-      <ScrollView
-        contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
+      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
 
         {/* ── Brand ── */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['4'] }}>
@@ -163,16 +156,7 @@ export default function LoginScreen() {
             <Text style={s.fieldLabel}>Email</Text>
             <View style={s.inputRow}>
               <MaterialCommunityIcons name="email-outline" size={16} color={Colors.gray400} />
-              <TextInput
-                style={s.input}
-                placeholder="you@example.com"
-                placeholderTextColor={Colors.gray300}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <TextInput style={s.input} placeholder="you@example.com" placeholderTextColor={Colors.gray300} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
             </View>
           </View>
 
@@ -187,15 +171,7 @@ export default function LoginScreen() {
             </View>
             <View style={s.inputRow}>
               <MaterialCommunityIcons name="lock-outline" size={16} color={Colors.gray400} />
-              <TextInput
-                style={[s.input, { flex: 1 }]}
-                placeholder="••••••••"
-                placeholderTextColor={Colors.gray300}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
+              <TextInput style={[s.input, { flex: 1 }]} placeholder="••••••••" placeholderTextColor={Colors.gray300} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: Spacing['1'] }}>
                 <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.gray400} />
               </TouchableOpacity>
@@ -213,12 +189,7 @@ export default function LoginScreen() {
         >
           {loading
             ? <ActivityIndicator color={Colors.white} />
-            : (
-              <>
-                <Text style={{ color: Colors.white, fontSize: Typography.lg, fontWeight: Typography.semibold }}>Sign in</Text>
-                <MaterialCommunityIcons name="arrow-right" size={18} color={Colors.white} />
-              </>
-            )
+            : <><Text style={{ color: Colors.white, fontSize: Typography.lg, fontWeight: Typography.semibold }}>Sign in</Text><MaterialCommunityIcons name="arrow-right" size={18} color={Colors.white} /></>
           }
         </TouchableOpacity>
 
