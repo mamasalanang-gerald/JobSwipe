@@ -45,7 +45,7 @@ class OTPService
     {
         $stored = $this->otpCache->get($email);
 
-        if ($stored == null) {
+        if ($stored === null) {
             return 'expired';
         }
 
