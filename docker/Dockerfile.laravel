@@ -44,13 +44,13 @@ COPY . .
 # Remove any bootstrap cache files that might have been copied from host
 RUN rm -rf bootstrap/cache/*.php
 
-# Regenerate autoloader to ensure all classes are properly mapped
-RUN composer dump-autoload --optimize
-
-# Create and fix necessary directories with proper permissions
+# Create and fix necessary directories with proper permissions BEFORE composer commands
 RUN mkdir -p storage/logs bootstrap/cache storage/framework/cache/data && \
     chmod -R 777 storage bootstrap && \
     chown -R www-data:www-data storage bootstrap
+
+# Regenerate autoloader to ensure all classes are properly mapped
+RUN composer dump-autoload --optimize
 
 # Copy entrypoint script from docker directory
 COPY entrypoint.sh /entrypoint.sh
