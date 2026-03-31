@@ -128,7 +128,7 @@ const JOBS = [
     ],
     lookingFor: 'Python · PyTorch · MLOps · 4+ yrs',
     distanceKm: 20.4,
-    likedBack: true,
+    likedBack: false,
     reviews: [
       { author: 'David W.',  role: 'ML Engineer',          rating: 5, date: 'Mar 2024', text: 'Cutting-edge research environment. You will work on problems that truly push the field forward. The calibre of colleagues is outstanding.' },
       { author: 'Aisha T.',  role: 'Data Scientist',       rating: 5, date: 'Feb 2024', text: 'Exceptional resources and compute budget. Leadership encourages publishing and the internal knowledge sharing culture is incredible.' },
