@@ -97,7 +97,7 @@ class ApplicationRepository
     public function getPending(string $jobPostingId): Collection
     {
         return Application::where('job_posting_id', $jobPostingId)
-            ->where('status', 'pending')
+            ->where('status', 'applied')
             ->with('applicant.user')
             ->get();
     }
