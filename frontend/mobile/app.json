@@ -10,12 +10,6 @@
       "web"
     ],
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "splash": {
-      "image": "./assets/splash.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
@@ -24,7 +18,11 @@
       "fallbackToCacheTimeout": 0
     },
     "jsEngine": "hermes",
+    "web": {
+      "bundler": "metro"
+    },
     "plugins": [
+      "expo-router",
       [
         "expo-location",
         {
@@ -37,10 +35,6 @@
       "bundleIdentifier": "com.jobapp.mobile"
     },
     "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
       "package": "com.jobapp.mobile"
     },
     "githubUrl": "https://github.com/yourusername/jobapp"
