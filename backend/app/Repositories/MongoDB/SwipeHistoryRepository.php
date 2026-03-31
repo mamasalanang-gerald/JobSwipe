@@ -85,4 +85,9 @@ class SwipeHistoryRepository
                 ->where('direction', 'right');
         })->get();
     }
+
+    public function deleteById(string $id): bool
+    {
+        return SwipeHistory::where('id', $id)->delete();
+    }
 }

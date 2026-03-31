@@ -33,28 +33,35 @@ class SwipeService
             return ['status' => 'already_swiped'];
         }
 
-        // 3. Write to MongoDB (source of truth) + PostgreSQL (application record)
-        DB::transaction(function () use ($userId, $applicant, $jobId) {
-            $this->swipeHistory->recordSwipe([
-                'user_id' => $userId,
-                'actor_type' => 'applicant',
-                'direction' => 'right',
-                'target_id' => $jobId,
-                'target_type' => 'job_posting',
-                'job_posting_id' => null,
-                'meta' => [
-                    'subscription_tier' => $applicant->subscription_tier,
-                    'daily_swipe_count_at_time' => $this->cache->getCounter($userId) ?? 0,
-                ],
-            ]);
+        // MongoDB Write
 
-            $this->applications->create($applicant->id, $jobId);
+        $swipeDoc = $this->swipeHistory->recordSwipe([
+            'user_id' => $userId,
+            'actor_type' => 'applicant',
+            'direction' => 'right',
+            'target_id' => $jobId,
+            'target_type' => 'job_posting',
+            'job_posting_id' => null,
+            'meta' => [
+                'subscription_tier' => $applicant->subscription_tier,
+                'daily_swipe_count_at_time' => $this->cache->getCounter($userId) ?? 0,
+            ],
+        ]);
 
-            // Update daily swipes used in PostgreSQL
-            $applicant->increment('daily_swipes_used');
-        });
+        try {
+            DB::transaction(function () use ($applicant, $jobId) {
+                $this->applications->create($applicant->id, $jobId);
+                $applicant->increment('daily_swipes_used');
+            });
+        } catch (\Throwable $e) {
+            // Rollback MongoDB write if PostgreSQL fails
+            if ($swipeDoc && $swipeDoc->_id) {
+                $this->swipeHistory->deleteById($swipeDoc->_id);
+            }
+            throw $e;
+        }
 
-        // 4. Update Redis cache
+        // 5. Update Redis cache
         $this->cache->markJobSeen($userId, $jobId);
         $this->cache->incrementCounter($userId);
 
@@ -77,8 +84,8 @@ class SwipeService
             return ['status' => 'already_swiped'];
         }
 
-        // 3. Left swipes only go to MongoDB — no PostgreSQL record needed
-        $this->swipeHistory->recordSwipe([
+        // 3. Write to MongoDB first
+        $swipeDoc = $this->swipeHistory->recordSwipe([
             'user_id' => $userId,
             'actor_type' => 'applicant',
             'direction' => 'left',
@@ -88,10 +95,20 @@ class SwipeService
             'meta' => ['subscription_tier' => $applicant->subscription_tier],
         ]);
 
-        // Update daily swipes used
-        $applicant->increment('daily_swipes_used');
+        // 4. Update PostgreSQL counter in transaction
+        try {
+            DB::transaction(function () use ($applicant) {
+                $applicant->increment('daily_swipes_used');
+            });
+        } catch (\Throwable $e) {
+            // Rollback MongoDB write if PostgreSQL fails
+            if ($swipeDoc && $swipeDoc->_id) {
+                $this->swipeHistory->deleteById($swipeDoc->_id);
+            }
+            throw $e;
+        }
 
-        // 4. Update Redis cache
+        // 5. Update Redis cache
         $this->cache->markJobSeen($userId, $jobId);
         $this->cache->incrementCounter($userId);
 
