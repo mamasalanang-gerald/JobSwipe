@@ -19,10 +19,17 @@ use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Schema;
 
+// Health check endpoint - no middleware for CI/CD testing
+Route::get('/health', function (Request $request) {
+    return response()->json([
+        'status' => 'ok',
+        'timestamp' => now(),
+        'app' => config('app.name'),
+        'env' => config('app.env'),
+    ]);
+});
+
 Route::middleware('throttle:api-tiered')->group(function () {
-    Route::get('/health', function (Request $request) {
-        return ['status' => 'ok', 'timestamp' => now()];
-    });
 
     // Clear cache endpoint (for free tier without shell access)
     Route::get('/clear-cache', function () {
