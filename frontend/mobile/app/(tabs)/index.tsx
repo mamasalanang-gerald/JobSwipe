@@ -69,6 +69,7 @@ const JOBS = [
     ],
     lookingFor: 'React Native · TypeScript · 5+ yrs',
     distanceKm: 3.9,
+    likedBack: true,
     reviews: [
       { author: 'Sarah M.',  role: 'Software Engineer',    rating: 5, date: 'Mar 2024', text: 'Amazing culture and work-life balance. The team is brilliant and leadership actually listens. Shipped some of the most impactful features of my career here.' },
       { author: 'James K.',  role: 'Senior Developer',     rating: 5, date: 'Jan 2024', text: 'Best engineering environment I have worked in. Strong processes, fast feedback loops, and real ownership over the product.' },
@@ -97,6 +98,7 @@ const JOBS = [
     ],
     lookingFor: 'Figma · UX Research · 3+ yrs',
     distanceKm: 8.2,
+    likedBack: true,
     reviews: [
       { author: 'Elena R.',  role: 'UX Designer',          rating: 5, date: 'Feb 2024', text: 'Love the creative freedom here. The design system is world-class and your work genuinely reaches millions of users every day.' },
       { author: 'Tom B.',    role: 'Product Designer',     rating: 4, date: 'Dec 2023', text: 'Collaborative team and strong mentorship. Hybrid setup works really well — good balance of in-office energy and remote flexibility.' },
@@ -125,6 +127,7 @@ const JOBS = [
     ],
     lookingFor: 'Python · PyTorch · MLOps · 4+ yrs',
     distanceKm: 20.4,
+    likedBack: false,
     reviews: [
       { author: 'David W.',  role: 'ML Engineer',          rating: 5, date: 'Mar 2024', text: 'Cutting-edge research environment. You will work on problems that truly push the field forward. The calibre of colleagues is outstanding.' },
       { author: 'Aisha T.',  role: 'Data Scientist',       rating: 5, date: 'Feb 2024', text: 'Exceptional resources and compute budget. Leadership encourages publishing and the internal knowledge sharing culture is incredible.' },
@@ -152,6 +155,8 @@ export default function HomeTab() {
   const [topBarHeight, setTopBarHeight] = useState(0);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [galleryFullscreen, setGalleryFullscreen] = useState(false);
+  const [matchJob, setMatchJob]     = useState<typeof JOBS[number] | null>(null);
+  const matchScaleAnim = useRef(new Animated.Value(0)).current;
 
   // ── Settings state ───────────────────────────────────────────────────────────
   const [settingsOpen, setSettingsOpen]   = useState(false);
@@ -297,7 +302,14 @@ export default function HomeTab() {
       useNativeDriver: false,
     }).start(() => {
       position.setValue({ x: 0, y: 0 });
-      if (dir > 0) setLiked(prev => [...prev, filteredJobs[index].id]);
+      if (dir > 0) {
+        setLiked(prev => [...prev, filteredJobs[index].id]);
+        // Check for mutual match
+        if (filteredJobs[index].likedBack) {
+          setMatchJob(filteredJobs[index]);
+          Animated.spring(matchScaleAnim, { toValue: 1, bounciness: 8, useNativeDriver: true }).start();
+        }
+      }
       setHistory(prev => [...prev, { id: filteredJobs[index].id, dir }]);
       setPhotoIndex(0);
       setGalleryIndex(0);
@@ -889,6 +901,57 @@ export default function HomeTab() {
           </TouchableOpacity>
         </View>
       </Animated.View>
+
+      {/* ── Match Modal ─────────────────────────────────────────────────────── */}
+      {matchJob && (
+        <TouchableOpacity
+          style={s.matchBackdrop}
+          activeOpacity={1}
+          onPress={() => {
+            Animated.spring(matchScaleAnim, { toValue: 0, bounciness: 0, useNativeDriver: true }).start(() => setMatchJob(null));
+          }}
+        >
+          <Animated.View
+            style={[
+              s.matchModal,
+              {
+                transform: [{ scale: matchScaleAnim }],
+              },
+            ]}
+          >
+            <View style={s.matchContent}>
+              <Text style={s.matchEmoji}>🎉</Text>
+              <Text style={s.matchTitle}>It's a Match!</Text>
+              <Text style={s.matchSub}>{matchJob.company} liked you back</Text>
+
+              <View style={s.matchCards}>
+                <View style={[s.matchCard, { borderColor: Colors.primary }]}>
+                  <Text style={s.matchYou}>You</Text>
+                  <Text style={s.matchCompany}>Like</Text>
+                </View>
+                <Text style={s.matchArrow}>💕</Text>
+                <View style={[s.matchCard, { borderColor: matchJob.logoColor }]}>
+                  <Text style={s.matchCompanyName}>{matchJob.company}</Text>
+                  <Text style={s.matchCompany}>Likes</Text>
+                </View>
+              </View>
+
+              <View style={s.matchDivider} />
+
+              <View style={s.matchInfo}>
+                <MaterialCommunityIcons name="briefcase" size={16} color={matchJob.logoColor} />
+                <Text style={s.matchInfoText}>{matchJob.position}</Text>
+              </View>
+
+              <TouchableOpacity style={s.matchBtn} activeOpacity={0.85} onPress={() => {
+                Animated.spring(matchScaleAnim, { toValue: 0, bounciness: 0, useNativeDriver: true }).start(() => setMatchJob(null));
+              }}>
+                <Text style={s.matchBtnText}>Send Message</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -1256,5 +1319,116 @@ const s = StyleSheet.create({
     fontWeight: Typography.bold,
     color: '#0f0a1e',
     letterSpacing: 0.3,
+  },
+
+  // Match modal
+  matchBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 100,
+  },
+  matchModal: {
+    width: SW * 0.85,
+    backgroundColor: 'rgba(20,10,40,0.98)',
+    borderRadius: Radii.xl,
+    borderWidth: 1.5,
+    borderColor: 'rgba(168,85,247,0.3)',
+    overflow: 'hidden',
+  },
+  matchContent: {
+    paddingHorizontal: Spacing['5'],
+    paddingVertical: Spacing['6'],
+    alignItems: 'center',
+    gap: Spacing['3'],
+  },
+  matchEmoji: {
+    fontSize: 60,
+    marginBottom: Spacing['2'],
+  },
+  matchTitle: {
+    fontSize: Typography['2xl'],
+    fontWeight: Typography.bold,
+    color: Colors.white,
+    letterSpacing: -0.5,
+  },
+  matchSub: {
+    fontSize: Typography.base,
+    color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+  },
+  matchCards: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing['4'],
+    marginVertical: Spacing['4'],
+    width: '100%',
+  },
+  matchCard: {
+    flex: 1,
+    borderWidth: 2,
+    borderRadius: Radii.lg,
+    padding: Spacing['4'],
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  matchYou: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    color: Colors.primary,
+    marginBottom: Spacing['1'],
+  },
+  matchCompanyName: {
+    fontSize: Typography.base,
+    fontWeight: Typography.bold,
+    color: Colors.white,
+    textAlign: 'center',
+    marginBottom: Spacing['1'],
+  },
+  matchCompany: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    color: 'rgba(255,255,255,0.5)',
+  },
+  matchArrow: {
+    fontSize: 24,
+  },
+  matchDivider: {
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    width: '100%',
+    marginVertical: Spacing['3'],
+  },
+  matchInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing['2'],
+    backgroundColor: 'rgba(168,85,247,0.08)',
+    paddingHorizontal: Spacing['3'],
+    paddingVertical: Spacing['2'],
+    borderRadius: Radii.md,
+  },
+  matchInfoText: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    color: Colors.white,
+  },
+  matchBtn: {
+    width: '100%',
+    backgroundColor: Colors.success,
+    borderRadius: Radii.lg,
+    paddingVertical: Spacing['3'],
+    marginTop: Spacing['2'],
+    alignItems: 'center',
+  },
+  matchBtnText: {
+    fontSize: Typography.base,
+    fontWeight: Typography.bold,
+    color: Colors.white,
   },
 });

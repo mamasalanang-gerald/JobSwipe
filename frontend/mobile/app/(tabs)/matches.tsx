@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
@@ -440,6 +441,7 @@ function GhostCard({
 
 // ─── Empty State ──────────────────────────────────────────────────────────────
 function EmptyMatchesState() {
+  const navigation = useNavigation();
   return (
     <View style={s.emptyWrap}>
       <View style={s.ghostStack}>
@@ -455,7 +457,7 @@ function EmptyMatchesState() {
         Consider completing it or boosting your profile to attract more attention and likes.
       </Text>
 
-      <TouchableOpacity style={s.boostBtn} activeOpacity={0.85}>
+      <TouchableOpacity style={s.boostBtn} activeOpacity={0.85} onPress={() => navigation.navigate('subscription' as never)}>
         <View style={s.boostIconWrap}>
           <MaterialCommunityIcons name="rocket-launch" size={16} color="#fff" />
         </View>
@@ -507,6 +509,7 @@ function SegmentTabs({
 
 // ─── MatchesTab ───────────────────────────────────────────────────────────────
 export default function MatchesTab() {
+  const navigation = useNavigation();
   const [activeTab, setActiveTab] = useState('matches');
 
   const tabBarHeight = useTabBarHeight();
