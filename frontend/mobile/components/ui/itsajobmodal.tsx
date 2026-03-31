@@ -32,6 +32,7 @@ interface ItsAJobModalProps {
   userAvatar?: ImageSourcePropType;
   userInitial?: string;
   matchPercent?: number;
+  fontsLoaded?: boolean;
   onSendMessage: () => void;
   onKeepSwiping: () => void;
 }
@@ -59,6 +60,7 @@ export default function ItsAJobModal({
   userAvatar,
   userInitial = 'U',
   matchPercent,
+  fontsLoaded = false,
   onSendMessage,
   onKeepSwiping,
 }: ItsAJobModalProps) {
@@ -216,72 +218,15 @@ export default function ItsAJobModal({
       <Animated.View
         style={[
           s.card,
-          { paddingTop: topInset + 16 },
           { transform: [{ scale: scaleAnim }, { translateY: translateYAnim }] },
         ]}
       >
-        {/* Avatars */}
-        <View style={s.avatarRow}>
-          {/* User avatar */}
-          <Animated.View style={[s.avatarWrap, s.avatarLeft, { transform: [{ translateX: avatarLeftAnim }] }]}>
-            {userAvatar ? (
-              <Image source={userAvatar} style={s.avatarImg} resizeMode="cover" />
-            ) : (
-              <LinearGradient colors={['#6366F1', '#818CF8']} style={s.avatarGradient}>
-                <Text style={s.avatarInitial}>{userInitial}</Text>
-              </LinearGradient>
-            )}
-          </Animated.View>
-
-          {/* Company avatar */}
-          <Animated.View style={[s.avatarWrap, s.avatarRight, { transform: [{ translateX: avatarRightAnim }] }]}>
-            {companyLogo ? (
-              <Image source={companyLogo} style={s.avatarImg} resizeMode="cover" />
-            ) : (
-              <View style={s.avatarPlaceholder}>
-                <MaterialCommunityIcons name="office-building" size={32} color="rgba(255,255,255,0.7)" />
-              </View>
-            )}
-          </Animated.View>
-
-          {/* Heart badge */}
-          <Animated.View
-            style={[
-              s.heartBadge,
-              {
-                transform: [{ scale: heartAnim }],
-                opacity: heartAnim,
-              },
-            ]}
-          >
-            <MaterialCommunityIcons name="heart" size={14} color={Colors.white} />
-          </Animated.View>
-        </View>
-
-        {/* Eyebrow + title */}
+        {/* Match title */}
         <Animated.View style={contentOpacityAndY}>
-          <Text style={s.eyebrow}>You both swiped right</Text>
-          <Text style={s.title}>It's a Job!</Text>
+          <Text style={[s.title, fontsLoaded && { fontFamily: 'FullPack', fontWeight: undefined }]}>
+            It's a Match!
+          </Text>
         </Animated.View>
-
-        {/* Subtitle */}
-        <Animated.Text style={[s.subtitle, contentOpacityAndY]}>
-          {company} wants to connect with you.{'\n'}Start the conversation now.
-        </Animated.Text>
-
-        {/* Job chip */}
-        <Animated.View style={[s.jobChip, contentOpacityAndY]}>
-          <Animated.View style={[s.chipDot, { opacity: pulseAnim }]} />
-          <Text style={s.chipText} numberOfLines={1}>{position} · {salary}</Text>
-        </Animated.View>
-
-        {/* Match badge (optional) */}
-        {matchPercent !== undefined && (
-          <Animated.View style={[s.matchRow, contentOpacityAndY]}>
-            <MaterialCommunityIcons name="lightning-bolt" size={13} color={Colors.warning} />
-            <Text style={s.matchText}>{matchPercent}% match</Text>
-          </Animated.View>
-        )}
 
         {/* Actions */}
         <Animated.View style={[s.actions, contentOpacityAndY]}>
