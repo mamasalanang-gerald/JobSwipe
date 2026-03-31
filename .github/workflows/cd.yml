@@ -134,10 +134,6 @@ jobs:
           scp docker-compose.prod.yml ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }}:~/jobapp/
 
       - name: 🚀 Deploy to EC2 with Zero Downtime
-        env:
-          BACKEND_IMAGE: ${{ env.BACKEND_IMAGE }}
-          FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}
-          SHORT_SHA: ${{ needs.build-and-push.outputs.short-sha }}
         run: |
           ssh ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'ENDSSH'
             set -e
@@ -155,8 +151,22 @@ jobs:
             
             # Pull latest images
             echo "📥 Pulling latest Docker images..."
-            docker pull ${BACKEND_IMAGE}:latest
-            docker pull ${FRONTEND_IMAGE}:latest
+            docker pull gm1026/jobapp-backend:latest
+            docker pull gm1026/jobapp-web:latest
+            
+            # Check disk space
+            echo ""
+            echo "💿 Checking disk space..."
+            df -h /
+            
+            # Clean up old Docker resources if disk is getting full
+            DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+            if [ "$DISK_USAGE" -gt 80 ]; then
+              echo "⚠️  Disk usage is ${DISK_USAGE}%, cleaning up..."
+              docker system prune -af --volumes --filter "until=24h"
+              echo "✅ Cleanup complete"
+              df -h /
+            fi
             
             # Create backup of current state
             echo "💾 Creating backup..."
