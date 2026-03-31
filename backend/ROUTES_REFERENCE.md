@@ -1,52 +1,23 @@
 # JobSwipe API Routes Reference
 
-## Quick Reference Card
+## Base URL
 
-### Base URL
-```
-http://localhost:8000/api/v1
-```
-
----
-
-## Authentication Routes
-
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/auth/register` | ❌ | Register new user |
-| POST | `/auth/login` | ❌ | Login with email/password |
-| POST | `/auth/verify-email` | ❌ | Verify email with OTP |
-| POST | `/auth/resend-verification` | ❌ | Resend OTP code |
-| POST | `/auth/logout` | ✅ | Logout (revoke token) |
-| GET | `/auth/me` | ✅ | Get current user |
-| GET | `/auth/google/redirect` | ❌ | Initiate Google OAuth |
-| GET | `/auth/google/callback` | ❌ | Handle Google OAuth callback |
-
----
-
-## Applicant Swipe Routes (Phase 1)
-
-| Method | Endpoint | Auth | Middleware | Description |
-|--------|----------|------|------------|-------------|
-| GET | `/applicant/swipe/deck` | ✅ | - | Get job swipe deck |
-| GET | `/applicant/swipe/limits` | ✅ | - | Get swipe limits/usage |
-| POST | `/applicant/swipe/right/{job_id}` | ✅ | CheckSwipeLimit | Apply to job |
-| POST | `/applicant/swipe/left/{job_id}` | ✅ | CheckSwipeLimit | Dismiss job |
-
----
+`http://localhost:8000/api/v1`
 
 ## Response Format
 
-### Success Response
+Success:
+
 ```json
 {
   "success": true,
-  "data": { ... },
-  "message": "Success message"
+  "data": {},
+  "message": "OK"
 }
 ```
 
-### Error Response
+Error:
+
 ```json
 {
   "success": false,
@@ -55,81 +26,120 @@ http://localhost:8000/api/v1
 }
 ```
 
----
+## Auth
 
-## Common Error Codes
+| Method | Endpoint | Auth |
+| --- | --- | --- |
+| POST | `/auth/register` | No |
+| POST | `/auth/login` | No |
+| POST | `/auth/verify-email` | No |
+| POST | `/auth/resend-verification` | No |
+| GET | `/auth/google/redirect` | No |
+| GET | `/auth/google/callback` | No |
+| POST | `/auth/logout` | Yes |
+| GET | `/auth/me` | Yes |
 
-| Code | HTTP Status | Description |
-|------|-------------|-------------|
-| `EMAIL_TAKEN` | 409 | Email already registered |
-| `OTP_EXPIRED` | 422 | Verification code expired |
-| `OTP_INVALID` | 422 | Incorrect verification code |
-| `INVALID_CREDENTIALS` | 401 | Wrong email/password |
-| `EMAIL_UNVERIFIED` | 403 | Email not verified |
-| `SWIPE_LIMIT_REACHED` | 429 | Daily swipe limit reached |
-| `ALREADY_SWIPED` | 409 | Already swiped on this job |
-| `PROFILE_NOT_FOUND` | 404 | User profile not found |
-| `UNAUTHENTICATED` | 401 | Missing or invalid token |
+## File Upload
 
----
+| Method | Endpoint | Auth | Middleware |
+| --- | --- | --- | --- |
+| POST | `/files/upload-url` | Yes | `auth:sanctum` |
+| POST | `/files/confirm-upload` | Yes | `auth:sanctum` |
 
-## Authentication Header
+## Applicant Profile
 
-All authenticated routes require:
-```
-Authorization: Bearer {your_token_here}
-```
+| Method | Endpoint | Auth | Middleware |
+| --- | --- | --- | --- |
+| GET | `/profile/applicant` | Yes | `auth:sanctum`, `role:applicant` |
+| PATCH | `/profile/applicant/basic-info` | Yes | `auth:sanctum`, `role:applicant` |
+| PATCH | `/profile/applicant/skills` | Yes | `auth:sanctum`, `role:applicant` |
+| POST | `/profile/applicant/experience` | Yes | `auth:sanctum`, `role:applicant` |
+| PATCH | `/profile/applicant/experience/{index}` | Yes | `auth:sanctum`, `role:applicant` |
+| DELETE | `/profile/applicant/experience/{index}` | Yes | `auth:sanctum`, `role:applicant` |
+| POST | `/profile/applicant/education` | Yes | `auth:sanctum`, `role:applicant` |
+| PATCH | `/profile/applicant/education/{index}` | Yes | `auth:sanctum`, `role:applicant` |
+| DELETE | `/profile/applicant/education/{index}` | Yes | `auth:sanctum`, `role:applicant` |
+| PATCH | `/profile/applicant/resume` | Yes | `auth:sanctum`, `role:applicant` |
+| PATCH | `/profile/applicant/cover-letter` | Yes | `auth:sanctum`, `role:applicant` |
+| PATCH | `/profile/applicant/photo` | Yes | `auth:sanctum`, `role:applicant` |
+| PATCH | `/profile/applicant/social-links` | Yes | `auth:sanctum`, `role:applicant` |
 
----
+## Company Profile
 
-## Rate Limits
+| Method | Endpoint | Auth | Middleware |
+| --- | --- | --- | --- |
+| GET | `/profile/company` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| PATCH | `/profile/company/details` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| PATCH | `/profile/company/logo` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| POST | `/profile/company/office-images` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| DELETE | `/profile/company/office-images/{index}` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| POST | `/profile/company/verification` | Yes | `auth:sanctum`, `role:company_admin` |
+| GET | `/profile/onboarding/status` | Yes | `auth:sanctum` |
+| POST | `/profile/onboarding/complete-step` | Yes | `auth:sanctum` |
+| GET | `/profile/completion` | Yes | `auth:sanctum` |
 
-| Endpoint Type | Limit |
-|---------------|-------|
-| Unauthenticated | 20 req/min per IP |
-| Authenticated | 60 req/min per user |
-| Swipe Actions | Daily limit (15 default) |
+## Subscriptions
 
----
+| Method | Endpoint | Auth | Middleware |
+| --- | --- | --- | --- |
+| POST | `/subscriptions/checkout` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| GET | `/subscriptions/status` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| POST | `/subscriptions/cancel` | Yes | `auth:sanctum`, `role:company_admin` |
+| POST | `/webhooks/stripe` | No | Stripe signature verification |
 
-## Coming Soon (Phase 2+)
+## Company Jobs & Review
 
-### Job Management
-- `GET /company/jobs` - List company's jobs
-- `POST /company/jobs` - Create job posting
-- `GET /company/jobs/{id}` - Get job details
-- `PUT /company/jobs/{id}` - Update job posting
-- `DELETE /company/jobs/{id}` - Delete job posting
-- `POST /company/jobs/{id}/publish` - Publish job
+| Method | Endpoint | Auth | Middleware |
+| --- | --- | --- | --- |
+| GET | `/company/jobs` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| POST | `/company/jobs` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| GET | `/company/jobs/{id}` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| PUT/PATCH | `/company/jobs/{id}` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| DELETE | `/company/jobs/{id}` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| POST | `/company/jobs/{id}/close` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| GET | `/company/jobs/{jobId}/applicants` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| GET | `/company/jobs/{jobId}/applicants/{applicantId}` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| POST | `/company/jobs/{jobId}/applicants/{applicantId}/right` | Yes | `auth:sanctum`, `role:hr,company_admin` |
+| POST | `/company/jobs/{jobId}/applicants/{applicantId}/left` | Yes | `auth:sanctum`, `role:hr,company_admin` |
 
-### HR Applicant Review
-- `GET /company/jobs/{job_id}/applicants` - Get applicant queue
-- `GET /company/jobs/{job_id}/applicants/{applicant_id}` - Get applicant details
-- `POST /company/jobs/{job_id}/swipe/right/{applicant_id}` - Send invitation
-- `POST /company/jobs/{job_id}/swipe/left/{applicant_id}` - Dismiss applicant
+## Applicant Swipe
 
-### Profile Management
-- `GET /applicant/profile` - Get applicant profile
-- `PUT /applicant/profile` - Update applicant profile
-- `POST /applicant/profile/photo` - Upload profile photo
-- `POST /applicant/profile/resume` - Upload resume
+| Method | Endpoint | Auth | Middleware |
+| --- | --- | --- | --- |
+| GET | `/applicant/swipe/deck` | Yes | `auth:sanctum`, `role:applicant` |
+| GET | `/applicant/swipe/limits` | Yes | `auth:sanctum`, `role:applicant` |
+| POST | `/applicant/swipe/right/{jobId}` | Yes | `auth:sanctum`, `role:applicant`, `swipe.limit` |
+| POST | `/applicant/swipe/left/{jobId}` | Yes | `auth:sanctum`, `role:applicant`, `swipe.limit` |
 
-### Applications
-- `GET /applicant/applications` - Get my applications
-- `GET /applicant/applications/{id}` - Get application details
+## Notifications
 
----
+| Method | Endpoint | Auth |
+| --- | --- | --- |
+| GET | `/notifications` | Yes |
+| GET | `/notifications/unread` | Yes |
+| PATCH | `/notifications/{id}/read` | Yes |
+| PATCH | `/notifications/read-all` | Yes |
+| GET | `/notifications/preferences` | Yes |
+| PATCH | `/notifications/preferences` | Yes |
 
-## Health Check
+## Misc
 
-```
-GET /health
-```
+| Method | Endpoint | Auth |
+| --- | --- | --- |
+| GET | `/health` | No |
+| GET | `/debug/database` | No |
 
-Response:
-```json
-{
-  "status": "ok",
-  "timestamp": "2026-03-24T10:00:00.000000Z"
-}
-```
+## Common Errors
+
+| Code | Status |
+| --- | --- |
+| `VALIDATION_ERROR` | 400 |
+| `UNAUTHENTICATED` | 401 |
+| `UNAUTHORIZED` | 403 |
+| `SUBSCRIPTION_REQUIRED` | 402 |
+| `NOT_FOUND` | 404 |
+| `MAX_IMAGES_EXCEEDED` | 409 |
+| `INVALID_FILE_TYPE` | 400 |
+| `FILE_TOO_LARGE` | 400 |
+| `INVALID_URL` | 400 |
+| `WEBHOOK_VERIFICATION_FAILED` | 400 |

@@ -3,6 +3,7 @@
 namespace App\Repositories\MongoDB;
 
 use App\Models\MongoDB\ApplicantProfileDocument;
+use Illuminate\Support\Collection;
 
 class ApplicantProfileDocumentRepository
 {
@@ -50,8 +51,26 @@ class ApplicantProfileDocumentRepository
         }
     }
 
-    public function searchBySkills(array $skills): \Illuminate\Support\Collection
+    public function searchBySkills(array $skills): Collection
     {
         return ApplicantProfileDocument::whereIn('skills.name', $skills)->get();
+    }
+
+    public function getNotificationPreferences(string $userId): ?array
+    {
+        $profile = $this->findByUserId($userId);
+
+        return $profile ? $profile->getNotificationPreferences() : null;
+    }
+
+    public function updateNotificationPreferences(string $userId, array $preferences): void
+    {
+        $profile = $this->findByUserId($userId);
+
+        if ($profile) {
+            $currentPrefs = $profile->getNotificationPreferences();
+            $merged = array_merge($currentPrefs, $preferences);
+            $profile->update(['notification_preferences' => $merged]);
+        }
     }
 }

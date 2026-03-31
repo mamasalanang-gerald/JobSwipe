@@ -3,6 +3,8 @@
 namespace App\Models\PostgreSQL;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ApplicantProfile extends Model
 {
@@ -16,24 +18,24 @@ class ApplicantProfile extends Model
 
     protected $fillable = [
         'user_id', 'total_points', 'subscription_tier', 'subscription_status',
-        'daily_swipes_used', 'daily_swipe_limit', 'extra_swipes_balance', 'swipe_reset_at',
+        'daily_swipes_used', 'daily_swipe_limit', 'extra_swipe_balance', 'swipe_reset_at',
     ];
 
     protected $casts = [
         'swipe_reset_at' => 'date',
     ];
 
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
 
-    public function applications(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function applications(): HasMany
     {
         return $this->hasMany(Application::class, 'applicant_id');
     }
 
-    public function pointEvents(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function pointEvents(): HasMany
     {
         return $this->hasMany(PointEvent::class, 'applicant_id');
     }
@@ -46,6 +48,6 @@ class ApplicantProfile extends Model
     public function hasSwipesRemaining(): bool
     {
         return $this->daily_swipes_used < $this->daily_swipe_limit
-            || $this->extra_swipes_balance > 0;
+            || $this->extra_swipe_balance > 0;
     }
 }

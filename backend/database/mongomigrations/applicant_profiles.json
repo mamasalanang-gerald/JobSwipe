@@ -98,18 +98,35 @@
           "items": {
             "bsonType": "object",
             "required": [
-              "name",
-              "type"
+              "name"
             ],
             "properties": {
               "name": {
                 "bsonType": "string"
               },
               "type": {
-                "bsonType": "string",
+                "bsonType": [
+                  "string",
+                  "null"
+                ]
+              },
+              "level": {
+                "bsonType": [
+                  "string",
+                  "null"
+                ],
                 "enum": [
-                  "hard",
-                  "soft"
+                  "beginner",
+                  "intermediate",
+                  "advanced",
+                  "expert",
+                  null
+                ]
+              },
+              "years": {
+                "bsonType": [
+                  "int",
+                  "null"
                 ]
               }
             }
@@ -187,6 +204,25 @@
             "bsonType": "string"
           }
         },
+        "onboarding_step": {
+          "bsonType": [
+            "int",
+            "string",
+            "null"
+          ]
+        },
+        "onboarding_completed_at": {
+          "bsonType": [
+            "date",
+            "null"
+          ]
+        },
+        "profile_completion_percentage": {
+          "bsonType": [
+            "int",
+            "null"
+          ]
+        },
         "created_at": {
           "bsonType": "date"
         },
@@ -222,6 +258,14 @@
       },
       "options": {
         "name": "idx_applicant_profiles_skills"
+      }
+    },
+    {
+      "keys": {
+        "onboarding_step": 1
+      },
+      "options": {
+        "name": "idx_applicant_profiles_onboarding_step"
       }
     }
   ],
@@ -283,6 +327,9 @@
           "resume",
           "portfolio"
         ],
+        "onboarding_step": 1,
+        "onboarding_completed_at": null,
+        "profile_completion_percentage": 0,
         "created_at": {
           "$date": "2026-03-21T00:00:00Z"
         },

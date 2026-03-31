@@ -16,16 +16,36 @@ class MongoSetup extends Command
         try {
             $this->info('Setting up MongoDB collections...');
 
-            $client = new Client(
-                sprintf(
+            // Build MongoDB connection string for Atlas
+            $host = config('database.connections.mongodb.host');
+            $username = config('database.connections.mongodb.username');
+            $password = config('database.connections.mongodb.password');
+            $database = config('database.connections.mongodb.database');
+
+            // Check if it's MongoDB Atlas (contains mongodb.net)
+            if (str_contains($host, 'mongodb.net')) {
+                $connectionString = sprintf(
+                    'mongodb+srv://%s:%s@%s/%s?retryWrites=true&w=majority',
+                    urlencode($username),
+                    urlencode($password),
+                    $host,
+                    $database
+                );
+            } else {
+                // Local MongoDB connection
+                $port = config('database.connections.mongodb.port', 27017);
+                $connectionString = sprintf(
                     'mongodb://%s:%s@%s:%s/%s?authSource=admin',
-                    config('database.connections.mongodb.username'),
-                    config('database.connections.mongodb.password'),
-                    config('database.connections.mongodb.host'),
-                    config('database.connections.mongodb.port'),
-                    config('database.connections.mongodb.database')
-                )
-            );
+                    urlencode($username),
+                    urlencode($password),
+                    $host,
+                    $port,
+                    $database
+                );
+            }
+
+            $this->info('Connecting to MongoDB...');
+            $client = new Client($connectionString);
 
             $database = $client->selectDatabase(config('database.connections.mongodb.database'));
 

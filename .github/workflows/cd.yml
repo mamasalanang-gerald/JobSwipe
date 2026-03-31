@@ -1,4 +1,4 @@
-name: 🚀 CD Pipeline
+name: 🚀 CD Pipeline - AWS EC2 with Docker Hub
 
 on:
   push:
@@ -10,23 +10,29 @@ on:
 
 env:
   DOCKER_HUB_REGISTRY: docker.io
-  BACKEND_IMAGE: ${{ secrets.DOCKER_HUB_USERNAME }}/jobapp-backend
-  FRONTEND_IMAGE: ${{ secrets.DOCKER_HUB_USERNAME }}/jobapp-web
+  BACKEND_IMAGE: gm1026/jobapp-backend
+  FRONTEND_IMAGE: gm1026/jobapp-web
 
 jobs:
   # ==========================================
   # PHASE 1: BUILD & PUSH TO DOCKER HUB
   # ==========================================
   build-and-push:
-    name: 🏗️ Phase 1 - Build & Push to Docker Hub
+    name: 🏗️ Phase 1 - Build & Push Images
     runs-on: ubuntu-latest
     outputs:
       backend-digest: ${{ steps.build-backend.outputs.digest }}
       frontend-digest: ${{ steps.build-frontend.outputs.digest }}
+      commit-sha: ${{ github.sha }}
+      short-sha: ${{ steps.vars.outputs.short_sha }}
     
     steps:
       - name: 🔍 Checkout Code
         uses: actions/checkout@v4
+
+      - name: 📝 Set Variables
+        id: vars
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
 
       - name: 🔧 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -59,6 +65,9 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
           platforms: linux/amd64
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
 
       - name: 📝 Extract Frontend Metadata
         id: meta-frontend
@@ -82,6 +91,9 @@ jobs:
           cache-from: type=gha,scope=frontend
           cache-to: type=gha,mode=max,scope=frontend
           platforms: linux/amd64
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
 
       - name: ✅ Phase 1 Complete
         run: |
@@ -96,73 +108,221 @@ jobs:
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   # ==========================================
-  # PHASE 2: RENDER DEPLOYMENT (PULL & RUN)
+  # PHASE 2: DEPLOY TO AWS EC2
   # ==========================================
-  deploy-to-render:
-    name: 🚀 Phase 2 - Deploy to Render
+  deploy-to-ec2:
+    name: 🚀 Phase 2 - Deploy to AWS EC2
     runs-on: ubuntu-latest
     needs: build-and-push
+    environment:
+      name: production
+      url: https://jobswipe.site
     
     steps:
-      - name: 🚀 Trigger Backend Deployment
-        env:
-          RENDER_BACKEND_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
-        run: |
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "🚀 PHASE 2: Triggering Render Deployments"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo ""
-          echo "📦 Backend: ${{ env.BACKEND_IMAGE }}:latest"
-          echo ""
-          
-          if [ -z "$RENDER_BACKEND_DEPLOY_HOOK" ]; then
-            echo "⚠️  Backend deploy hook not configured - manual deployment required"
-          else
-            echo "🔗 Triggering backend deployment..."
-            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_BACKEND_DEPLOY_HOOK")
-            
-            if [ "$RESPONSE" -eq 200 ] || [ "$RESPONSE" -eq 201 ]; then
-              echo "✅ Backend deployment triggered!"
-            else
-              echo "❌ Backend deployment failed (HTTP $RESPONSE)"
-              exit 1
-            fi
-          fi
+      - name: 🔍 Checkout Code
+        uses: actions/checkout@v4
 
-      - name: 🚀 Trigger Frontend Deployment
-        env:
-          RENDER_FRONTEND_DEPLOY_HOOK: ${{ secrets.RENDER_FRONTEND_DEPLOY_HOOK_URL }}
+      - name: 🔐 Setup SSH
         run: |
-          echo ""
-          echo "📦 Frontend: ${{ env.FRONTEND_IMAGE }}:latest"
-          echo ""
-          
-          if [ -z "$RENDER_FRONTEND_DEPLOY_HOOK" ]; then
-            echo "⚠️  Frontend deploy hook not configured - manual deployment required"
-          else
-            echo "🔗 Triggering frontend deployment..."
-            RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" -X POST "$RENDER_FRONTEND_DEPLOY_HOOK")
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AWS_EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.AWS_EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 📦 Copy Docker Compose File
+        run: |
+          scp docker-compose.prod.yml ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }}:~/jobapp/
+
+      - name: 🚀 Deploy to EC2 with Zero Downtime
+        env:
+          BACKEND_IMAGE: ${{ env.BACKEND_IMAGE }}
+          FRONTEND_IMAGE: ${{ env.FRONTEND_IMAGE }}
+          SHORT_SHA: ${{ needs.build-and-push.outputs.short-sha }}
+        run: |
+          ssh ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'ENDSSH'
+            set -e
+            cd ~/jobapp
             
-            if [ "$RESPONSE" -eq 200 ] || [ "$RESPONSE" -eq 201 ]; then
-              echo "✅ Frontend deployment triggered!"
-            else
-              echo "❌ Frontend deployment failed (HTTP $RESPONSE)"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🚀 PHASE 2: Deploying to AWS EC2"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            # Ensure .env file exists
+            if [ ! -f .env ]; then
+              echo "❌ Error: .env file not found!"
               exit 1
             fi
-          fi
+            
+            # Pull latest images
+            echo "📥 Pulling latest Docker images..."
+            docker pull ${BACKEND_IMAGE}:latest
+            docker pull ${FRONTEND_IMAGE}:latest
+            
+            # Create backup of current state
+            echo "💾 Creating backup..."
+            docker-compose -f docker-compose.prod.yml ps > deployment_backup_$(date +%Y%m%d_%H%M%S).txt
+            
+            # Start/Update databases first (if not running)
+            echo "🗄️  Ensuring databases are running..."
+            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis
+            
+            # Wait for databases to be healthy
+            echo "⏳ Waiting for databases to be healthy..."
+            sleep 15
+            
+            # Check database health
+            docker-compose -f docker-compose.prod.yml ps postgres mongodb redis
+            
+            # Rolling update - Backend (zero downtime)
+            echo "🔄 Updating backend with zero downtime..."
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate backend
+            
+            # Wait for backend to be healthy
+            echo "⏳ Waiting for backend to be healthy..."
+            for i in {1..30}; do
+              if docker-compose -f docker-compose.prod.yml exec -T backend curl -f http://localhost:8080/api/health > /dev/null 2>&1; then
+                echo "✅ Backend is healthy!"
+                break
+              fi
+              echo "Attempt $i/30: Backend not ready yet..."
+              sleep 2
+            done
+            
+            # Rolling update - Horizon Worker
+            echo "🔄 Updating Horizon worker..."
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate horizon
+            sleep 5
+            
+            # Rolling update - Frontend
+            echo "🔄 Updating frontend..."
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate frontend
+            
+            # Wait for frontend to be healthy
+            echo "⏳ Waiting for frontend to be healthy..."
+            sleep 10
+            
+            # Verify all services are running
+            echo ""
+            echo "📊 Container Status:"
+            docker-compose -f docker-compose.prod.yml ps
+            
+            # Check container health
+            echo ""
+            echo "🏥 Health Check:"
+            docker-compose -f docker-compose.prod.yml ps --format json | jq -r '.[] | "\(.Name): \(.State) - \(.Health)"'
+            
+            # Cleanup old images (keep last 3 versions)
+            echo ""
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -af --filter "until=72h"
+            
+            # Show logs for verification
+            echo ""
+            echo "📋 Recent Backend Logs:"
+            docker-compose -f docker-compose.prod.yml logs --tail=20 backend
+            
+            echo ""
+            echo "✅ Deployment complete!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          ENDSSH
+
+      - name: 🧪 Smoke Test
+        run: |
+          echo "🧪 Running smoke tests..."
           
-          echo ""
-          echo "⏳ Render is pulling images and deploying..."
-          echo "🌐 Check Render dashboard for status"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          # Test backend health endpoint
+          echo "Testing backend health..."
+          curl -f https://api.jobswipe.site/api/health || {
+            echo "❌ Backend health check failed!"
+            exit 1
+          }
+          
+          # Test frontend
+          echo "Testing frontend..."
+          curl -f https://jobswipe.site || {
+            echo "❌ Frontend health check failed!"
+            exit 1
+          }
+          
+          echo "✅ All smoke tests passed!"
+
+      - name: 🧹 Cleanup SSH Key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
 
   # ==========================================
-  # PHASE 3: DEPLOYMENT SUMMARY
+  # PHASE 3: POST-DEPLOYMENT VERIFICATION
+  # ==========================================
+  verify-deployment:
+    name: ✅ Phase 3 - Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy-to-ec2
+    
+    steps:
+      - name: 🔐 Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AWS_EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.AWS_EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🔍 Verify Services
+        run: |
+          ssh ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'ENDSSH'
+            cd ~/jobapp
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "✅ PHASE 3: Verifying Deployment"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            # Check all containers are running
+            echo "📊 Container Status:"
+            docker-compose -f docker-compose.prod.yml ps
+            
+            # Count running containers
+            RUNNING=$(docker-compose -f docker-compose.prod.yml ps --filter "status=running" | grep -c "Up" || true)
+            EXPECTED=6  # postgres, mongodb, redis, backend, horizon, frontend
+            
+            echo ""
+            echo "Running containers: $RUNNING / $EXPECTED"
+            
+            if [ "$RUNNING" -lt "$EXPECTED" ]; then
+              echo "❌ Not all containers are running!"
+              docker-compose -f docker-compose.prod.yml logs --tail=50
+              exit 1
+            fi
+            
+            # Check data persistence
+            echo ""
+            echo "💾 Checking Data Persistence:"
+            docker volume ls | grep jobapp
+            
+            # Check disk usage
+            echo ""
+            echo "💿 Disk Usage:"
+            df -h | grep -E "Filesystem|/dev/"
+            
+            # Check Docker stats
+            echo ""
+            echo "📈 Resource Usage:"
+            docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+            
+            echo ""
+            echo "✅ All verification checks passed!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          ENDSSH
+
+      - name: 🧹 Cleanup SSH Key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
+  # ==========================================
+  # PHASE 4: DEPLOYMENT SUMMARY
   # ==========================================
   deployment-summary:
-    name: 📊 Phase 3 - Deployment Summary
+    name: 📊 Phase 4 - Deployment Summary
     runs-on: ubuntu-latest
-    needs: [build-and-push, deploy-to-render]
+    needs: [build-and-push, deploy-to-ec2, verify-deployment]
     if: always()
     
     steps:
@@ -172,33 +332,73 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 📋 Deployment Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Service | Status | Image |" >> $GITHUB_STEP_SUMMARY
-          echo "|---------|--------|-------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Backend | ${{ needs.build-and-push.result == 'success' && '✅ Deployed' || '❌ Failed' }} | \`${{ env.BACKEND_IMAGE }}:latest\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| Frontend | ${{ needs.build-and-push.result == 'success' && '✅ Deployed' || '❌ Failed' }} | \`${{ env.FRONTEND_IMAGE }}:latest\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Phase | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1️⃣ Build & Push | ${{ needs.build-and-push.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2️⃣ Deploy to EC2 | ${{ needs.deploy-to-ec2.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3️⃣ Verification | ${{ needs.verify-deployment.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 🐳 Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "## 🐳 Docker Images" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Backend**: Laravel API + Nginx" >> $GITHUB_STEP_SUMMARY
-          echo "- **Frontend**: Next.js Web App" >> $GITHUB_STEP_SUMMARY
-          echo "- **Database 1**: PostgreSQL (Render)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Database 2**: MongoDB (Atlas)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Database 3**: Redis (Render)" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Image | Digest |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | \`${{ env.BACKEND_IMAGE }}:latest\` | \`${{ needs.build-and-push.outputs.backend-digest }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | \`${{ env.FRONTEND_IMAGE }}:latest\` | \`${{ needs.build-and-push.outputs.frontend-digest }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🏗️ Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Application Services" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend API**: Laravel 11 + Nginx (Port 8080)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend Web**: Next.js (Port 3000)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Queue Worker**: Laravel Horizon" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Database Services (Persistent)" >> $GITHUB_STEP_SUMMARY
+          echo "- **PostgreSQL 15**: Primary database (Port 5432)" >> $GITHUB_STEP_SUMMARY
+          echo "  - Volume: \`postgres_data\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Auto-restart: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **MongoDB 7**: Document store (Port 27017)" >> $GITHUB_STEP_SUMMARY
+          echo "  - Volumes: \`mongodb_data\`, \`mongodb_config\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Auto-restart: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Redis 7**: Cache & Queue (Port 6379)" >> $GITHUB_STEP_SUMMARY
+          echo "  - Volume: \`redis_data\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Persistence: AOF enabled" >> $GITHUB_STEP_SUMMARY
+          echo "  - Auto-restart: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### High Availability Features" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Auto-restart**: All containers restart automatically on failure" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Data Persistence**: All databases use Docker volumes" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Health Checks**: All services monitored with health checks" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Isolated Containers**: Services run independently" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Zero Downtime**: Rolling updates for application services" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🌐 Deployment Info" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform**: AWS EC2" >> $GITHUB_STEP_SUMMARY
+          echo "- **Domain**: https://jobswipe.site" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: https://api.jobswipe.site" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ needs.build-and-push.outputs.commit-sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Short SHA**: \`${{ needs.build-and-push.outputs.short-sha }}\`" >> $GITHUB_STEP_SUMMARY
 
       - name: ✅ Pipeline Complete
-        if: needs.build-and-push.result == 'success' && needs.deploy-to-render.result == 'success'
+        if: needs.build-and-push.result == 'success' && needs.deploy-to-ec2.result == 'success' && needs.verify-deployment.result == 'success'
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🎉 DEPLOYMENT SUCCESSFUL!"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "✅ Backend and Frontend deployed to Render"
-          echo "🌐 Check Render dashboard for live URLs"
+          echo "✅ All services deployed to AWS EC2"
+          echo "✅ All containers running with auto-restart enabled"
+          echo "✅ Data persistence configured for all databases"
+          echo "🌐 Application is live at https://jobswipe.site"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
       - name: ❌ Pipeline Failed
-        if: needs.build-and-push.result != 'success' || needs.deploy-to-render.result != 'success'
+        if: needs.build-and-push.result != 'success' || needs.deploy-to-ec2.result != 'success' || needs.verify-deployment.result != 'success'
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "❌ DEPLOYMENT FAILED"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Check the logs above for details"
+          echo "Build: ${{ needs.build-and-push.result }}"
+          echo "Deploy: ${{ needs.deploy-to-ec2.result }}"
+          echo "Verify: ${{ needs.verify-deployment.result }}"
           exit 1

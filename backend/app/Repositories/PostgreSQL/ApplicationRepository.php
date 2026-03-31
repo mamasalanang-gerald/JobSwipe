@@ -32,6 +32,38 @@ class ApplicationRepository
             ]);
     }
 
+    public function exists(string $applicantId, string $jobPostingId): bool
+    {
+        return Application::where('applicant_id', $applicantId)
+            ->where('job_posting_id', $jobPostingId)
+            ->exists();
+    }
+
+    public function getPrioritizedApplicants(string $jobPostingId, int $perPage = 20)
+    {
+        return Application::with('applicant')
+            ->join('applicant_profiles', 'applications.applicant_id',
+                '=', 'applicant_profiles.id')
+            ->where('applications.job_posting_id', $jobPostingId)
+            ->where('applications.status', 'applied')
+            ->orderByRaw("
+             CASE
+                    WHEN applicant_profiles.subscription_tier = 'pro'
+                     AND applicant_profiles.total_points >= 100 THEN 1
+                    WHEN applicant_profiles.subscription_tier = 'pro'
+                     AND applicant_profiles.total_points < 100  THEN 2
+                    WHEN applicant_profiles.subscription_tier != 'pro'
+                     AND applicant_profiles.total_points >= 50  THEN 3
+                    WHEN applicant_profiles.subscription_tier != 'pro'
+                     AND applicant_profiles.total_points BETWEEN 1 AND 49 THEN 4
+                    ELSE 5
+                END ASC,
+                applications.created_at ASC
+            ")
+            ->select('applications.*')
+            ->paginate($perPage);
+    }
+
     public function update(Application $application, array $data): Application
     {
         $application->update($data);
@@ -65,7 +97,7 @@ class ApplicationRepository
     public function getPending(string $jobPostingId): Collection
     {
         return Application::where('job_posting_id', $jobPostingId)
-            ->where('status', 'pending')
+            ->where('status', 'applied')
             ->with('applicant.user')
             ->get();
     }

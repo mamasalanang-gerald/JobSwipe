@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use DateTimeImmutable;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
@@ -9,6 +10,7 @@ use JsonException;
 use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Database;
+use RuntimeException;
 use Symfony\Component\Finder\SplFileInfo;
 use Throwable;
 
@@ -108,7 +110,7 @@ class MongoMigrate extends Command
         );
 
         if ($match === null) {
-            throw new \RuntimeException("Mongo migration spec not found for [{$selection}]");
+            throw new RuntimeException("Mongo migration spec not found for [{$selection}]");
         }
 
         return [$match];
@@ -123,28 +125,28 @@ class MongoMigrate extends Command
             $contents = File::get($file->getPathname());
             $spec = json_decode($contents, true, 512, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
-            throw new \RuntimeException("Invalid JSON in {$file->getFilename()}", 0, $exception);
+            throw new RuntimeException("Invalid JSON in {$file->getFilename()}", 0, $exception);
         }
 
         if (! is_array($spec)) {
-            throw new \RuntimeException("Spec in {$file->getFilename()} must decode to an object.");
+            throw new RuntimeException("Spec in {$file->getFilename()} must decode to an object.");
         }
 
         $collection = $spec['collection'] ?? null;
 
         if (! is_string($collection) || trim($collection) === '') {
-            throw new \RuntimeException("Spec {$file->getFilename()} must contain a non-empty [collection] string.");
+            throw new RuntimeException("Spec {$file->getFilename()} must contain a non-empty [collection] string.");
         }
 
         $indexes = $spec['indexes'] ?? [];
         $documents = $spec['documents'] ?? [];
 
         if (! is_array($indexes)) {
-            throw new \RuntimeException("Spec {$file->getFilename()} must contain an [indexes] array.");
+            throw new RuntimeException("Spec {$file->getFilename()} must contain an [indexes] array.");
         }
 
         if (! is_array($documents)) {
-            throw new \RuntimeException("Spec {$file->getFilename()} must contain a [documents] array.");
+            throw new RuntimeException("Spec {$file->getFilename()} must contain a [documents] array.");
         }
 
         return $spec;
@@ -206,13 +208,13 @@ class MongoMigrate extends Command
         if (! $seedOnly) {
             foreach ($spec['indexes'] as $index) {
                 if (! is_array($index) || ! isset($index['keys']) || ! is_array($index['keys'])) {
-                    throw new \RuntimeException("Each index in {$file->getFilename()} must contain a [keys] object.");
+                    throw new RuntimeException("Each index in {$file->getFilename()} must contain a [keys] object.");
                 }
 
                 $options = $index['options'] ?? [];
 
                 if (! is_array($options)) {
-                    throw new \RuntimeException("Index options in {$file->getFilename()} must be an object.");
+                    throw new RuntimeException("Index options in {$file->getFilename()} must be an object.");
                 }
 
                 $indexName = is_string($options['name'] ?? null) ? $options['name'] : json_encode($index['keys']);
@@ -237,7 +239,7 @@ class MongoMigrate extends Command
     protected function applyDocument($collection, string $collectionName, $documentSpec, SplFileInfo $file, int $position): void
     {
         if (! is_array($documentSpec)) {
-            throw new \RuntimeException("Document entry #{$position} in {$file->getFilename()} must be an object.");
+            throw new RuntimeException("Document entry #{$position} in {$file->getFilename()} must be an object.");
         }
 
         $documentNumber = $position + 1;
@@ -249,11 +251,11 @@ class MongoMigrate extends Command
             $upsert = (bool) ($documentSpec['upsert'] ?? true);
 
             if (! is_array($data) || $data === []) {
-                throw new \RuntimeException("Document operation #{$documentNumber} in {$file->getFilename()} must contain a non-empty [data] object.");
+                throw new RuntimeException("Document operation #{$documentNumber} in {$file->getFilename()} must contain a non-empty [data] object.");
             }
 
             if ($filter !== null && (! is_array($filter) || $filter === [])) {
-                throw new \RuntimeException("Document operation #{$documentNumber} in {$file->getFilename()} must use a non-empty [filter] object.");
+                throw new RuntimeException("Document operation #{$documentNumber} in {$file->getFilename()} must use a non-empty [filter] object.");
             }
 
             if ($filter === null) {
@@ -278,7 +280,7 @@ class MongoMigrate extends Command
         }
 
         if ($documentSpec === []) {
-            throw new \RuntimeException("Document entry #{$documentNumber} in {$file->getFilename()} cannot be empty.");
+            throw new RuntimeException("Document entry #{$documentNumber} in {$file->getFilename()} cannot be empty.");
         }
 
         $documentSpec = $this->normalizeValue($documentSpec);
@@ -305,7 +307,7 @@ class MongoMigrate extends Command
         }
 
         if (array_key_exists('$date', $value) && count($value) === 1 && is_string($value['$date'])) {
-            $dateTime = new \DateTimeImmutable($value['$date']);
+            $dateTime = new DateTimeImmutable($value['$date']);
             $milliseconds = ((int) $dateTime->format('U')) * 1000 + intdiv((int) $dateTime->format('u'), 1000);
 
             return new UTCDateTime($milliseconds);

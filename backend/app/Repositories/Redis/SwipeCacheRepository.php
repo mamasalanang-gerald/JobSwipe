@@ -11,7 +11,7 @@ class SwipeCacheRepository
 
     private function counterKey(string $userId): string
     {
-        $date = Carbon::now('Asia/Manila')->toDateString();
+        $date = Carbon::now(config('app.timezone'))->toDateString();
 
         return "swipe:counter:{$userId}:{$date}";
     }
@@ -66,6 +66,16 @@ class SwipeCacheRepository
         $key = $this->deckSeenKey($userId);
         Redis::sadd($key, $jobId);
         Redis::expire($key, 90 * 86400); // 90 days
+    }
+
+    public function getSeenJobs(string $userId): ?array
+    {
+        $redisKey = "swipe:deck:seen:{$userId}";
+
+        // smembers returns empty array if key doesn't exist, no race condition
+        $members = Redis::smembers($redisKey);
+
+        return $members !== false ? $members : null;
     }
 
     public function refreshDeckSeen(string $userId, array $jobIds): void

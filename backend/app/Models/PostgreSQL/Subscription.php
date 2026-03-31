@@ -3,6 +3,7 @@
 namespace App\Models\PostgreSQL;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Subscription extends Model
 {
@@ -17,7 +18,7 @@ class Subscription extends Model
     protected $fillable = [
         'user_id', 'subscriber_type', 'tier', 'billing_cycle',
         'amount_paid', 'currency', 'payment_provider', 'provider_sub_id',
-        'status', 'current_period_start', 'current_period_end',
+        'status', 'stripe_status', 'current_period_start', 'current_period_end',
     ];
 
     protected $casts = [
@@ -26,7 +27,7 @@ class Subscription extends Model
         'current_period_end' => 'datetime',
     ];
 
-    public function user(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }

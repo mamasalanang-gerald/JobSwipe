@@ -43,7 +43,7 @@ class CheckSwipeLimit
                 'data' => [
                     'daily_swipes_used' => $applicant->daily_swipes_used,
                     'daily_swipe_limit' => $applicant->daily_swipe_limit,
-                    'extra_swipes_balance' => $applicant->extra_swipes_balance,
+                    'extra_swipe_balance' => $applicant->extra_swipe_balance,
                 ],
             ], 429);
         }

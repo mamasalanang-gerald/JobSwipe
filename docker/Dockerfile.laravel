@@ -1,4 +1,4 @@
-FROM php:8.2-fpm-alpine
+FROM php:8.4-fpm-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
@@ -38,16 +38,19 @@ COPY composer.* ./
 # Install PHP dependencies (including dev for local development)
 RUN composer install --optimize-autoloader --no-scripts --no-interaction --prefer-dist 2>&1
 
-# Copy application files
+# Copy application files (exclude bootstrap/cache to prevent stale cache issues)
 COPY . .
 
-# Clear any cached config/services that might reference missing packages
+# Remove any bootstrap cache files that might have been copied from host
 RUN rm -rf bootstrap/cache/*.php
 
-# Create and fix necessary directories with proper permissions
+# Create and fix necessary directories with proper permissions BEFORE composer commands
 RUN mkdir -p storage/logs bootstrap/cache storage/framework/cache/data && \
     chmod -R 777 storage bootstrap && \
     chown -R www-data:www-data storage bootstrap
+
+# Regenerate autoloader to ensure all classes are properly mapped
+RUN composer dump-autoload --optimize
 
 # Copy entrypoint script from docker directory
 COPY entrypoint.sh /entrypoint.sh

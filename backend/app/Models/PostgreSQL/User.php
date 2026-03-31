@@ -2,13 +2,16 @@
 
 namespace App\Models\PostgreSQL;
 
+use App\Services\UserDataCleanupService;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Str;
+use Laravel\Cashier\Billable;
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use HasApiTokens;
+    use Billable, HasApiTokens;
 
     protected $connection = 'pgsql';
 
@@ -26,6 +29,10 @@ class User extends Authenticatable
         'is_banned',
         'email_verified_at',
         'google_id',
+        'stripe_id',
+        'pm_type',
+        'pm_last_four',
+        'trial_ends_at',
     ];
 
     protected $hidden = ['password_hash'];
@@ -34,6 +41,7 @@ class User extends Authenticatable
         'is_active' => 'boolean',
         'is_banned' => 'boolean',
         'email_verified_at' => 'datetime',
+        'trial_ends_at' => 'datetime',
     ];
 
     protected static function boot()
@@ -45,6 +53,10 @@ class User extends Authenticatable
                 $model->id = (string) Str::uuid();
             }
         });
+
+        static::deleting(function (self $model) {
+            app(UserDataCleanupService::class)->cleanupForDeletedUser($model);
+        });
     }
 
     public function getAuthPassword(): string
@@ -52,12 +64,12 @@ class User extends Authenticatable
         return $this->password_hash;
     }
 
-    public function applicantProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function applicantProfile(): HasOne
     {
         return $this->hasOne(ApplicantProfile::class, 'user_id');
     }
 
-    public function companyProfile(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function companyProfile(): HasOne
     {
         return $this->hasOne(CompanyProfile::class, 'user_id');
     }

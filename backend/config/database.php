@@ -62,7 +62,7 @@ return [
             'port' => env('MONGO_PORT', 27017),
             'database' => env('MONGO_DATABASE', 'jobapp'),
             'username' => env('MONGO_ROOT_USERNAME', 'root'),
-            'password' => env('MONGO_ROOT_PASSWORD', 'password'),
+            'password' => env('MONGO_ROOT_PASSWORD', ''),
             'options' => [
                 'database' => env('MONGO_AUTH_DATABASE', 'admin'), // Auth database
                 'retryWrites' => true,
