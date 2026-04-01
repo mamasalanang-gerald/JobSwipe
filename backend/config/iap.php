@@ -15,6 +15,19 @@ return [
         'production_url' => 'https://buy.itunes.apple.com/verifyReceipt',
         'sandbox_url' => 'https://sandbox.itunes.apple.com/verifyReceipt',
         'timeout' => 10,
+        'webhook' => [
+            'bundle_id' => env('APPLE_IAP_BUNDLE_ID'),
+            // Accepts APPLE_IAP_WEBHOOK_ENV=PROD or SANDBOX.
+            'environment' => env('APPLE_IAP_WEBHOOK_ENV'),
+            // Apple app ID is required only for production validations.
+            'app_apple_id' => env('APPLE_IAP_WEBHOOK_APP_APPLE_ID'),
+            'strict_certificate_validation' => env('APPLE_IAP_WEBHOOK_STRICT_CERT_VALIDATION', true),
+            // Comma-separated list of PEM root certificate file paths.
+            'root_cert_paths' => array_values(array_filter(array_map(
+                static fn (string $path) => trim($path),
+                explode(',', (string) env('APPLE_IAP_WEBHOOK_ROOT_CERT_PATHS', ''))
+            ))),
+        ],
     ],
 
     /*
@@ -31,6 +44,13 @@ return [
         'service_account_json' => env('GOOGLE_PLAY_SERVICE_ACCOUNT_JSON'),
         'package_name' => env('GOOGLE_PLAY_PACKAGE_NAME'),
         'timeout' => 10,
+        'webhook' => [
+            // Use the exact push endpoint URL (or custom audience) configured in Pub/Sub.
+            'audience' => env('GOOGLE_PUBSUB_WEBHOOK_AUDIENCE'),
+            // Optional hard-check of Pub/Sub OIDC token email claim.
+            'expected_service_account' => env('GOOGLE_PUBSUB_WEBHOOK_SERVICE_ACCOUNT'),
+            'require_email_verified' => env('GOOGLE_PUBSUB_REQUIRE_EMAIL_VERIFIED', true),
+        ],
     ],
 
     /*

@@ -3,14 +3,19 @@
 namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
+use App\Exceptions\IAPException;
 use App\Services\IAPService;
+use App\Services\IAP\AppleWebhookVerifierService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class AppleWebhookController extends Controller
 {
-    public function __construct(private IAPService $iapService) {}
+    public function __construct(
+        private IAPService $iapService,
+        private AppleWebhookVerifierService $verifier,
+    ) {}
 
     /**
      * Handle Apple server notification
@@ -19,15 +24,23 @@ class AppleWebhookController extends Controller
     public function handleNotification(Request $request): JsonResponse
     {
         try {
-            $notification = $request->all();
+            $verifiedNotification = $this->verifier->verify($request->all());
 
             Log::info('Apple webhook received', [
-                'notification_type' => $notification['notificationType'] ?? 'unknown',
+                'notification_type' => $verifiedNotification['event_type'] ?? 'unknown',
+                'event_id' => $verifiedNotification['event_id'] ?? null,
             ]);
 
-            $this->iapService->processAppleWebhook($notification);
+            $this->iapService->processAppleWebhook($verifiedNotification);
 
             return $this->success(['status' => 'accepted'], 'Webhook received');
+        } catch (IAPException $e) {
+            Log::warning('Apple webhook verification failed', [
+                'error_code' => $e->errorCode,
+                'error' => $e->getMessage(),
+            ]);
+
+            return $this->error($e->errorCode, 'Webhook verification failed', $e->statusCode);
         } catch (\Exception $e) {
             Log::error('Apple webhook processing failed', [
                 'error' => $e->getMessage(),

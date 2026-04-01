@@ -13,34 +13,13 @@ class GoogleReceiptValidator
 
     private const TIMEOUT_SECONDS = 10;
 
-    private ?Google_Client $googleClient;
+    private ?Google_Client $googleClient = null;
 
     private ?string $packageName;
 
     public function __construct()
     {
         $this->packageName = config('iap.google.package_name');
-        $serviceAccountJson = config('iap.google.service_account_json');
-
-        // Check if service account credentials are configured
-        if (empty($serviceAccountJson) || ! file_exists($serviceAccountJson)) {
-            throw new IAPException(
-                'IAP_NOT_CONFIGURED',
-                'Google Play service account credentials not found or not configured',
-                500
-            );
-        }
-
-        // Initialize Google Client with service account
-        $this->googleClient = new Google_Client;
-        $this->googleClient->setAuthConfig($serviceAccountJson);
-        $this->googleClient->addScope(AndroidPublisher::ANDROIDPUBLISHER);
-
-        // Configure HTTP client with timeout
-        $httpClient = new \GuzzleHttp\Client([
-            'timeout' => self::TIMEOUT_SECONDS,
-        ]);
-        $this->googleClient->setHttpClient($httpClient);
     }
 
     /**
@@ -55,7 +34,7 @@ class GoogleReceiptValidator
     public function verify(string $purchaseToken, string $productId): array
     {
         try {
-            $androidPublisher = new AndroidPublisher($this->googleClient);
+            $androidPublisher = new AndroidPublisher($this->googleClient());
 
             // Call Google Play Developer API to verify purchase
             /** @var ProductPurchase $purchase */
@@ -103,6 +82,37 @@ class GoogleReceiptValidator
                 503
             );
         }
+    }
+
+    /**
+     * Lazily initialize Google client only when a receipt verification is requested.
+     *
+     * @throws IAPException
+     */
+    private function googleClient(): Google_Client
+    {
+        if ($this->googleClient instanceof Google_Client) {
+            return $this->googleClient;
+        }
+
+        $serviceAccountJson = config('iap.google.service_account_json');
+
+        if (empty($serviceAccountJson) || ! file_exists($serviceAccountJson)) {
+            throw new IAPException(
+                'IAP_NOT_CONFIGURED',
+                'Google Play service account credentials not found or not configured',
+                500
+            );
+        }
+
+        $this->googleClient = new Google_Client;
+        $this->googleClient->setAuthConfig($serviceAccountJson);
+        $this->googleClient->addScope(AndroidPublisher::ANDROIDPUBLISHER);
+        $this->googleClient->setHttpClient(new \GuzzleHttp\Client([
+            'timeout' => self::TIMEOUT_SECONDS,
+        ]));
+
+        return $this->googleClient;
     }
 
     /**

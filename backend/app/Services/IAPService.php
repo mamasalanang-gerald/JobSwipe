@@ -13,6 +13,7 @@ use App\Repositories\PostgreSQL\SwipePackRepository;
 use App\Repositories\PostgreSQL\WebhookEventRepository;
 use App\Services\IAP\AppleReceiptValidator;
 use App\Services\IAP\ApplicantSubscriptionManager;
+use App\Services\IAP\GooglePlaySubscriptionStateResolverService;
 use App\Services\IAP\GoogleReceiptValidator;
 use App\Services\IAP\SwipePackManager;
 use Carbon\Carbon;
@@ -32,6 +33,7 @@ class IAPService
         private SubscriptionRepository $subscriptions,
         private ApplicantProfileRepository $applicantProfiles,
         private SwipePackRepository $swipePacks,
+        private GooglePlaySubscriptionStateResolverService $googleSubscriptionStateResolver,
     ) {}
 
     /**
@@ -271,17 +273,21 @@ class IAPService
      */
     public function processAppleWebhook(array $notification): void
     {
-        // Extract event ID (notification UUID)
-        $eventId = $notification['notification_uuid'] ?? null;
-
-        if (! $eventId) {
-            Log::warning('Apple webhook missing notification_uuid');
+        $eventId = trim((string) ($notification['event_id'] ?? $notification['notification_uuid'] ?? ''));
+        if ($eventId === '') {
+            Log::warning('Apple webhook missing event identifier');
 
             return;
         }
 
-        // Deduplicate webhook event
-        if (! $this->webhookEvents->reserve($eventId, 'apple_iap', $notification['notification_type'] ?? 'unknown')) {
+        $eventType = trim((string) ($notification['event_type'] ?? $notification['notification_type'] ?? 'unknown'));
+        $providerSubId = trim((string) ($notification['provider_sub_id']
+            ?? data_get($notification, 'data.original_transaction_id', '')));
+        $transactionId = trim((string) ($notification['transaction_id']
+            ?? data_get($notification, 'data.transaction_id', '')));
+        $eventTime = $this->coerceEventTimestamp($notification['event_time'] ?? null);
+
+        if (! $this->webhookEvents->reserve($eventId, 'apple_iap', $eventType)) {
             Log::info('Apple webhook already processed', ['event_id' => $eventId]);
 
             return;
@@ -289,40 +295,36 @@ class IAPService
 
         Log::info('Apple webhook received', [
             'event_id' => $eventId,
-            'event_type' => $notification['notification_type'] ?? 'unknown',
+            'event_type' => $eventType,
         ]);
 
-        // Extract notification type and data
-        $notificationType = $notification['notification_type'] ?? null;
-        $data = $notification['data'] ?? [];
-
-        // Extract provider subscription ID
-        $providerSubId = $data['original_transaction_id'] ?? null;
-
-        if (! $providerSubId) {
-            Log::warning('Apple webhook missing original_transaction_id', ['event_id' => $eventId]);
+        if ($providerSubId === '') {
+            Log::warning('Apple webhook missing provider subscription ID', ['event_id' => $eventId]);
 
             return;
         }
 
-        // Route to appropriate handler based on notification type
         try {
-            match ($notificationType) {
-                'DID_RENEW' => $this->subscriptionManager->renew($providerSubId, 'apple_iap', now()),
+            match ($eventType) {
+                'DID_RENEW' => $this->subscriptionManager->renew(
+                    $providerSubId,
+                    'apple_iap',
+                    Carbon::createFromTimestamp($eventTime)
+                ),
                 'DID_FAIL_TO_RENEW' => $this->subscriptionManager->markPastDue($providerSubId, 'apple_iap'),
                 'EXPIRED' => $this->handleAppleExpiration($providerSubId),
-                'REFUND' => $this->handleAppleRefund($data),
-                default => Log::info('Apple webhook type not handled', ['type' => $notificationType]),
+                'REFUND', 'REVOKE' => $this->handleAppleRefund(['transaction_id' => $transactionId]),
+                default => Log::info('Apple webhook type not handled', ['type' => $eventType]),
             };
 
             Log::info('Apple webhook processed successfully', [
                 'event_id' => $eventId,
-                'event_type' => $notificationType,
+                'event_type' => $eventType,
             ]);
         } catch (\Exception $e) {
             Log::error('Apple webhook processing failed', [
                 'event_id' => $eventId,
-                'event_type' => $notificationType,
+                'event_type' => $eventType,
                 'error' => $e->getMessage(),
             ]);
         }
@@ -333,36 +335,18 @@ class IAPService
      */
     public function processGoogleWebhook(array $notification): void
     {
-        // Extract event ID (notification ID)
-        $eventId = $notification['message']['messageId'] ?? null;
+        $normalized = $this->normalizeGoogleWebhookNotification($notification);
+        $eventId = trim((string) ($normalized['event_id'] ?? ''));
 
-        if (! $eventId) {
-            Log::warning('Google webhook missing messageId');
-
-            return;
-        }
-
-        // Decode base64 message data
-        $messageData = $notification['message']['data'] ?? null;
-
-        if (! $messageData) {
-            Log::warning('Google webhook missing message data', ['event_id' => $eventId]);
+        if ($eventId === '') {
+            Log::warning('Google webhook missing event identifier');
 
             return;
         }
 
-        $decodedData = json_decode(base64_decode($messageData), true);
+        $notificationType = $normalized['notification_type'] ?? null;
+        $purchaseToken = trim((string) ($normalized['purchase_token'] ?? ''));
 
-        if (! $decodedData) {
-            Log::warning('Google webhook failed to decode message', ['event_id' => $eventId]);
-
-            return;
-        }
-
-        // Extract notification type
-        $notificationType = $decodedData['subscriptionNotification']['notificationType'] ?? null;
-
-        // Deduplicate webhook event
         if (! $this->webhookEvents->reserve($eventId, 'google_play', (string) $notificationType)) {
             Log::info('Google webhook already processed', ['event_id' => $eventId]);
 
@@ -374,28 +358,42 @@ class IAPService
             'event_type' => $notificationType,
         ]);
 
-        // Extract subscription token
-        $subscriptionToken = $decodedData['subscriptionNotification']['purchaseToken'] ?? null;
-
-        if (! $subscriptionToken) {
+        if ($purchaseToken === '') {
             Log::warning('Google webhook missing purchaseToken', ['event_id' => $eventId]);
 
             return;
         }
 
-        // Route to appropriate handler based on notification type
         try {
-            match ($notificationType) {
-                2 => $this->subscriptionManager->renew($subscriptionToken, 'google_play', now()), // SUBSCRIPTION_RENEWED
-                3 => $this->handleGoogleCancellation($subscriptionToken), // SUBSCRIPTION_CANCELED
-                13 => $this->handleGoogleExpiration($subscriptionToken), // SUBSCRIPTION_EXPIRED
-                12 => $this->handleGoogleRefund($subscriptionToken), // SUBSCRIPTION_REVOKED
-                default => Log::info('Google webhook type not handled', ['type' => $notificationType]),
+            $canonical = $this->googleSubscriptionStateResolver->resolve($purchaseToken);
+            $resolvedAction = $this->resolveGoogleWebhookAction(
+                is_int($notificationType) ? $notificationType : null,
+                (string) ($canonical['canonical_action'] ?? 'unknown')
+            );
+
+            match ($resolvedAction) {
+                'renew' => $this->subscriptionManager->renew(
+                    $purchaseToken,
+                    'google_play',
+                    Carbon::createFromTimestamp($this->coerceEventTimestamp($normalized['event_time'] ?? null))
+                ),
+                'cancel' => $this->handleGoogleCancellation($purchaseToken),
+                'expire' => $this->handleGoogleExpiration($purchaseToken),
+                'past_due' => $this->subscriptionManager->markPastDue($purchaseToken, 'google_play'),
+                'refund' => $this->handleGoogleRefund($purchaseToken),
+                default => Log::info('Google webhook type not handled', [
+                    'event_id' => $eventId,
+                    'notification_type' => $notificationType,
+                    'canonical_state' => $canonical['canonical_state'] ?? null,
+                    'canonical_action' => $canonical['canonical_action'] ?? null,
+                ]),
             };
 
             Log::info('Google webhook processed successfully', [
                 'event_id' => $eventId,
                 'event_type' => $notificationType,
+                'resolved_action' => $resolvedAction,
+                'canonical_state' => $canonical['canonical_state'] ?? null,
             ]);
         } catch (\Exception $e) {
             Log::error('Google webhook processing failed', [
@@ -404,6 +402,106 @@ class IAPService
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $notification
+     * @return array<string, mixed>
+     */
+    private function normalizeGoogleWebhookNotification(array $notification): array
+    {
+        if (isset($notification['event_id'])) {
+            return $notification;
+        }
+
+        $eventId = trim((string) data_get($notification, 'message.messageId', ''));
+        $notificationType = null;
+        $purchaseToken = '';
+        $eventTime = now()->timestamp;
+
+        $encodedData = data_get($notification, 'message.data');
+        if (is_string($encodedData) && trim($encodedData) !== '') {
+            $decodedRaw = base64_decode($encodedData, true);
+            $decodedData = is_string($decodedRaw) ? json_decode($decodedRaw, true) : null;
+
+            if (is_array($decodedData)) {
+                $notificationType = $this->coerceNullableInt(
+                    data_get($decodedData, 'subscriptionNotification.notificationType')
+                );
+                $purchaseToken = trim((string) data_get($decodedData, 'subscriptionNotification.purchaseToken', ''));
+                $eventTime = $this->coerceEventTimestamp($decodedData['eventTimeMillis'] ?? null);
+            }
+        }
+
+        return [
+            'event_id' => $eventId,
+            'notification_type' => $notificationType,
+            'purchase_token' => $purchaseToken,
+            'event_time' => $eventTime,
+            'raw' => $notification,
+        ];
+    }
+
+    private function resolveGoogleWebhookAction(?int $notificationType, string $canonicalAction): string
+    {
+        if ($notificationType === 12) {
+            return 'refund';
+        }
+
+        if ($canonicalAction === 'expired') {
+            return 'expire';
+        }
+
+        if ($canonicalAction === 'cancelled') {
+            return 'cancel';
+        }
+
+        if ($canonicalAction === 'past_due') {
+            return 'past_due';
+        }
+
+        return match ($notificationType) {
+            2 => $canonicalAction === 'active' ? 'renew' : 'ignore',
+            3 => in_array($canonicalAction, ['active', 'cancelled'], true) ? 'cancel' : 'ignore',
+            13 => $canonicalAction !== 'active' ? 'expire' : 'ignore',
+            default => 'ignore',
+        };
+    }
+
+    private function coerceEventTimestamp(mixed $value): int
+    {
+        if (is_int($value)) {
+            if ($value > 1000000000000) {
+                return (int) floor($value / 1000);
+            }
+
+            return $value;
+        }
+
+        if (is_string($value) && is_numeric($value)) {
+            $numeric = (int) $value;
+
+            if ($numeric > 1000000000000) {
+                return (int) floor($numeric / 1000);
+            }
+
+            return $numeric;
+        }
+
+        return now()->timestamp;
+    }
+
+    private function coerceNullableInt(mixed $value): ?int
+    {
+        if (is_int($value)) {
+            return $value;
+        }
+
+        if (is_string($value) && is_numeric($value)) {
+            return (int) $value;
+        }
+
+        return null;
     }
 
     /**

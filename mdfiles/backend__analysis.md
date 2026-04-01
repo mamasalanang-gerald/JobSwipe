@@ -189,21 +189,11 @@ The project has **zero feature tests**. The `tests/Feature/` directory contains 
 - Subscription gating logic end-to-end
 - Webhook signature verification
 
-### 4.5 🟡 MEDIUM — Inconsistent Use of `app()` Service Locator
+### 4.5 ~~🟡 MEDIUM — Inconsistent Use of `app()` Service Locator~~ ✅ FIXED
 
-`AuthService::initiateForgotPassword()` uses `app(PasswordResetService::class)` directly instead of constructor injection:
+~~`AuthService::initiateForgotPassword()` uses `app(PasswordResetService::class)` directly instead of constructor injection.~~
 
-```php
-app(PasswordResetService::class)->sendResetCode($email);
-```
-
-And `AuthService::resetPassword()` does the same:
-
-```php
-$passwordResetService = app(PasswordResetService::class);
-```
-
-This bypasses the DI container's singleton guarantees and creates a hidden dependency that isn't visible from the constructor signature.
+> **Status (2026-04-02):** ✅ Fixed — `PasswordResetService` is now injected via constructor in `AuthService` (line 20). Also registered as a singleton in `AppServiceProvider` (line 94). No more `app()` locator usage.
 
 ### 4.6 ~~🟡 MEDIUM — Loose Type Coercion in OTP Verification~~ ✅ FIXED
 
@@ -217,27 +207,11 @@ if ($stored === null) {  // NOW STRICT COMPARISON ✅
 
 > **Status (2026-04-02):** ✅ Fixed — Now uses strict `===` comparison.
 
-### 4.7 🟡 MEDIUM — `ProfileService` Constructor Bypasses DI
+### 4.7 ~~🟡 MEDIUM — `ProfileService` Constructor Bypasses DI~~ ✅ FIXED
 
-```php
-public function __construct(
-    ...
-    ?ProfileCompletionService $completion = null,
-    ?ProfileOnboardingService $onboarding = null,
-    ?ProfileSocialLinksValidator $socialLinksValidator = null,
-) {
-    $this->completion = $completion ?? new ProfileCompletionService;
-    $this->socialLinksValidator = $socialLinksValidator ?? new ProfileSocialLinksValidator;
-    $this->onboarding = $onboarding ?? new ProfileOnboardingService(
-        $this->applicantDocs, $this->companyDocs, ...
-    );
-}
-```
+~~The `?? new X()` fallbacks created instances outside the container, losing the ability to mock/override them in testing.~~
 
-The `?? new X()` fallbacks create instances outside the container, meaning:
-- These instances won't have any container-registered bindings
-- You lose the ability to mock/override them in testing
-- The `ProfileOnboardingService` is manually wired with hard-coded dependencies
+> **Status (2026-04-02):** ✅ Fixed — `ProfileService` constructor now uses clean, non-nullable dependency injection. All three services (`ProfileCompletionService`, `ProfileOnboardingService`, `ProfileSocialLinksValidator`) are resolved through the container. No more manual instantiation.
 
 ### 4.8 🟡 MEDIUM — No Factory/Seeder Implementation
 
@@ -294,11 +268,11 @@ if (app()->environment('production')) {
 
 This is a **nuclear workaround** for Render.com's route caching. It replaces the entire router instance, which could break service providers that registered routes before this binding. This should be documented prominently and ideally solved at the deployment level.
 
-### 5.4 ⚠️ Hardcoded Timezone — ⚠️ PARTIALLY FIXED
+### 5.4 ~~⚠️ Hardcoded Timezone~~ ✅ FULLY FIXED
 
 ~~`SwipeCacheRepository` hardcodes `'Asia/Manila'` for counter key generation.~~
 
-> **Status (2026-04-02):** `counterKey()` now uses `config('app.timezone')` ✅ but `incrementCounter()` and `refreshCounter()` still hardcode `'Asia/Manila'` for TTL calculation.
+> **Status (2026-04-02):** ✅ Fully fixed — All three methods now use `config('app.timezone')`: `counterKey()`, `incrementCounter()`, and `refreshCounter()`.
 
 ### 5.5 ⚠️ N+1 Risk in `DeckService::getJobDeck()`
 
@@ -330,8 +304,8 @@ Routes are grouped under `/v1/` as a prefix, but there's no versioning middlewar
 | **Job Postings: Publish/Draft flow** | ✅ | ⚠️ | Jobs go active immediately on creation; no `draft` → `publish` separate flow |
 | **Job Postings: 60-day expiration** | ✅ | ⚠️ | Code uses 30-day default, docs say 60 |
 | **Subscriptions: Stripe checkout** | ✅ | ✅ | Company-side only. Robust idempotency. |
-| **Subscriptions: Apple IAP** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `AppleReceiptValidator` + `AppleWebhookController` |
-| **Subscriptions: Google Play Billing** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `GoogleReceiptValidator` + `GoogleWebhookController` |
+| **Subscriptions: Apple IAP** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `AppleReceiptValidator` + `AppleWebhookController` + `AppleWebhookVerifierService` (JWS + cert chain) |
+| **Subscriptions: Google Play Billing** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `GoogleReceiptValidator` + `GoogleWebhookController` + `GooglePubSubWebhookVerifierService` (OIDC) + `GooglePlaySubscriptionStateResolverService` |
 | **Subscriptions: Applicant subscriptions** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `IAPService` + `ApplicantSubscriptionManager` + routes |
 | **Swipe Packs (extra swipes purchase)** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `SwipePackManager` + `IAPService` + `SwipePackRepository` |
 | **Points System** | ✅ | ✅ | Working with event map + Redis cache |
@@ -378,26 +352,26 @@ Routes are grouped under `/v1/` as a prefix, but there's no versioning middlewar
 
 ## 7. Overall Rating
 
-### Score: **7.2 / 10**
+### Score: **8.0 / 10** _(updated 2026-04-02)_
 
 ```
 ┌─────────────────────────────────┬────────┬──────────────────────────────────────────────┐
 │ Category                        │ Score  │ Justification                                │
 ├─────────────────────────────────┼────────┼──────────────────────────────────────────────┤
 │ Architecture & Patterns         │ 8.5/10 │ Service+Repo pattern well-applied, clean     │
-│                                 │        │ multi-DB split, thin controllers              │
+│                                 │        │ multi-DB split, thin controllers, clean DI    │
 ├─────────────────────────────────┼────────┼──────────────────────────────────────────────┤
-│ Code Quality                    │ 7.5/10 │ Modern PHP (8.1+), constructor promotion,    │
-│                                 │        │ match expressions, but some inconsistencies   │
+│ Code Quality                    │ 8.0/10 │ Modern PHP (8.1+), constructor promotion,    │
+│                                 │        │ match expressions, no more DI anti-patterns   │
 ├─────────────────────────────────┼────────┼──────────────────────────────────────────────┤
-│ Security                        │ 5.5/10 │ Good auth flow & webhook verification, but   │
-│                                 │        │ debug routes kill the score                   │
+│ Security                        │ 7.5/10 │ Full webhook sig verification (JWS + OIDC),  │
+│                                 │        │ good auth. Debug routes still drag score down │
 ├─────────────────────────────────┼────────┼──────────────────────────────────────────────┤
 │ Test Coverage                   │ 4.0/10 │ Unit tests exist but no feature/integration  │
 │                                 │        │ tests; empty feature directory                │
 ├─────────────────────────────────┼────────┼──────────────────────────────────────────────┤
-│ Feature Completeness            │ 6.0/10 │ Core flows work, but significant gaps         │
-│                                 │        │ (admin, reviews, applicant subs, IAP)         │
+│ Feature Completeness            │ 7.5/10 │ Core flows + IAP + webhooks all working.     │
+│                                 │        │ Gaps remain (admin panel, reviews)            │
 ├─────────────────────────────────┼────────┼──────────────────────────────────────────────┤
 │ Documentation Accuracy          │ 5.5/10 │ Docs are extensive but diverge heavily from   │
 │                                 │        │ implementation (namespaces, missing features)  │
@@ -405,14 +379,14 @@ Routes are grouped under `/v1/` as a prefix, but there's no versioning middlewar
 │ Dev Experience & Tooling        │ 7.0/10 │ Pint configured, Horizon configured, but      │
 │                                 │        │ no seeders, no factories, no CI/CD            │
 ├─────────────────────────────────┼────────┼──────────────────────────────────────────────┤
-│ Error Handling                  │ 7.0/10 │ Custom exceptions exist (Subscription, File), │
-│                                 │        │ but no global handler to catch all edge cases  │
+│ Error Handling                  │ 8.5/10 │ Global exception handler + custom exceptions  │
+│                                 │        │ (Subscription, IAP, File) + ApiResponse trait │
 └─────────────────────────────────┴────────┴──────────────────────────────────────────────┘
 ```
 
-### Verdict
+### Verdict _(updated 2026-04-02)_
 
-The codebase demonstrates **strong architectural fundamentals** with a well-thought-out multi-database strategy and clean separation of concerns. The developer clearly understands Laravel patterns and has built genuinely production-quality components (Stripe idempotency, swipe deduplication, OTP registration flow). However, the project suffers from **documentation drift** (docs describe an ideal system, code reflects partial implementation), **missing critical features** (admin panel, applicant subscriptions, IAP), and **a serious security oversight** with exposed debug endpoints.
+The codebase is now **production-ready for its core flows**. It demonstrates strong architectural fundamentals with a well-thought-out multi-database strategy, clean separation of concerns, and consistent DI discipline. The developer has built genuinely production-quality components: Stripe idempotency, swipe deduplication with compensating transactions, OTP registration flow, full cross-platform IAP lifecycle (Apple + Google), and robust webhook security (JWS certificate chain verification for Apple, OIDC token verification for Google Pub/Sub, canonical state reconciliation before mutations). The remaining gaps are: **documentation drift**, **missing feature areas** (admin panel, company reviews), **no feature tests**, and **debug routes** that must be removed pre-deployment.
 
 ---
 
@@ -433,10 +407,10 @@ The codebase demonstrates **strong architectural fundamentals** with a well-thou
 |---|--------|--------|--------|
 | 5 | Write **feature tests** for Auth, Swipe, Subscription, and Profile endpoints | Test confidence | ❌ Not done |
 | 6 | Create **model factories** and **database seeders** for development | Dev velocity | ❌ Not done |
-| 7 | Inject `PasswordResetService` via constructor, not `app()` locator | Consistency + Testability | ❌ Not done |
+| 7 | Inject `PasswordResetService` via constructor, not `app()` locator | Consistency + Testability | ✅ **DONE** |
 | 8 | Make `OAuthController` use `$this->success()` / `$this->error()` | API consistency | ✅ **DONE** |
 | 9 | Fix loose comparison `==` to `===` in `OTPService::verify()` | Correctness | ✅ **DONE** |
-| 10 | Replace `'Asia/Manila'` hardcode in `SwipeCacheRepository` with `config('app.timezone')` | Portability | ⚠️ Partial |
+| 10 | Replace `'Asia/Manila'` hardcode in `SwipeCacheRepository` with `config('app.timezone')` | Portability | ✅ **DONE** |
 
 ### 🟢 P2 — Do Next Sprint
 
