@@ -20,26 +20,10 @@ class ProfileService
         private ApplicantProfileDocumentRepository $applicantDocs,
         private CompanyProfileDocumentRepository $companyDocs,
         private PointService $points,
-        ?ProfileCompletionService $completion = null,
-        ?ProfileOnboardingService $onboarding = null,
-        ?ProfileSocialLinksValidator $socialLinksValidator = null,
-    ) {
-        $this->completion = $completion ?? new ProfileCompletionService;
-        $this->socialLinksValidator = $socialLinksValidator ?? new ProfileSocialLinksValidator;
-        $this->onboarding = $onboarding ?? new ProfileOnboardingService(
-            $this->applicantDocs,
-            $this->companyDocs,
-            $this->companyProfiles,
-            $this->completion,
-            $this->socialLinksValidator,
-        );
-    }
-
-    private ProfileCompletionService $completion;
-
-    private ProfileOnboardingService $onboarding;
-
-    private ProfileSocialLinksValidator $socialLinksValidator;
+        private ProfileCompletionService $completion,
+        private ProfileOnboardingService $onboarding,
+        private ProfileSocialLinksValidator $socialLinksValidator,
+    ) {}
 
     public function createProfileForUser(User $user, ?string $avatarUrl = null): void
     {

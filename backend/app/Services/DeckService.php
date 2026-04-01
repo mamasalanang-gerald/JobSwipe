@@ -13,10 +13,6 @@ use Illuminate\Support\Facades\Redis;
 
 class DeckService
 {
-    private const CANDIDATE_POOL_MULTIPLIER = 5;
-
-    private const MAX_CANDIDATE_POOL = 250;
-
     public function __construct(
         private SwipeCacheRepository $cache,
         private SwipeHistoryRepository $swipeHistory,
@@ -37,14 +33,10 @@ class DeckService
         $applicantSkills = $applicantProfile?->skills ?? [];
         $applicantCity = $applicantProfile?->location_city;
 
-        $candidateLimit = min(
-            max($perPage * self::CANDIDATE_POOL_MULTIPLIER, $perPage),
-            self::MAX_CANDIDATE_POOL
-        );
-
         $baseUnseenQuery = $this->unseenJobsQuery($userId);
 
-        // 3. Query a bounded candidate pool using cursor-based pagination
+        // 3. Query exactly one page worth of unseen jobs using cursor pagination.
+        // This avoids skipping jobs when relevance sorting is applied in-memory.
         $query = (clone $baseUnseenQuery)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
@@ -56,11 +48,11 @@ class DeckService
         }
 
         $candidatePool = $query
-            ->limit($candidateLimit + 1)
+            ->limit($perPage + 1)
             ->get();
 
-        $hasMore = $candidatePool->count() > $candidateLimit;
-        $jobs = $candidatePool->take($candidateLimit)->values();
+        $hasMore = $candidatePool->count() > $perPage;
+        $jobs = $candidatePool->take($perPage)->values();
 
         // 4. Calculate relevance score for each job
         $scoredJobs = $jobs->map(function ($job) use ($applicantSkills, $applicantCity) {
@@ -74,8 +66,10 @@ class DeckService
             return $job;
         });
 
-        // 5. Sort by relevance score and paginate
-        $sortedJobs = $scoredJobs->sortByDesc('relevance_score')->take($perPage)->values();
+        // 5. Sort this page by relevance for presentation
+        $sortedJobs = $scoredJobs
+            ->sortByDesc('relevance_score')
+            ->values();
 
         $nextCursor = null;
         if ($hasMore && $jobs->isNotEmpty()) {

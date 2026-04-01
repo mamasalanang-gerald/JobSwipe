@@ -169,16 +169,16 @@ GET  /api/debug/database      — Lists ALL database tables with row counts + AL
 
 The architecture doc (`jobswipe-laravel-architecture.md`) specifies a `Repositories/Contracts/` directory with interfaces like `SwipeRepositoryInterface` and `ApplicationRepositoryInterface`. **None of these exist in the actual codebase.** Every service depends on concrete repository classes, making it impossible to swap implementations (e.g., for testing with in-memory stores).
 
-### 4.3 🔴 HIGH — PointService Registered Twice as Singleton
+### 4.3 ~~🔴 HIGH — PointService Registered Twice as Singleton~~ ✅ FIXED
 
-In `AppServiceProvider.php` lines 88 and 90:
+~~In `AppServiceProvider.php` lines 88 and 90:~~
 
 ```php
 $this->app->singleton(PointService::class);  // line 88
 $this->app->singleton(PointService::class);  // line 90 — DUPLICATE
 ```
 
-While this is functionally harmless (the second overwrites the first), it indicates copy-paste errors and a lack of review.
+> **Status (2026-04-02):** ✅ Fixed — Duplicate removed. Single registration at line 88.
 
 ### 4.4 🔴 HIGH — No Feature/Integration Tests
 
@@ -205,17 +205,17 @@ $passwordResetService = app(PasswordResetService::class);
 
 This bypasses the DI container's singleton guarantees and creates a hidden dependency that isn't visible from the constructor signature.
 
-### 4.6 🟡 MEDIUM — Loose Type Coercion in OTP Verification
+### 4.6 ~~🟡 MEDIUM — Loose Type Coercion in OTP Verification~~ ✅ FIXED
 
-In `OTPService::verify()`:
+~~In `OTPService::verify()`:~~
 
 ```php
-if ($stored == null) {  // loose comparison — should be ===
+if ($stored === null) {  // NOW STRICT COMPARISON ✅
     return 'expired';
 }
 ```
 
-Using `==` instead of `===` means values like `0`, `""`, and `false` would also match, which could produce subtle bugs in edge cases.
+> **Status (2026-04-02):** ✅ Fixed — Now uses strict `===` comparison.
 
 ### 4.7 🟡 MEDIUM — `ProfileService` Constructor Bypasses DI
 
@@ -246,13 +246,17 @@ The `?? new X()` fallbacks create instances outside the container, meaning:
 - No way to run reproducible tests with realistic data
 - No way to demo the application without manual data entry
 
-### 4.9 🟡 MEDIUM — OAuthController Doesn't Use Base Controller Helpers
+### 4.9 ~~🟡 MEDIUM — OAuthController Doesn't Use Base Controller Helpers~~ ✅ FIXED
 
-`OAuthController::handleGoogleCallback()` constructs raw `response()->json()` responses instead of using the inherited `$this->success()` / `$this->error()` helpers, breaking the consistent response format pattern.
+~~`OAuthController::handleGoogleCallback()` constructs raw `response()->json()` responses instead of using the inherited `$this->success()` / `$this->error()` helpers, breaking the consistent response format pattern.~~
 
-### 4.10 🟡 MEDIUM — No Global Exception Handler
+> **Status (2026-04-02):** ✅ Fixed — `OAuthController` now extends `Controller` which uses the `ApiResponse` trait. All methods use `$this->success()` and `$this->error()`.
 
-There is no custom exception handler registered in `bootstrap/app.php` or an `Exceptions/Handler.php`. Unhandled exceptions will use Laravel's default JSON formatting, which may expose stack traces in production and won't follow the `{success, message, code}` envelope.
+### 4.10 ~~🟡 MEDIUM — No Global Exception Handler~~ ✅ FIXED
+
+~~There is no custom exception handler registered in `bootstrap/app.php` or an `Exceptions/Handler.php`. Unhandled exceptions will use Laravel's default JSON formatting, which may expose stack traces in production and won't follow the `{success, message, code}` envelope.~~
+
+> **Status (2026-04-02):** ✅ Fixed — `bootstrap/app.php` now has `withExceptions()` with three custom renderers: `ValidationException` (400), `NotFoundHttpException` (404), `ApiErrorException` (500). All follow the `{success, message, code}` envelope. Also uses `shouldRenderJsonWhen` for all `api/*` routes.
 
 ### 4.11 🟡 MEDIUM — `SwipeService` Queries Models Directly
 
@@ -290,9 +294,11 @@ if (app()->environment('production')) {
 
 This is a **nuclear workaround** for Render.com's route caching. It replaces the entire router instance, which could break service providers that registered routes before this binding. This should be documented prominently and ideally solved at the deployment level.
 
-### 5.4 ⚠️ Hardcoded Timezone
+### 5.4 ⚠️ Hardcoded Timezone — ⚠️ PARTIALLY FIXED
 
-`SwipeCacheRepository` hardcodes `'Asia/Manila'` for counter key generation. This should pull from `config('app.timezone')` for consistency and portability.
+~~`SwipeCacheRepository` hardcodes `'Asia/Manila'` for counter key generation.~~
+
+> **Status (2026-04-02):** `counterKey()` now uses `config('app.timezone')` ✅ but `incrementCounter()` and `refreshCounter()` still hardcode `'Asia/Manila'` for TTL calculation.
 
 ### 5.5 ⚠️ N+1 Risk in `DeckService::getJobDeck()`
 
@@ -324,10 +330,10 @@ Routes are grouped under `/v1/` as a prefix, but there's no versioning middlewar
 | **Job Postings: Publish/Draft flow** | ✅ | ⚠️ | Jobs go active immediately on creation; no `draft` → `publish` separate flow |
 | **Job Postings: 60-day expiration** | ✅ | ⚠️ | Code uses 30-day default, docs say 60 |
 | **Subscriptions: Stripe checkout** | ✅ | ✅ | Company-side only. Robust idempotency. |
-| **Subscriptions: Apple IAP** | ✅ | ❌ | **Not implemented** |
-| **Subscriptions: Google Play Billing** | ✅ | ❌ | **Not implemented** |
-| **Subscriptions: Applicant subscriptions** | ✅ | ❌ | Only company subscriptions exist |
-| **Swipe Packs (extra swipes purchase)** | ✅ | ❌ | DB table exists, no service/controller |
+| **Subscriptions: Apple IAP** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `AppleReceiptValidator` + `AppleWebhookController` |
+| **Subscriptions: Google Play Billing** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `GoogleReceiptValidator` + `GoogleWebhookController` |
+| **Subscriptions: Applicant subscriptions** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `IAPService` + `ApplicantSubscriptionManager` + routes |
+| **Swipe Packs (extra swipes purchase)** | ✅ | ✅ | ✅ **Implemented (2026-04-02)** — `SwipePackManager` + `IAPService` + `SwipePackRepository` |
 | **Points System** | ✅ | ✅ | Working with event map + Redis cache |
 | **Company Reviews** | ✅ | ⚠️ | Model + migration exist, **no controller or routes** |
 | **Review Access Control (tier-gated)** | ✅ | ❌ | No implementation |
@@ -414,36 +420,36 @@ The codebase demonstrates **strong architectural fundamentals** with a well-thou
 
 ### 🔴 P0 — Do Immediately
 
-| # | Action | Impact |
-|---|--------|--------|
-| 1 | **Remove or gate debug routes** behind `super_admin` middleware | Security: prevents data leaks |
-| 2 | **Add a global exception handler** that enforces the `{success, message, code}` envelope and prevents stack trace leaks in production | Security + API consistency |
-| 3 | **Fix `extra_swipe_balance` → `extra_swipes_balance`** field reference in `CheckSwipeLimit` middleware | Runtime bug |
-| 4 | **Remove duplicate `PointService` singleton** registration (line 90 in AppServiceProvider) | Code hygiene |
+| # | Action | Impact | Status |
+|---|--------|--------|--------|
+| 1 | **Remove or gate debug routes** behind `super_admin` middleware | Security: prevents data leaks | ⏳ Deferred (pre-prod) |
+| 2 | **Add a global exception handler** that enforces the `{success, message, code}` envelope | Security + API consistency | ✅ **DONE** |
+| 3 | **Fix `extra_swipe_balance`** field reference in `CheckSwipeLimit` middleware | Runtime bug | ✅ **DONE** |
+| 4 | **Remove duplicate `PointService` singleton** registration | Code hygiene | ✅ **DONE** |
 
 ### 🟡 P1 — Do This Sprint
 
-| # | Action | Impact |
-|---|--------|--------|
-| 5 | Write **feature tests** for Auth, Swipe, Subscription, and Profile endpoints | Test confidence |
-| 6 | Create **model factories** and **database seeders** for development | Dev velocity |
-| 7 | Inject `PasswordResetService` via constructor, not `app()` locator | Consistency + Testability |
-| 8 | Make `OAuthController` use `$this->success()` / `$this->error()` | API consistency |
-| 9 | Fix loose comparison `==` to `===` in `OTPService::verify()` | Correctness |
-| 10 | Replace `'Asia/Manila'` hardcode in `SwipeCacheRepository` with `config('app.timezone')` | Portability |
+| # | Action | Impact | Status |
+|---|--------|--------|--------|
+| 5 | Write **feature tests** for Auth, Swipe, Subscription, and Profile endpoints | Test confidence | ❌ Not done |
+| 6 | Create **model factories** and **database seeders** for development | Dev velocity | ❌ Not done |
+| 7 | Inject `PasswordResetService` via constructor, not `app()` locator | Consistency + Testability | ❌ Not done |
+| 8 | Make `OAuthController` use `$this->success()` / `$this->error()` | API consistency | ✅ **DONE** |
+| 9 | Fix loose comparison `==` to `===` in `OTPService::verify()` | Correctness | ✅ **DONE** |
+| 10 | Replace `'Asia/Manila'` hardcode in `SwipeCacheRepository` with `config('app.timezone')` | Portability | ⚠️ Partial |
 
 ### 🟢 P2 — Do Next Sprint
 
-| # | Action | Impact |
-|---|--------|--------|
-| 11 | **Implement Admin Panel APIs** (verification queue, user management, metrics) | Feature completeness |
-| 12 | **Implement Company Reviews CRUD** (model exists, needs controller + routes) | Feature completeness |
-| 13 | **Implement Applicant Applications list** endpoint | Feature completeness |
-| 14 | **Add repository interfaces** (`Repositories/Contracts/`) and bind them in AppServiceProvider | Architecture purity + testability |
-| 15 | **Add PHPStan** to dev dependencies and configure a baseline | Code quality |
-| 16 | **Add Sentry** integration for error monitoring | Operational visibility |
-| 17 | **Update documentation** to match actual namespaces (`PostgreSQL/` not `Postgres/`) and remove descriptions of unimplemented features, or mark them as "planned" | Doc accuracy |
-| 18 | Set up **GitHub Actions CI/CD** as documented | Deployment reliability |
+| # | Action | Impact | Status |
+|---|--------|--------|--------|
+| 11 | **Implement Admin Panel APIs** (verification queue, user management, metrics) | Feature completeness | ❌ Not done |
+| 12 | **Implement Company Reviews CRUD** (model exists, needs controller + routes) | Feature completeness | ❌ Not done |
+| 13 | **Implement Applicant Applications list** endpoint | Feature completeness | ❌ Not done |
+| 14 | **Add repository interfaces** (`Repositories/Contracts/`) and bind them in AppServiceProvider | Architecture purity + testability | ❌ Not done |
+| 15 | **Add PHPStan** to dev dependencies and configure a baseline | Code quality | ❌ Not done |
+| 16 | **Add Sentry** integration for error monitoring | Operational visibility | ❌ Not done |
+| 17 | **Update documentation** to match actual namespaces (`PostgreSQL/` not `Postgres/`) | Doc accuracy | ❌ Not done |
+| 18 | Set up **GitHub Actions CI/CD** as documented | Deployment reliability | ❌ Not done |
 
 ---
 

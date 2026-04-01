@@ -6,7 +6,6 @@ use App\Http\Controllers\Company\ApplicantReviewController;
 use App\Http\Requests\Company\HRSwipeRequest;
 use App\Models\MongoDB\ApplicantProfileDocument;
 use App\Models\PostgreSQL\JobPosting;
-use App\Models\PostgreSQL\JobSkill;
 use App\Repositories\PostgreSQL\ApplicationRepository;
 use App\Services\SwipeService;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -18,10 +17,10 @@ class HRApplicantReviewUnitTest extends TestCase
     public function test_hr_swipe_request_validation_rules_require_message(): void
     {
         $request = new HRSwipeRequest;
-        $validator = validator([], $request->rules());
+        $rules = $request->rules();
 
-        $this->assertTrue($validator->fails());
-        $this->assertArrayHasKey('message', $validator->errors()->toArray());
+        $this->assertArrayHasKey('message', $rules);
+        $this->assertSame(['required', 'string', 'min:10', 'max:1000'], $rules['message']);
     }
 
     public function test_skill_match_calculation_accuracy(): void
@@ -30,11 +29,15 @@ class HRApplicantReviewUnitTest extends TestCase
         $method = (new ReflectionClass($controller))->getMethod('calculateSkillMatchPercentage');
         $method->setAccessible(true);
 
-        $job = new JobPosting;
+        $job = new class extends JobPosting
+        {
+            public function __construct() {}
+        };
+
         $job->setRelation('skills', collect([
-            new JobSkill(['skill_name' => 'PHP']),
-            new JobSkill(['skill_name' => 'Laravel']),
-            new JobSkill(['skill_name' => 'Redis']),
+            (object) ['skill_name' => 'PHP'],
+            (object) ['skill_name' => 'Laravel'],
+            (object) ['skill_name' => 'Redis'],
         ]));
 
         $profile = new ApplicantProfileDocument;

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\ExpireApplicantSubscriptionsJob;
 use App\Jobs\ExpireJobPostingsJob;
 use App\Jobs\ResetDailySwipesJob;
 use Illuminate\Foundation\Inspiring;
@@ -15,6 +16,11 @@ Schedule::job(new ExpireJobPostingsJob)->everyThirtyMinutes();
 // Schedule daily swipe reset at midnight Philippine Time (UTC+8)
 Schedule::job(new ResetDailySwipesJob)
     ->dailyAt('00:00')
-    ->timezone('Asia/Manila')
+    ->timezone(config('app.timezone'))
     ->name('reset-daily-swipes')
+    ->withoutOverlapping();
+// Check for expired applicant subscriptions every hour
+Schedule::job(new ExpireApplicantSubscriptionsJob)
+    ->hourly()
+    ->name('expire-applicant-subscriptions')
     ->withoutOverlapping();
