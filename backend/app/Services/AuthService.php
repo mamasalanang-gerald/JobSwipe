@@ -17,6 +17,7 @@ class AuthService
         private OTPService $otp,
         private ProfileService $profiles,
         private TokenService $tokens,
+        private PasswordResetService $passwordResetService,
     ) {}
 
     public function initiateRegistration(string $email, string $password, string $role): string
@@ -104,7 +105,7 @@ class AuthService
             return 'code_sent';
         }
 
-        app(PasswordResetService::class)->sendResetCode($email);
+        $this->passwordResetService->sendResetCode($email);
 
         return 'code_sent';
     }
@@ -117,8 +118,7 @@ class AuthService
             return ['status' => 'invalid'];
         }
 
-        $passwordResetService = app(PasswordResetService::class);
-        $result = $passwordResetService->verifyCode($email, $code);
+        $result = $this->passwordResetService->verifyCode($email, $code);
 
         if ($result !== 'valid') {
             return ['status' => $result];
@@ -130,7 +130,7 @@ class AuthService
             'password_hash' => $newPasswordHash,
         ]);
 
-        $passwordResetService->clearResetData($email);
+        $this->passwordResetService->clearResetData($email);
 
         $user->tokens()->delete();
 

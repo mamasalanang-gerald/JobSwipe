@@ -51,7 +51,7 @@ class SwipeService
         try {
             DB::transaction(function () use ($applicant, $userId, $jobId) {
                 $this->applications->create($applicant->id, $jobId);
-                $applicant->increment('daily_swipes_used');
+                $this->consumeApplicantSwipe($applicant);
                 $this->markJobSeenInPostgres($userId, $jobId);
             });
         } catch (\Throwable $e) {
@@ -99,7 +99,7 @@ class SwipeService
         // 4. Update PostgreSQL counter in transaction
         try {
             DB::transaction(function () use ($applicant, $userId, $jobId) {
-                $applicant->increment('daily_swipes_used');
+                $this->consumeApplicantSwipe($applicant);
                 $this->markJobSeenInPostgres($userId, $jobId);
             });
         } catch (\Throwable $e) {
@@ -126,20 +126,46 @@ class SwipeService
             return ['status' => 'already_swiped'];
         }
 
-        // 2. Write to MongoDB + update PostgreSQL application status
-        DB::transaction(function () use ($hrUserId, $jobId, $applicantId, $message) {
-            $this->swipeHistory->recordSwipe([
-                'user_id' => $hrUserId,
-                'actor_type' => 'hr',
-                'direction' => 'right',
-                'target_id' => $applicantId,
-                'target_type' => 'applicant',
-                'job_posting_id' => $jobId,
-                'meta' => [],
-            ]);
+        if (! $this->applications->exists($applicantId, $jobId)) {
+            return ['status' => 'application_not_found'];
+        }
 
-            $this->applications->markInvited($applicantId, $jobId, $message);
-        });
+        // 2. Write to MongoDB first, then update PostgreSQL
+        $swipeDoc = $this->swipeHistory->recordSwipe([
+            'user_id' => $hrUserId,
+            'actor_type' => 'hr',
+            'direction' => 'right',
+            'target_id' => $applicantId,
+            'target_type' => 'applicant',
+            'job_posting_id' => $jobId,
+            'meta' => [],
+        ]);
+
+        try {
+            DB::transaction(function () use ($applicantId, $jobId, $message) {
+                $updated = $this->applications->markInvited($applicantId, $jobId, $message);
+
+                if ($updated < 1) {
+                    throw new \RuntimeException('APPLICATION_NOT_FOUND');
+                }
+            });
+        } catch (\RuntimeException $e) {
+            if ($swipeDoc && $swipeDoc->_id) {
+                $this->swipeHistory->deleteById($swipeDoc->_id);
+            }
+
+            if ($e->getMessage() === 'APPLICATION_NOT_FOUND') {
+                return ['status' => 'application_not_found'];
+            }
+
+            throw $e;
+        } catch (\Throwable $e) {
+            if ($swipeDoc && $swipeDoc->_id) {
+                $this->swipeHistory->deleteById($swipeDoc->_id);
+            }
+
+            throw $e;
+        }
 
         // 3. Update Redis cache
         $this->cache->markApplicantSeenByHr($hrUserId, $jobId, $applicantId);
@@ -191,6 +217,20 @@ class SwipeService
         }
 
         return false;
+    }
+
+    private function consumeApplicantSwipe(ApplicantProfile $applicant): void
+    {
+        // Consume daily swipes first, then fallback to paid extra swipes.
+        if ($applicant->daily_swipes_used < $applicant->daily_swipe_limit) {
+            $applicant->increment('daily_swipes_used');
+
+            return;
+        }
+
+        if ($applicant->extra_swipe_balance > 0) {
+            $applicant->decrement('extra_swipe_balance');
+        }
     }
 
     private function hasAlreadySwiped(string $userId, string $targetId, string $targetType): bool

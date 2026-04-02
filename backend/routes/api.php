@@ -6,9 +6,12 @@ use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\Company\ApplicantReviewController;
 use App\Http\Controllers\Company\JobPostingController;
 use App\Http\Controllers\File\FileUploadController;
+use App\Http\Controllers\IAP\IAPController;
 use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Subscription\SubscriptionController;
+use App\Http\Controllers\Webhook\AppleWebhookController;
+use App\Http\Controllers\Webhook\GoogleWebhookController;
 use App\Mail\EmailVerificationMail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
@@ -202,6 +205,8 @@ Route::middleware('throttle:api-tiered')->group(function () {
         Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback']);
 
         Route::post('webhooks/stripe', [SubscriptionController::class, 'handleWebhook']);
+        Route::post('webhooks/apple-iap', [AppleWebhookController::class, 'handleNotification']);
+        Route::post('webhooks/google-play', [GoogleWebhookController::class, 'handleNotification']);
 
         Route::middleware('auth:sanctum', 'verified')->group(function () {
             Route::post('auth/logout', [AuthController::class, 'logout']);
@@ -259,6 +264,16 @@ Route::middleware('throttle:api-tiered')->group(function () {
                 Route::middleware('role:hr,company_admin')->post('checkout', [SubscriptionController::class, 'createCheckoutSession']);
                 Route::middleware('role:hr,company_admin')->get('status', [SubscriptionController::class, 'getSubscriptionStatus']);
                 Route::middleware('role:company_admin')->post('cancel', [SubscriptionController::class, 'cancelSubscription']);
+            });
+
+            Route::prefix('iap')->group(function () {
+                Route::middleware('role:applicant')->post('purchase', [IAPController::class, 'purchase']);
+            });
+
+            Route::prefix('applicant')->group(function () {
+                Route::middleware('role:applicant')->get('subscription/status', [IAPController::class, 'getSubscriptionStatus']);
+                Route::middleware('role:applicant')->get('purchases', [IAPController::class, 'getPurchaseHistory']);
+                Route::middleware('role:applicant')->post('subscription/cancel', [IAPController::class, 'cancelSubscription']);
             });
 
             Route::middleware('role:hr,company_admin')->prefix('company')->group(function () {

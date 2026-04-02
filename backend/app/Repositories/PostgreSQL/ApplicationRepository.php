@@ -21,9 +21,9 @@ class ApplicationRepository
         ]);
     }
 
-    public function markInvited(string $applicantId, string $jobPostingId, string $message): void
+    public function markInvited(string $applicantId, string $jobPostingId, string $message): int
     {
-        Application::where('applicant_id', $applicantId)
+        return Application::where('applicant_id', $applicantId)
             ->where('job_posting_id', $jobPostingId)
             ->update([
                 'status' => 'invited',

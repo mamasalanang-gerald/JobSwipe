@@ -19,6 +19,7 @@ use App\Services\DeckService;
 use App\Services\FileUploadService;
 use App\Services\NotificationService;
 use App\Services\OTPService;
+use App\Services\PasswordResetService;
 use App\Services\PointService;
 use App\Services\ProfileCompletionService;
 use App\Services\ProfileOnboardingService;
@@ -90,6 +91,7 @@ class AppServiceProvider extends ServiceProvider
         // $this->app->singleton(InvitationService::class);
 
         $this->app->singleton(OTPService::class);
+        $this->app->singleton(PasswordResetService::class);
         $this->app->singleton(ProfileCompletionService::class);
         $this->app->singleton(ProfileSocialLinksValidator::class);
         $this->app->singleton(ProfileOnboardingService::class);
