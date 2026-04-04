@@ -3,26 +3,25 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
-// ─── Theme — identical to (tabs)/_layout.tsx ─────────────────────────────────
 const T = {
   bg:       '#0f0a1e',
   surface:  '#130d22',
   border:   'rgba(255,255,255,0.07)',
-  active:   '#e91e8c',   // hot pink — matches friend's tab bar
+  active:   '#e91e8c',
   inactive: 'rgba(255,255,255,0.38)',
 };
 
 type IconName =
   | 'home-outline'
-  | 'briefcase-account-outline'
+  | 'briefcase-plus-outline'
   | 'heart-outline'
   | 'office-building-outline';
 
 const TABS: { name: string; label: string; icon: IconName }[] = [
-  { name: 'index',      label: 'Home',       icon: 'home-outline'                  },
-  { name: 'applicants', label: 'Applicants', icon: 'briefcase-account-outline'     },
-  { name: 'matches',    label: 'Matches',    icon: 'heart-outline'                 },
-  { name: 'profile',    label: 'Profile',    icon: 'office-building-outline'       },
+  { name: 'index',      label: 'Home',     icon: 'home-outline'             },
+  { name: 'applicants', label: 'Jobs',     icon: 'briefcase-plus-outline'   },
+  { name: 'matches',    label: 'Matches',  icon: 'heart-outline'            },
+  { name: 'profile',    label: 'Profile',  icon: 'office-building-outline'  },
 ];
 
 function CustomTabBar({ state, descriptors, navigation }: any) {
@@ -77,10 +76,10 @@ export default function CompanyTabLayout() {
       screenOptions={{ headerShown: false }}
       tabBar={props => <CustomTabBar {...props} />}
     >
-      <Tabs.Screen name="index"      options={{ title: 'Home'       }} />
-      <Tabs.Screen name="applicants" options={{ title: 'Applicants' }} />
-      <Tabs.Screen name="matches"    options={{ title: 'Matches'    }} />
-      <Tabs.Screen name="profile"    options={{ title: 'Profile'    }} />
+      <Tabs.Screen name="index"      options={{ title: 'Home'    }} />
+      <Tabs.Screen name="applicants" options={{ title: 'Jobs'    }} />
+      <Tabs.Screen name="matches"    options={{ title: 'Matches' }} />
+      <Tabs.Screen name="profile"    options={{ title: 'Profile' }} />
     </Tabs>
   );
 }

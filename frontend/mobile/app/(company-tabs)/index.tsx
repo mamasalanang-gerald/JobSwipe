@@ -16,6 +16,7 @@ import {
   Platform,
   LayoutChangeEvent,
   Switch,
+  Modal,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
@@ -146,6 +147,18 @@ const APPLICANTS = [
   },
 ] as const;
 
+// ── Report reasons ────────────────────────────────────────────────────────────
+const REPORT_REASONS = [
+  { id: 'fake',        icon: 'account-alert-outline',   label: 'Fake or misleading profile'   },
+  { id: 'spam',        icon: 'email-alert-outline',      label: 'Spam or scam activity'        },
+  { id: 'harassment',  icon: 'hand-back-left-off-outline', label: 'Harassment or threats'      },
+  { id: 'copyright',   icon: 'file-document-alert-outline', label: 'Copyright infringement'   },
+  { id: 'other',       icon: 'dots-horizontal-circle-outline', label: 'Other reason'           },
+] as const;
+
+type ReportReason = typeof REPORT_REASONS[number]['id'];
+type ModalType = 'report' | 'block' | 'report_confirm' | 'block_confirm' | null;
+
 function StarRow({ rating }: { rating: number }) {
   return (
     <View style={{ flexDirection: 'row', gap: 2 }}>
@@ -182,7 +195,6 @@ export default function CompanyHomeTab() {
   const tabBarHeight      = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
 
-  // Buttons sit just above the tab bar; info strip sits above the buttons
   const actionsBottom = tabBarHeight + 20;
   const overlayBottom = actionsBottom + ACTIONS_HEIGHT + 8;
 
@@ -192,8 +204,39 @@ export default function CompanyHomeTab() {
   const [liked, setLiked]           = useState<number[]>([]);
   const [expanded, setExpanded]     = useState(false);
   const [history, setHistory]       = useState<{ id: number; dir: number }[]>([]);
-  // cardSize is updated from the root view layout — reflects true full-screen dims
   const [cardSize, setCardSize]     = useState({ width: SW, height: SH });
+
+  // ── Report / Block modal state ─────────────────────────────────────────────
+  const [modalType, setModalType]           = useState<ModalType>(null);
+  const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
+  const [blockedIds, setBlockedIds]         = useState<number[]>([]);
+
+  const openReport = () => { setSelectedReason(null); setModalType('report'); };
+  const openBlock  = () => setModalType('block');
+
+  const submitReport = () => {
+    if (!selectedReason) return;
+    setModalType('report_confirm');
+  };
+
+  const submitBlock = () => {
+    setBlockedIds(prev => [...prev, filteredApplicants[index].id]);
+    setModalType('block_confirm');
+  };
+
+  const closeModal = () => {
+    setModalType(null);
+    setSelectedReason(null);
+  };
+
+  const afterConfirm = () => {
+    closeModal();
+    // Skip to next card
+    collapsePanel();
+    position.setValue({ x: 0, y: 0 });
+    setPhotoIndex(0);
+    setIndex(i => i + 1);
+  };
 
   // ── Settings ──────────────────────────────────────────────────────────────
   const [settingsOpen, setSettingsOpen]         = useState(false);
@@ -232,7 +275,9 @@ export default function CompanyHomeTab() {
 
   const draftLabel         = draftUseKm ? `${draftDistance} km` : `${(draftDistance * 0.621371).toFixed(0)} mi`;
   const draftFilteredCount = APPLICANTS.filter(a => a.distanceKm <= draftDistance).length;
-  const filteredApplicants = APPLICANTS.filter(a => a.distanceKm <= maxDistanceKm);
+  const filteredApplicants = APPLICANTS.filter(
+    a => a.distanceKm <= maxDistanceKm && !blockedIds.includes(a.id)
+  );
 
   const position       = useRef(new Animated.ValueXY()).current;
   const expandAnim     = useRef(new Animated.Value(0)).current;
@@ -278,7 +323,6 @@ export default function CompanyHomeTab() {
     return () => clearInterval(id);
   }, [index, cardSize.width, timerKey, filteredApplicants.length]);
 
-  // Root view layout gives us the true screen dimensions
   const onRootLayout = (e: LayoutChangeEvent) => {
     const { width, height } = e.nativeEvent.layout;
     if (width > 0 && height > 0) setCardSize({ width, height });
@@ -494,7 +538,7 @@ export default function CompanyHomeTab() {
     <View style={s.screen} onLayout={onRootLayout}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* ── Layer 0: next card (full-screen, behind) ── */}
+      {/* ── Layer 0: next card ── */}
       {nextApplicant ? (
         <Animated.View
           style={[StyleSheet.absoluteFill, { transform: [{ scale: nextCardScale }] }]}
@@ -512,7 +556,7 @@ export default function CompanyHomeTab() {
         <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }]} pointerEvents="none" />
       )}
 
-      {/* ── Layer 1: swipeable card (full-screen) ── */}
+      {/* ── Layer 1: swipeable card ── */}
       <Animated.View
         style={[
           StyleSheet.absoluteFill,
@@ -520,7 +564,6 @@ export default function CompanyHomeTab() {
         ]}
         {...panResponder.panHandlers}
       >
-        {/* Photo scroll */}
         <TouchableOpacity
           activeOpacity={1}
           style={StyleSheet.absoluteFill}
@@ -553,7 +596,6 @@ export default function CompanyHomeTab() {
                 fadeDuration={0}
               />
             ))}
-            {/* Clone first photo for seamless loop */}
             <Image
               source={applicant.photos[0]}
               style={{ width: cardSize.width, height: cardSize.height }}
@@ -563,7 +605,6 @@ export default function CompanyHomeTab() {
           </ScrollView>
         </TouchableOpacity>
 
-        {/* Swipe tint overlays */}
         <Animated.View
           style={[StyleSheet.absoluteFill, { backgroundColor: '#10B981', opacity: likeOverlayOpacity, zIndex: 5 }]}
           pointerEvents="none"
@@ -573,7 +614,6 @@ export default function CompanyHomeTab() {
           pointerEvents="none"
         />
 
-        {/* Swipe stamps */}
         <Animated.View style={[s.stampWrap, { opacity: likeOpacity }]} pointerEvents="none">
           <SwipeLabel type="like" visible />
         </Animated.View>
@@ -581,21 +621,17 @@ export default function CompanyHomeTab() {
           <SwipeLabel type="pass" visible />
         </Animated.View>
 
-        {/* Top gradient scrim — covers ~25% from top */}
         <LinearGradient
           colors={['rgba(15,10,30,1)', 'rgba(15,10,30,0.85)', 'rgba(15,10,30,0.3)', 'transparent']}
           style={[StyleSheet.absoluteFill, { bottom: '75%', zIndex: 3 }]}
           pointerEvents="none"
         />
-
-        {/* Bottom gradient scrim — covers ~30% from bottom */}
         <LinearGradient
           colors={['transparent', 'rgba(15,10,30,0.3)', 'rgba(15,10,30,0.85)', 'rgba(15,10,30,1)']}
           style={[StyleSheet.absoluteFill, { top: '70%', zIndex: 3 }]}
           pointerEvents="none"
         />
 
-        {/* Top bar: filter + lightning + progress dots */}
         <View
           style={[
             s.topBar,
@@ -628,7 +664,6 @@ export default function CompanyHomeTab() {
           </View>
         </View>
 
-        {/* Bottom info strip — sits above buttons */}
         <View style={[s.bottomOverlay, { bottom: overlayBottom }]} pointerEvents="box-none">
           <View style={s.nameRow}>
             <View style={{ flex: 1 }}>
@@ -659,9 +694,8 @@ export default function CompanyHomeTab() {
           <Text style={s.roleText}>{applicant.role}</Text>
         </View>
       </Animated.View>
-      {/* END layer 1 */}
 
-      {/* ── Layer 2: action buttons — overlaid directly on photo ── */}
+      {/* ── Layer 2: action buttons ── */}
       <View style={[s.actionsRow, { bottom: actionsBottom }]}>
         <TouchableOpacity style={s.btnNope} onPress={() => commitSwipe(-1)} activeOpacity={0.8}>
           <MaterialCommunityIcons name="close" size={32} color={Colors.white} />
@@ -761,6 +795,7 @@ export default function CompanyHomeTab() {
             </View>
           ))}
 
+          {/* ── View all reviews (premium) ── */}
           <TouchableOpacity style={s.viewAllRow} activeOpacity={0.85}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
               <MaterialCommunityIcons name="lock-outline" size={16} color={Colors.warning} />
@@ -772,6 +807,32 @@ export default function CompanyHomeTab() {
             </View>
             <MaterialCommunityIcons name="chevron-right" size={18} color="rgba(255,255,255,0.4)" />
           </TouchableOpacity>
+
+          {/* ── Report & Block ───────────────────────────────────────────── */}
+          <View style={s.divider} />
+          <Text style={s.exSectionTitle}>Safety</Text>
+          <View style={s.safetyRow}>
+
+            <TouchableOpacity style={s.safetyBtn} onPress={openReport} activeOpacity={0.8}>
+              <View style={s.safetyIconWrap}>
+                <MaterialCommunityIcons name="flag-outline" size={16} color={Colors.warning} />
+              </View>
+              <Text style={s.safetyBtnText}>Report</Text>
+              <Text style={s.safetyBtnSub}>Flag this profile</Text>
+            </TouchableOpacity>
+
+            <View style={s.safetySep} />
+
+            <TouchableOpacity style={s.safetyBtn} onPress={openBlock} activeOpacity={0.8}>
+              <View style={[s.safetyIconWrap, s.safetyIconDanger]}>
+                <MaterialCommunityIcons name="account-cancel-outline" size={16} color="#f87171" />
+              </View>
+              <Text style={[s.safetyBtnText, { color: '#f87171' }]}>Block</Text>
+              <Text style={s.safetyBtnSub}>Hide this user</Text>
+            </TouchableOpacity>
+
+          </View>
+
         </ScrollView>
       </Animated.View>
 
@@ -796,18 +857,158 @@ export default function CompanyHomeTab() {
         </TouchableOpacity>
         <SettingsPanelContent />
       </Animated.View>
+
+      {/* ── Report Modal ─────────────────────────────────────────────────── */}
+      <Modal visible={modalType === 'report'} transparent animationType="fade" onRequestClose={closeModal}>
+        <View style={m.backdrop}>
+          <View style={m.sheet}>
+            <View style={m.sheetHandle} />
+
+            <View style={m.sheetHeader}>
+              <View style={[m.sheetIconWrap, { backgroundColor: 'rgba(245,158,11,0.12)' }]}>
+                <MaterialCommunityIcons name="flag-outline" size={22} color={Colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={m.sheetTitle}>Report Profile</Text>
+                <Text style={m.sheetSub}>Select a reason for reporting {applicant.name}</Text>
+              </View>
+              <TouchableOpacity onPress={closeModal} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <MaterialCommunityIcons name="close" size={20} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={m.reasonList}>
+              {REPORT_REASONS.map(reason => {
+                const active = selectedReason === reason.id;
+                return (
+                  <TouchableOpacity
+                    key={reason.id}
+                    style={[m.reasonRow, active && m.reasonRowActive]}
+                    onPress={() => setSelectedReason(reason.id as ReportReason)}
+                    activeOpacity={0.8}
+                  >
+                    <MaterialCommunityIcons
+                      name={reason.icon as any}
+                      size={18}
+                      color={active ? Colors.warning : 'rgba(255,255,255,0.5)'}
+                    />
+                    <Text style={[m.reasonText, active && m.reasonTextActive]}>
+                      {reason.label}
+                    </Text>
+                    <View style={[m.radioOuter, active && m.radioOuterActive]}>
+                      {active && <View style={m.radioInner} />}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <TouchableOpacity
+              style={[m.confirmBtn, !selectedReason && m.confirmBtnDisabled]}
+              onPress={submitReport}
+              activeOpacity={0.85}
+              disabled={!selectedReason}
+            >
+              <MaterialCommunityIcons name="flag" size={15} color="#000" />
+              <Text style={m.confirmBtnText}>Submit Report</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={m.cancelBtn} onPress={closeModal} activeOpacity={0.7}>
+              <Text style={m.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Report Confirm Modal ─────────────────────────────────────────── */}
+      <Modal visible={modalType === 'report_confirm'} transparent animationType="fade" onRequestClose={closeModal}>
+        <View style={m.backdrop}>
+          <View style={[m.sheet, { alignItems: 'center', paddingVertical: 32 }]}>
+            <View style={[m.sheetIconWrap, { backgroundColor: 'rgba(245,158,11,0.12)', width: 64, height: 64, borderRadius: 32, marginBottom: 16 }]}>
+              <MaterialCommunityIcons name="check-circle-outline" size={32} color={Colors.warning} />
+            </View>
+            <Text style={[m.sheetTitle, { textAlign: 'center', marginBottom: 8 }]}>Report Submitted</Text>
+            <Text style={[m.sheetSub, { textAlign: 'center', marginBottom: 28, paddingHorizontal: 16 }]}>
+              Thank you for keeping JobSwipe safe. We'll review {applicant.name}'s profile within 24 hours.
+            </Text>
+            <TouchableOpacity style={[m.confirmBtn, { width: '100%' }]} onPress={afterConfirm} activeOpacity={0.85}>
+              <Text style={m.confirmBtnText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Block Modal ──────────────────────────────────────────────────── */}
+      <Modal visible={modalType === 'block'} transparent animationType="fade" onRequestClose={closeModal}>
+        <View style={m.backdrop}>
+          <View style={m.sheet}>
+            <View style={m.sheetHandle} />
+
+            <View style={m.sheetHeader}>
+              <View style={[m.sheetIconWrap, { backgroundColor: 'rgba(248,113,113,0.12)' }]}>
+                <MaterialCommunityIcons name="account-cancel-outline" size={22} color="#f87171" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={m.sheetTitle}>Block User</Text>
+                <Text style={m.sheetSub}>Block {applicant.name}?</Text>
+              </View>
+              <TouchableOpacity onPress={closeModal} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+                <MaterialCommunityIcons name="close" size={20} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            </View>
+
+            {/* What blocking does */}
+            <View style={m.blockInfoCard}>
+              {[
+                { icon: 'eye-off-outline',            text: 'They will no longer appear in your swipe deck' },
+                { icon: 'message-off-outline',        text: 'Any existing messages will be hidden'          },
+                { icon: 'account-off-outline',        text: 'They won\'t be able to see your company profile' },
+              ].map((item, i) => (
+                <View key={i} style={m.blockInfoRow}>
+                  <MaterialCommunityIcons name={item.icon as any} size={15} color="#f87171" />
+                  <Text style={m.blockInfoText}>{item.text}</Text>
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity style={[m.confirmBtn, m.confirmBtnDanger]} onPress={submitBlock} activeOpacity={0.85}>
+              <MaterialCommunityIcons name="account-cancel" size={15} color="#fff" />
+              <Text style={[m.confirmBtnText, { color: '#fff' }]}>Yes, Block User</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={m.cancelBtn} onPress={closeModal} activeOpacity={0.7}>
+              <Text style={m.cancelBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Block Confirm Modal ──────────────────────────────────────────── */}
+      <Modal visible={modalType === 'block_confirm'} transparent animationType="fade" onRequestClose={closeModal}>
+        <View style={m.backdrop}>
+          <View style={[m.sheet, { alignItems: 'center', paddingVertical: 32 }]}>
+            <View style={[m.sheetIconWrap, { backgroundColor: 'rgba(248,113,113,0.12)', width: 64, height: 64, borderRadius: 32, marginBottom: 16 }]}>
+              <MaterialCommunityIcons name="account-cancel" size={32} color="#f87171" />
+            </View>
+            <Text style={[m.sheetTitle, { textAlign: 'center', marginBottom: 8 }]}>User Blocked</Text>
+            <Text style={[m.sheetSub, { textAlign: 'center', marginBottom: 28, paddingHorizontal: 16 }]}>
+              {applicant.name} has been blocked and will no longer appear in your deck.
+            </Text>
+            <TouchableOpacity style={[m.confirmBtn, m.confirmBtnDanger, { width: '100%' }]} onPress={afterConfirm} activeOpacity={0.85}>
+              <Text style={[m.confirmBtnText, { color: '#fff' }]}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
     </View>
   );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  // Root — pure black, flex 1, NO border radius anywhere
   screen: { flex: 1, backgroundColor: '#000' },
-
   stampWrap: { position: 'absolute', top: 90, zIndex: 20, alignSelf: 'center' },
-
-  // Top bar
   topBar: {
     position: 'absolute', top: 0, left: 0, right: 0,
     paddingHorizontal: Spacing['4'], zIndex: 10,
@@ -825,14 +1026,12 @@ const s = StyleSheet.create({
   dotsRow: { flexDirection: 'row', gap: 5, paddingHorizontal: Spacing['1'] },
   dot:     { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', overflow: 'hidden' },
   dotFill: { height: '100%', borderRadius: 2, backgroundColor: Colors.white },
-
-  // Bottom info strip
   bottomOverlay: {
     position: 'absolute', left: 0, right: 0,
     paddingHorizontal: Spacing['5'], zIndex: 10,
   },
-  nameRow:     { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 4 },
-  nameRowInner:{ flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nameRow:      { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 4 },
+  nameRowInner: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   nameText: {
     fontSize: 34, fontWeight: Typography.bold, color: Colors.white, letterSpacing: -0.5,
     textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 10,
@@ -842,7 +1041,7 @@ const s = StyleSheet.create({
     marginTop: 3,
     textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
   },
-  distanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
+  distanceRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 5 },
   distanceText: {
     fontSize: Typography.sm, color: 'rgba(255,255,255,0.7)',
     textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
@@ -852,7 +1051,7 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.18)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)',
     alignItems: 'center', justifyContent: 'center', marginBottom: 4,
   },
-  applyingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Spacing['3'], marginBottom: 3 },
+  applyingRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: Spacing['3'], marginBottom: 3 },
   applyingLabel: {
     fontSize: Typography.base, color: 'rgba(255,255,255,0.9)', fontWeight: Typography.medium,
     textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 6,
@@ -861,8 +1060,6 @@ const s = StyleSheet.create({
     fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.white,
     textShadowColor: 'rgba(0,0,0,0.85)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8,
   },
-
-  // Action buttons
   actionsRow: {
     position: 'absolute', left: 0, right: 0, zIndex: 40,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing['5'],
@@ -876,8 +1073,6 @@ const s = StyleSheet.create({
     width: 70, height: 70, backgroundColor: Colors.success, borderRadius: Radii.full,
     ...Shadows.colored(Colors.success),
   },
-
-  // Expand panel
   expandPanel: {
     position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 60,
     backgroundColor: 'rgba(10,10,14,0.97)',
@@ -895,7 +1090,6 @@ const s = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   expandContent: { paddingHorizontal: Spacing['5'], paddingTop: Spacing['3'] },
-
   exName:        { fontSize: Typography['2xl'], fontWeight: Typography.bold, color: Colors.white, marginBottom: 4 },
   exRole:        { fontSize: Typography.lg, fontWeight: Typography.semibold, color: '#818CF8', marginBottom: Spacing['2'] },
   exRow:         { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: Spacing['2'] },
@@ -903,9 +1097,7 @@ const s = StyleSheet.create({
   exTags:        { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing['2'], marginTop: Spacing['1'], marginBottom: Spacing['3'] },
   exSectionTitle:{ fontSize: Typography.sm, fontWeight: Typography.semibold, color: 'rgba(255,255,255,0.4)', marginBottom: Spacing['2'], textTransform: 'uppercase', letterSpacing: 1 },
   exDesc:        { fontSize: Typography.md, color: 'rgba(255,255,255,0.78)', lineHeight: Typography.md * 1.65, marginBottom: Spacing['2'] },
-
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: Spacing['3'] },
-
+  divider:       { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: Spacing['3'] },
   skillHeader:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing['2'] },
   skillIcon:     { width: 20, height: 20, borderRadius: 6, backgroundColor: 'rgba(129,140,248,0.15)', alignItems: 'center', justifyContent: 'center' },
   skillIconSoft: { backgroundColor: 'rgba(52,211,153,0.15)' },
@@ -913,14 +1105,12 @@ const s = StyleSheet.create({
   skillChip:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 10, paddingVertical: 5, borderRadius: Radii.full, borderWidth: 1 },
   skillChipHard: { backgroundColor: 'rgba(129,140,248,0.10)', borderColor: 'rgba(129,140,248,0.30)' },
   skillChipSoft: { backgroundColor: 'rgba(52,211,153,0.10)',  borderColor: 'rgba(52,211,153,0.30)' },
-  skillChipText: { fontSize: Typography.sm, fontWeight: Typography.medium },
+  skillChipText:     { fontSize: Typography.sm, fontWeight: Typography.medium },
   skillChipTextHard: { color: '#A5B4FC' },
   skillChipTextSoft: { color: '#6EE7B7' },
-
   ratingRow:   { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing['2'] },
   ratingScore: { fontSize: Typography['2xl'], fontWeight: Typography.bold, color: Colors.white },
   ratingLabel: { fontSize: Typography.sm, color: 'rgba(255,255,255,0.5)', marginTop: 3 },
-
   reviewCard:       { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: Radii.lg, padding: Spacing['4'], marginBottom: Spacing['3'], borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)' },
   reviewHeader:     { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing['3'], marginBottom: Spacing['3'] },
   reviewAvatar:     { width: 40, height: 40, borderRadius: Radii.full, alignItems: 'center', justifyContent: 'center' },
@@ -929,11 +1119,29 @@ const s = StyleSheet.create({
   reviewRoleTxt:    { fontSize: Typography.sm, color: 'rgba(255,255,255,0.5)' },
   reviewDate:       { fontSize: 11, color: 'rgba(255,255,255,0.4)' },
   reviewText:       { fontSize: Typography.sm, color: 'rgba(255,255,255,0.7)', lineHeight: Typography.sm * 1.6 },
-
   viewAllRow:       { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.04)', borderRadius: Radii.lg, borderWidth: 1, borderColor: 'rgba(245,158,11,0.35)', paddingVertical: 14, paddingHorizontal: Spacing['4'], marginBottom: Spacing['2'] },
   viewAllText:      { fontSize: Typography.md, color: Colors.white, fontWeight: Typography.medium },
   premiumBadge:     { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: Colors.warning, borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 4 },
   premiumBadgeText: { fontSize: Typography.sm, fontWeight: Typography.bold, color: '#000' },
+
+  // ── Safety / Report & Block ───────────────────────────────────────────────
+  safetyRow: {
+    flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: Radii.lg, borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden', marginBottom: Spacing['2'],
+  },
+  safetyBtn: {
+    flex: 1, alignItems: 'center', paddingVertical: 16, gap: 4,
+  },
+  safetyIconWrap: {
+    width: 36, height: 36, borderRadius: 12,
+    backgroundColor: 'rgba(245,158,11,0.10)',
+    alignItems: 'center', justifyContent: 'center', marginBottom: 2,
+  },
+  safetyIconDanger: { backgroundColor: 'rgba(248,113,113,0.10)' },
+  safetyBtnText:    { fontSize: 13, fontWeight: '700', color: Colors.warning },
+  safetyBtnSub:     { fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: '500' },
+  safetySep:        { width: 1, backgroundColor: 'rgba(255,255,255,0.08)', marginVertical: 12 },
 
   // Empty states
   emptyScreen:    { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.background, padding: Spacing['8'] },
@@ -944,17 +1152,16 @@ const s = StyleSheet.create({
   refreshBtnText: { fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.white },
 
   // Settings panel
-  settingsBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 65, backgroundColor: 'rgba(0,0,0,0.5)' },
-  settingsPanel:    { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 70, backgroundColor: 'rgba(10,10,14,0.98)', borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: 'hidden' },
-  settingsContent:  { paddingHorizontal: Spacing['5'], paddingTop: Spacing['2'] },
-  settingsTitle:    { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.white, marginBottom: Spacing['5'], marginTop: Spacing['2'] },
-  settingsSection:  { marginBottom: Spacing['4'] },
-  settingsLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing['3'] },
-  settingsLabel:    { flex: 1, fontSize: Typography.md, color: 'rgba(255,255,255,0.75)', fontWeight: Typography.medium },
-  settingsValue:    { fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.primary },
-  settingsResultRow:{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing['1'] },
+  settingsBackdrop:  { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 65, backgroundColor: 'rgba(0,0,0,0.5)' },
+  settingsPanel:     { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 70, backgroundColor: 'rgba(10,10,14,0.98)', borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: 'hidden' },
+  settingsContent:   { paddingHorizontal: Spacing['5'], paddingTop: Spacing['2'] },
+  settingsTitle:     { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.white, marginBottom: Spacing['5'], marginTop: Spacing['2'] },
+  settingsSection:   { marginBottom: Spacing['4'] },
+  settingsLabelRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing['3'] },
+  settingsLabel:     { flex: 1, fontSize: Typography.md, color: 'rgba(255,255,255,0.75)', fontWeight: Typography.medium },
+  settingsValue:     { fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.primary },
+  settingsResultRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing['1'] },
   settingsResultText:{ fontSize: Typography.sm, color: 'rgba(255,255,255,0.5)' },
-
   sliderWrapper: { height: 32, justifyContent: 'center', position: 'relative', marginBottom: 16 },
   sliderTrack:   { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'visible' },
   sliderFill:    { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: Colors.primary, borderRadius: 2 },
@@ -962,11 +1169,80 @@ const s = StyleSheet.create({
   sliderLabels:  { flexDirection: 'row', justifyContent: 'space-between' },
   sliderMin:     { fontSize: Typography.sm, color: 'rgba(255,255,255,0.35)' },
   sliderMax:     { fontSize: Typography.sm, color: 'rgba(255,255,255,0.35)' },
-
   unitToggleRow:   { flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] },
   unitLabel:       { fontSize: Typography.md, color: 'rgba(255,255,255,0.35)', fontWeight: Typography.medium },
   unitLabelActive: { color: Colors.white },
-
   applyBtn:     { marginTop: Spacing['4'], backgroundColor: Colors.primary, borderRadius: Radii.lg, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   applyBtnText: { fontSize: Typography.md, fontWeight: Typography.bold, color: Colors.white, letterSpacing: 0.3 },
+});
+
+// ── Modal styles ──────────────────────────────────────────────────────────────
+const m = StyleSheet.create({
+  backdrop: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    backgroundColor: '#13101f',
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 32,
+    borderWidth: 1, borderColor: 'rgba(255,255,255,0.08)',
+  },
+  sheetHandle: {
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center', marginBottom: 20,
+  },
+  sheetHeader: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20,
+  },
+  sheetIconWrap: {
+    width: 44, height: 44, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  sheetTitle: { fontSize: 17, fontWeight: '800', color: '#fff' },
+  sheetSub:   { fontSize: 12, color: 'rgba(255,255,255,0.45)', marginTop: 2 },
+
+  // Reason list
+  reasonList: { gap: 8, marginBottom: 20 },
+  reasonRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)',
+    paddingHorizontal: 14, paddingVertical: 13,
+  },
+  reasonRowActive: {
+    backgroundColor: 'rgba(245,158,11,0.08)',
+    borderColor: 'rgba(245,158,11,0.35)',
+  },
+  reasonText:       { flex: 1, fontSize: 14, color: 'rgba(255,255,255,0.6)', fontWeight: '500' },
+  reasonTextActive: { color: '#fff', fontWeight: '600' },
+  radioOuter: {
+    width: 18, height: 18, borderRadius: 9,
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  radioOuterActive: { borderColor: Colors.warning },
+  radioInner:       { width: 8, height: 8, borderRadius: 4, backgroundColor: Colors.warning },
+
+  // Block info
+  blockInfoCard: {
+    backgroundColor: 'rgba(248,113,113,0.06)',
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(248,113,113,0.18)',
+    padding: 14, gap: 10, marginBottom: 20,
+  },
+  blockInfoRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  blockInfoText: { flex: 1, fontSize: 13, color: 'rgba(255,255,255,0.6)', lineHeight: 19 },
+
+  // Buttons
+  confirmBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 7, backgroundColor: Colors.warning,
+    borderRadius: 14, paddingVertical: 14, marginBottom: 10,
+  },
+  confirmBtnDisabled: { opacity: 0.4 },
+  confirmBtnDanger:   { backgroundColor: '#ef4444' },
+  confirmBtnText:     { fontSize: 15, fontWeight: '800', color: '#000' },
+  cancelBtn:          { alignItems: 'center', paddingVertical: 10 },
+  cancelBtnText:      { fontSize: 14, color: 'rgba(255,255,255,0.4)', fontWeight: '500' },
 });
