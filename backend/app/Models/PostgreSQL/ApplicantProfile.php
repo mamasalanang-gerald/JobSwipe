@@ -35,6 +35,11 @@ class ApplicantProfile extends Model
         return $this->hasMany(Application::class, 'applicant_id');
     }
 
+    public function matches(): HasMany
+    {
+        return $this->hasMany(MatchRecord::class, 'applicant_id');
+    }
+
     public function pointEvents(): HasMany
     {
         return $this->hasMany(PointEvent::class, 'applicant_id');

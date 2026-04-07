@@ -456,9 +456,9 @@ class AppleWebhookVerifierService
     {
         $wrapped = chunk_split($certificateDerBase64, 64, PHP_EOL);
 
-        return "-----BEGIN CERTIFICATE-----".PHP_EOL
+        return '-----BEGIN CERTIFICATE-----'.PHP_EOL
             .$wrapped
-            ."-----END CERTIFICATE-----".PHP_EOL;
+            .'-----END CERTIFICATE-----'.PHP_EOL;
     }
 
     /**
