@@ -12,6 +12,11 @@ class ApplicationRepository
         return Application::find($id);
     }
 
+    public function findByIdOrFail(string $id): Application
+    {
+        return Application::findOrFail($id);
+    }
+
     public function create(string $applicantId, string $jobPostingId): Application
     {
         return Application::create([

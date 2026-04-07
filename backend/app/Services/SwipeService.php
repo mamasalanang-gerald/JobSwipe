@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Jobs\SendMatchNotification;
 use App\Models\PostgreSQL\ApplicantProfile;
+use App\Models\PostgreSQL\Application;
 use App\Repositories\MongoDB\SwipeHistoryRepository;
 use App\Repositories\PostgreSQL\ApplicationRepository;
 use App\Repositories\Redis\SwipeCacheRepository;
@@ -15,6 +15,7 @@ class SwipeService
         private SwipeCacheRepository $cache,
         private SwipeHistoryRepository $swipeHistory,
         private ApplicationRepository $applications,
+        private MatchService $matchService,
     ) {}
 
     // ── Applicant swipes right on a job ────────────────────────────────────
@@ -142,13 +143,17 @@ class SwipeService
         ]);
 
         try {
-            DB::transaction(function () use ($applicantId, $jobId, $message) {
-                $updated = $this->applications->markInvited($applicantId, $jobId, $message);
+            $application = Application::where('applicant_id', $applicantId)
+                ->where('job_posting_id', $jobId)
+                ->firstOrFail();
 
-                if ($updated < 1) {
-                    throw new \RuntimeException('APPLICATION_NOT_FOUND');
-                }
-            });
+            $this->matchService->createMatch(
+                applicationId: $application->id,
+                applicantId: $applicantId,
+                jobId: $jobId,
+                hrUserId: $hrUserId,
+                initialMessage: $message,
+            );
         } catch (\RuntimeException $e) {
             if ($swipeDoc && $swipeDoc->_id) {
                 $this->swipeHistory->deleteById($swipeDoc->_id);
@@ -170,10 +175,7 @@ class SwipeService
         // 3. Update Redis cache
         $this->cache->markApplicantSeenByHr($hrUserId, $jobId, $applicantId);
 
-        // Dispatch match notification job
-        SendMatchNotification::dispatch($applicantId, $jobId)->onQueue('notifications');
-
-        return ['status' => 'invited'];
+        return ['status' => 'matched'];
     }
 
     // ── HR swipes left on an applicant ─────────────────────────────────────

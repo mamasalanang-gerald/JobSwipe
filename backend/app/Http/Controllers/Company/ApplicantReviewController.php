@@ -78,6 +78,7 @@ class ApplicantReviewController extends Controller
         );
 
         return match ($result['status']) {
+            'matched' => $this->success(message: 'Match created. Applicant can now respond within 24 hours.'),
             'invited' => $this->success(message: 'Interview invitation sent'),
             'already_swiped' => $this->error('ALREADY_SWIPED', 'Already swiped on this applicant', 409),
             'application_not_found' => $this->error('APPLICATION_NOT_FOUND', 'Applicant has no active application for this job', 404),
