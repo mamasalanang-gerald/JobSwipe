@@ -24,11 +24,14 @@ class SwipePack extends Model
         'currency',
         'payment_provider',
         'provider_payment_id',
+        'refunded_at',
+        'refund_reference',
     ];
 
     protected $casts = [
         'amount_paid' => 'decimal:2',
         'created_at' => 'datetime',
+        'refunded_at' => 'datetime',
     ];
 
     public function applicant(): BelongsTo

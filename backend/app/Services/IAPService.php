@@ -698,6 +698,7 @@ class IAPService
 
         if ($transactionId) {
             $this->subscriptionManager->refund($transactionId);
+            $this->swipePackManager->refund($transactionId, $transactionId);
         }
     }
 
@@ -723,6 +724,10 @@ class IAPService
         if ($subscription) {
             $this->subscriptionManager->refundSubscription($subscription, $subscriptionToken);
         }
+
+        // Some Google refund payloads identify purchases by token only.
+        // If the token maps to a swipe-pack payment reference, refund it as well.
+        $this->swipePackManager->refund($subscriptionToken, $subscriptionToken);
     }
 
     /**
