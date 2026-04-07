@@ -32,25 +32,6 @@ Route::get('/health', function (Request $request) {
 
 Route::middleware('throttle:api-tiered')->group(function () {
 
-    // Clear cache endpoint (for free tier without shell access)
-    Route::get('/clear-cache', function () {
-        try {
-            Artisan::call('route:clear');
-            Artisan::call('config:clear');
-            Artisan::call('cache:clear');
-
-            return response()->json([
-                'status' => 'success',
-                'message' => 'Cache cleared. Routes should be available now.',
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'status' => 'error',
-                'message' => $e->getMessage(),
-            ], 500);
-        }
-    });
-
     Route::prefix('v1')->group(function () {
         Route::post('auth/register', [AuthController::class, 'register']);
         Route::post('auth/login', [AuthController::class, 'login']);
