@@ -19,7 +19,7 @@ class MatchMessage extends Model
     public $timestamps = false;
 
     protected $fillable = [
-        'match_id', 'sender_id', 'body', 'read_at', 'created_at',
+        'match_id', 'sender_id', 'client_message_id', 'body', 'read_at', 'created_at',
     ];
 
     protected $casts = [

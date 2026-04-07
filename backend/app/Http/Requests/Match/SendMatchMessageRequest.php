@@ -15,6 +15,7 @@ class SendMatchMessageRequest extends FormRequest
     {
         return [
             'body' => ['required', 'string', 'max:2000'],
+            'client_message_id' => ['nullable', 'uuid'],
         ];
     }
 
@@ -23,6 +24,7 @@ class SendMatchMessageRequest extends FormRequest
         return [
             'body.required' => 'Message body is required.',
             'body.max' => 'Message body cannot exceed 2000 characters.',
+            'client_message_id.uuid' => 'Client message ID must be a valid UUID.',
         ];
     }
 }

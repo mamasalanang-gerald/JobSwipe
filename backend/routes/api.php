@@ -162,9 +162,9 @@ Route::middleware('throttle:api-tiered')->group(function () {
             // ── Match Messages (shared by both applicant and HR) ──────────────
             Route::prefix('matches/{matchId}/messages')->group(function () {
                 Route::get('/', [MatchMessageController::class, 'index']);
-                Route::post('/', [MatchMessageController::class, 'store']);
-                Route::post('typing', [MatchMessageController::class, 'typing']);
-                Route::patch('read', [MatchMessageController::class, 'markAsRead']);
+                Route::post('/', [MatchMessageController::class, 'store'])->middleware('throttle:match-messages-send');
+                Route::post('typing', [MatchMessageController::class, 'typing'])->middleware('throttle:match-messages-typing');
+                Route::patch('read', [MatchMessageController::class, 'markAsRead'])->middleware('throttle:match-messages-read');
             });
         });
     });

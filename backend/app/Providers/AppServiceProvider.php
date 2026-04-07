@@ -9,6 +9,8 @@ use App\Repositories\PostgreSQL\ApplicantProfileRepository;
 use App\Repositories\PostgreSQL\ApplicationRepository;
 use App\Repositories\PostgreSQL\CompanyProfileRepository;
 use App\Repositories\PostgreSQL\JobPostingRepository;
+use App\Repositories\PostgreSQL\MatchMessageRepository;
+use App\Repositories\PostgreSQL\MatchRepository;
 use App\Repositories\PostgreSQL\NotificationRepository;
 use App\Repositories\PostgreSQL\PointEventRepository;
 use App\Repositories\PostgreSQL\UserRepository;
@@ -17,6 +19,7 @@ use App\Repositories\Redis\SwipeCacheRepository;
 use App\Services\AuthService;
 use App\Services\DeckService;
 use App\Services\FileUploadService;
+use App\Services\MatchService;
 use App\Services\NotificationService;
 use App\Services\OTPService;
 use App\Services\PasswordResetService;
@@ -77,6 +80,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(NotificationRepository::class);
         $this->app->singleton(ApplicantProfileDocumentRepository::class);
         $this->app->singleton(CompanyProfileDocumentRepository::class);
+        $this->app->singleton(MatchRepository::class);
+        $this->app->singleton(MatchMessageRepository::class);
 
         // -----------------------------------------------------------------
         // Services
@@ -89,6 +94,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PointService::class);
         $this->app->singleton(NotificationService::class);
         // $this->app->singleton(InvitationService::class);
+        $this->app->singleton(MatchService::class);
 
         $this->app->singleton(OTPService::class);
         $this->app->singleton(PasswordResetService::class);

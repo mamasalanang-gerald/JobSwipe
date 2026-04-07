@@ -9,14 +9,19 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Match\SendMatchMessageRequest;
 use App\Repositories\PostgreSQL\MatchMessageRepository;
 use App\Repositories\PostgreSQL\MatchRepository;
+use App\Services\MatchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
+use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class MatchMessageController extends Controller
 {
     public function __construct(
         private MatchRepository $matches,
         private MatchMessageRepository $messages,
+        private MatchService $matchService,
     ) {}
 
     /**
@@ -47,29 +52,43 @@ class MatchMessageController extends Controller
     public function store(SendMatchMessageRequest $request, string $matchId): JsonResponse
     {
         $user = $request->user();
-        $match = $this->matches->findByIdOrFail($matchId);
+        $payload = $request->validated();
 
-        $this->assertParticipant($match, $user->id);
-
-        // Only accepted (not closed) matches allow new messages
-        if (! $match->isChatActive()) {
-            return $this->error(
-                'CHAT_NOT_ACTIVE',
-                'This match chat is not active. It may be pending, closed, or expired.',
-                422,
+        try {
+            $result = $this->matchService->sendMessage(
+                matchId: $matchId,
+                senderId: $user->id,
+                body: $payload['body'],
+                clientMessageId: $payload['client_message_id'] ?? null,
             );
+        } catch (AccessDeniedHttpException) {
+            return $this->error('NOT_MATCH_PARTICIPANT', 'You are not a participant in this match.', 403);
+        } catch (ConflictHttpException $e) {
+            if ($e->getMessage() === 'Match response deadline has passed.') {
+                return $this->error('MATCH_RESPONSE_DEADLINE_PASSED', $e->getMessage(), 409);
+            }
+
+            return $this->error('MATCH_NO_LONGER_PENDING', $e->getMessage(), 409);
+        } catch (UnprocessableEntityHttpException $e) {
+            return $this->error('CHAT_NOT_ACTIVE', $e->getMessage(), 422);
         }
 
-        $message = $this->messages->create(
-            matchId: $matchId,
-            senderId: $user->id,
-            body: $request->validated('body'),
+        $message = $result['message'];
+
+        // Broadcast to WebSocket channel via Reverb only for newly created messages.
+        if ($message->wasRecentlyCreated) {
+            broadcast(new MatchMessageSent($message))->toOthers();
+        }
+
+        return $this->success(
+            $message,
+            'Message sent.',
+            $message->wasRecentlyCreated ? 201 : 200,
+            [
+                'match_status' => $result['match']->status,
+                'accepted_now' => $result['accepted_now'],
+            ],
         );
-
-        // Broadcast to WebSocket channel via Reverb
-        broadcast(new MatchMessageSent($message))->toOthers();
-
-        return $this->success($message, 'Message sent.', 201);
     }
 
     /**
