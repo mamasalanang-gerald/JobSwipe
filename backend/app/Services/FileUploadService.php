@@ -96,6 +96,39 @@ class FileUploadService
         return true;
     }
 
+    public function generatePresignedReadUrl(string $fileUrl): array
+    {
+        $this->validateFileUrl($fileUrl);
+
+        $bucket = (string) config('filesystems.disks.r2.bucket');
+
+        if ($bucket === '') {
+            throw new FileUploadException('R2_NOT_CONFIGURED', 'R2 bucket is not configured.', 500);
+        }
+
+        $fileKey = $this->extractFileKeyFromUrl($fileUrl);
+
+        if ($fileKey === '') {
+            throw new FileUploadException('INVALID_FILE_URL', 'The provided file URL has no valid file key.');
+        }
+
+        $command = $this->client()->getCommand('GetObject', [
+            'Bucket' => $bucket,
+            'Key' => $fileKey,
+        ]);
+
+        $request = $this->client()->createPresignedRequest(
+            $command,
+            '+'.self::PRESIGNED_EXPIRATION_SECONDS.' seconds'
+        );
+
+        return [
+            'read_url' => (string) $request->getUri(),
+            'file_key' => $fileKey,
+            'expires_in' => self::PRESIGNED_EXPIRATION_SECONDS,
+        ];
+    }
+
     private function validateFileType(string $extension, string $mimeType, string $uploadType): void
     {
         if ($uploadType === 'image') {
@@ -151,6 +184,27 @@ class FileUploadService
         $bucket = (string) config('filesystems.disks.r2.bucket');
 
         return $endpoint.'/'.$bucket.'/'.$fileKey;
+    }
+
+    private function extractFileKeyFromUrl(string $fileUrl): string
+    {
+        $path = ltrim((string) parse_url($fileUrl, PHP_URL_PATH), '/');
+
+        if ($path === '') {
+            return '';
+        }
+
+        $bucket = trim((string) config('filesystems.disks.r2.bucket'));
+
+        if ($bucket !== '' && str_starts_with($path, $bucket.'/')) {
+            return substr($path, strlen($bucket) + 1);
+        }
+
+        if ($path === $bucket) {
+            return '';
+        }
+
+        return $path;
     }
 
     private function client(): S3Client

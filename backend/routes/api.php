@@ -53,6 +53,7 @@ Route::middleware('throttle:api-tiered')->group(function () {
 
             Route::prefix('files')->group(function () {
                 Route::post('upload-url', [FileUploadController::class, 'generateUploadUrl']);
+                Route::post('read-url', [FileUploadController::class, 'generateReadUrl']);
                 Route::post('confirm-upload', [FileUploadController::class, 'confirmUpload']);
             });
 

@@ -42,6 +42,51 @@ class ProfileControllerCompanyTest extends TestCase
         $this->assertSame(70, $payload['data']['profile_completion_percentage']);
     }
 
+    public function test_get_company_profile_signs_logo_and_office_images(): void
+    {
+        /** @var ProfileService&MockObject $profileService */
+        $profileService = $this->createMock(ProfileService::class);
+        /** @var FileUploadService&MockObject $fileUploadService */
+        $fileUploadService = $this->createMock(FileUploadService::class);
+
+        $profileService->expects($this->once())
+            ->method('getCompanyProfile')
+            ->willReturn([
+                'profile' => [
+                    'logo_url' => 'https://cdn.jobswipe.test/company/logo.png',
+                    'office_images' => [
+                        'https://cdn.jobswipe.test/company/office-1.jpg',
+                        'https://cdn.jobswipe.test/company/office-2.jpg',
+                    ],
+                ],
+                'profile_completion_percentage' => 70,
+                'subscription_status' => 'active',
+                'subscription_tier' => 'basic',
+            ]);
+
+        $fileUploadService->expects($this->exactly(3))
+            ->method('generatePresignedReadUrl')
+            ->willReturnOnConsecutiveCalls(
+                ['read_url' => 'https://signed.example.test/logo'],
+                ['read_url' => 'https://signed.example.test/office-1'],
+                ['read_url' => 'https://signed.example.test/office-2'],
+            );
+
+        $controller = new ProfileController($profileService, $fileUploadService);
+
+        $request = Request::create('/api/v1/profile/company', 'GET');
+        $request->setUserResolver(static fn () => (object) ['id' => 'u1', 'role' => 'company_admin']);
+
+        $response = $controller->getCompanyProfile($request);
+        $payload = json_decode($response->getContent(), true);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($payload['success']);
+        $this->assertSame('https://signed.example.test/logo', $payload['data']['profile']['logo_url']);
+        $this->assertSame('https://signed.example.test/office-1', $payload['data']['profile']['office_images'][0]);
+        $this->assertSame('https://signed.example.test/office-2', $payload['data']['profile']['office_images'][1]);
+    }
+
     public function test_submit_verification_documents_returns_success(): void
     {
         /** @var ProfileService&MockObject $profileService */
