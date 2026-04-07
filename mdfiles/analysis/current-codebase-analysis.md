@@ -26,6 +26,16 @@ The following items are called out here so they are not mistaken for current tru
 - `PointService` and `PasswordResetService` are registered in `AppServiceProvider`, so older singleton-registration warnings are stale.
 - `SwipeCacheRepository` now uses `config('app.timezone')`, so the old hardcoded timezone warning is stale.
 
+### Implementation Update (April 7, 2026)
+
+The following fixes were implemented after this analysis snapshot and should be treated as current behavior:
+- Swipe limit enforcement is now authoritative in `SwipeService` with row-level locking and atomic consume logic; middleware pre-check is advisory only.
+- Job posting creation now re-validates `subscription_status` after `lockForUpdate()` before creating a posting.
+- Company subscription cancellation now attempts remote Stripe cancellation before local status updates.
+- Stripe webhook processing now tracks state (`pending/processing/completed/failed`) with attempts, timestamps, and persisted payload for retries.
+- A retry job (`RetryStripeWebhookEventsJob`) is scheduled to reprocess failed/stale Stripe webhook events.
+- Swipe-pack refunds now support tracking fields (`refunded_at`, `refund_reference`) and are invoked from IAP refund handlers.
+
 ---
 
 ## Part 1: Critical Edge Cases in Current Implementation

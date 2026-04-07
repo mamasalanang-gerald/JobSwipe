@@ -7,6 +7,7 @@ use App\Models\PostgreSQL\Application;
 use App\Repositories\MongoDB\SwipeHistoryRepository;
 use App\Repositories\PostgreSQL\ApplicationRepository;
 use App\Repositories\Redis\SwipeCacheRepository;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 class SwipeService
@@ -24,12 +25,7 @@ class SwipeService
     {
         $applicant = ApplicantProfile::where('user_id', $userId)->firstOrFail();
 
-        // 1. Enforce daily swipe limit
-        if (! $this->hasSwipesRemaining($applicant)) {
-            return ['status' => 'limit_reached'];
-        }
-
-        // 2. Deduplication — Redis first, MongoDB fallback
+        // 1. Deduplication — Redis first, MongoDB fallback
         if ($this->hasAlreadySwiped($userId, $jobId, 'job_posting')) {
             return ['status' => 'already_swiped'];
         }
@@ -51,10 +47,33 @@ class SwipeService
 
         try {
             DB::transaction(function () use ($applicant, $userId, $jobId) {
+                if (! $this->consumeApplicantSwipeAtomically((string) $applicant->id)) {
+                    throw new \RuntimeException('SWIPE_LIMIT_REACHED');
+                }
+
                 $this->applications->create($applicant->id, $jobId);
-                $this->consumeApplicantSwipe($applicant);
                 $this->markJobSeenInPostgres($userId, $jobId);
             });
+        } catch (QueryException $e) {
+            if ($swipeDoc && $swipeDoc->_id) {
+                $this->swipeHistory->deleteById($swipeDoc->_id);
+            }
+
+            $sqlState = $e->errorInfo[0] ?? $e->getCode();
+            if (in_array((string) $sqlState, ['23000', '23505'], true)) {
+                return ['status' => 'already_swiped'];
+            }
+            throw $e;
+        } catch (\RuntimeException $e) {
+            if ($swipeDoc && $swipeDoc->_id) {
+                $this->swipeHistory->deleteById($swipeDoc->_id);
+            }
+
+            if ($e->getMessage() === 'SWIPE_LIMIT_REACHED') {
+                return ['status' => 'limit_reached'];
+            }
+
+            throw $e;
         } catch (\Throwable $e) {
             // Rollback MongoDB write if PostgreSQL fails
             if ($swipeDoc && $swipeDoc->_id) {
@@ -76,12 +95,7 @@ class SwipeService
     {
         $applicant = ApplicantProfile::where('user_id', $userId)->firstOrFail();
 
-        // 1. Enforce daily swipe limit
-        if (! $this->hasSwipesRemaining($applicant)) {
-            return ['status' => 'limit_reached'];
-        }
-
-        // 2. Deduplication check
+        // 1. Deduplication check
         if ($this->hasAlreadySwiped($userId, $jobId, 'job_posting')) {
             return ['status' => 'already_swiped'];
         }
@@ -100,9 +114,22 @@ class SwipeService
         // 4. Update PostgreSQL counter in transaction
         try {
             DB::transaction(function () use ($applicant, $userId, $jobId) {
-                $this->consumeApplicantSwipe($applicant);
+                if (! $this->consumeApplicantSwipeAtomically((string) $applicant->id)) {
+                    throw new \RuntimeException('SWIPE_LIMIT_REACHED');
+                }
+
                 $this->markJobSeenInPostgres($userId, $jobId);
             });
+        } catch (\RuntimeException $e) {
+            if ($swipeDoc && $swipeDoc->_id) {
+                $this->swipeHistory->deleteById($swipeDoc->_id);
+            }
+
+            if ($e->getMessage() === 'SWIPE_LIMIT_REACHED') {
+                return ['status' => 'limit_reached'];
+            }
+
+            throw $e;
         } catch (\Throwable $e) {
             // Rollback MongoDB write if PostgreSQL fails
             if ($swipeDoc && $swipeDoc->_id) {
@@ -206,33 +233,38 @@ class SwipeService
 
     // ── Helpers ────────────────────────────────────────────────────────────
 
-    private function hasSwipesRemaining(ApplicantProfile $applicant): bool
+    private function consumeApplicantSwipeAtomically(string $applicantId): bool
     {
-        // Check if within daily limit or has extra swipes
-        if ($applicant->daily_swipes_used < $applicant->daily_swipe_limit) {
-            return true;
+        // Lock row so limit checks and decrements are authoritative under concurrency.
+        $applicant = ApplicantProfile::query()->lockForUpdate()->find($applicantId);
+        if (! $applicant) {
+            return false;
         }
 
-        // Check extra swipes balance
-        if ($applicant->extra_swipe_balance > 0) {
-            return true;
+        $today = now()->toDateString();
+        $lastResetDate = $applicant->swipe_reset_at?->toDateString();
+
+        if ($lastResetDate !== $today) {
+            $applicant->update([
+                'daily_swipes_used' => 0,
+                'swipe_reset_at' => $today,
+            ]);
+            $applicant->refresh();
         }
 
-        return false;
-    }
-
-    private function consumeApplicantSwipe(ApplicantProfile $applicant): void
-    {
-        // Consume daily swipes first, then fallback to paid extra swipes.
         if ($applicant->daily_swipes_used < $applicant->daily_swipe_limit) {
             $applicant->increment('daily_swipes_used');
 
-            return;
+            return true;
         }
 
         if ($applicant->extra_swipe_balance > 0) {
             $applicant->decrement('extra_swipe_balance');
+
+            return true;
         }
+
+        return false;
     }
 
     private function hasAlreadySwiped(string $userId, string $targetId, string $targetType): bool

@@ -14,18 +14,13 @@ class SwipePackRepository
 
     public function findByTransactionId(string $transactionId): ?SwipePack
     {
-        // Find the transaction first to get the provider_payment_id
-        $transaction = \App\Models\PostgreSQL\IAPTransaction::where('transaction_id', $transactionId)
-            ->first();
-
-        if (! $transaction) {
-            return null;
-        }
-
-        // Find the swipe pack by provider_payment_id
-        // Since provider_payment_id should match the transaction_id for swipe packs
         return SwipePack::where('provider_payment_id', $transactionId)
             ->first();
+    }
+
+    public function findByProviderPaymentId(string $providerPaymentId): ?SwipePack
+    {
+        return SwipePack::where('provider_payment_id', $providerPaymentId)->first();
     }
 
     public function getAllForApplicant(string $applicantId): Collection
@@ -33,5 +28,20 @@ class SwipePackRepository
         return SwipePack::where('applicant_id', $applicantId)
             ->orderBy('created_at', 'desc')
             ->get();
+    }
+
+    public function getTotalPurchasedForApplicant(string $applicantId): int
+    {
+        return (int) SwipePack::where('applicant_id', $applicantId)->sum('quantity');
+    }
+
+    public function markRefunded(SwipePack $swipePack, ?string $refundReference = null): SwipePack
+    {
+        $swipePack->update([
+            'refunded_at' => now(),
+            'refund_reference' => $refundReference,
+        ]);
+
+        return $swipePack->fresh();
     }
 }

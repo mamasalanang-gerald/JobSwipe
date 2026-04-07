@@ -17,7 +17,6 @@ use App\Http\Controllers\Subscription\SubscriptionController;
 use App\Http\Controllers\Webhook\AppleWebhookController;
 use App\Http\Controllers\Webhook\GoogleWebhookController;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Route;
 
 // Health check endpoint - no middleware for CI/CD testing

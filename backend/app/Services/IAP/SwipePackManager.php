@@ -66,13 +66,27 @@ class SwipePackManager
     /**
      * Process swipe pack refund
      */
-    public function refund(string $transactionId): void
+    public function refund(string $transactionId, ?string $refundReference = null): void
     {
-        DB::transaction(function () use ($transactionId) {
+        DB::transaction(function () use ($transactionId, $refundReference) {
             $swipePack = $this->swipePacks->findByTransactionId($transactionId);
+
+            if (! $swipePack && is_string($refundReference) && $refundReference !== '') {
+                $swipePack = $this->swipePacks->findByProviderPaymentId($refundReference);
+            }
 
             if (! $swipePack) {
                 Log::warning('Swipe pack not found for refund', [
+                    'transaction_id' => $transactionId,
+                    'refund_reference' => $refundReference,
+                ]);
+
+                return;
+            }
+
+            if ($swipePack->refunded_at !== null) {
+                Log::info('Swipe pack refund skipped: already refunded', [
+                    'swipe_pack_id' => $swipePack->id,
                     'transaction_id' => $transactionId,
                 ]);
 
@@ -97,11 +111,14 @@ class SwipePackManager
             $this->applicantProfiles->update($applicant, [
                 'extra_swipe_balance' => $newBalance,
             ]);
+            $swipePack = $this->swipePacks->markRefunded($swipePack, $refundReference ?? $transactionId);
 
             Log::warning('Swipe pack refunded', [
+                'swipe_pack_id' => $swipePack->id,
                 'applicant_id' => $applicant->id,
                 'user_id' => $applicant->user_id,
                 'transaction_id' => $transactionId,
+                'refund_reference' => $refundReference,
                 'quantity_refunded' => $swipePack->quantity,
                 'old_balance' => $applicant->extra_swipe_balance,
                 'new_balance' => $newBalance,

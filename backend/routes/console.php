@@ -5,6 +5,7 @@ use App\Jobs\ExpireJobPostingsJob;
 use App\Jobs\ExpireMatchesJob;
 use App\Jobs\MatchReminderJob;
 use App\Jobs\ResetDailySwipesJob;
+use App\Jobs\RetryStripeWebhookEventsJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -25,6 +26,11 @@ Schedule::job(new ResetDailySwipesJob)
 Schedule::job(new ExpireApplicantSubscriptionsJob)
     ->hourly()
     ->name('expire-applicant-subscriptions')
+    ->withoutOverlapping();
+// Retry failed or stale Stripe webhook processing entries.
+Schedule::job(new RetryStripeWebhookEventsJob)
+    ->everyFiveMinutes()
+    ->name('retry-stripe-webhooks')
     ->withoutOverlapping();
 
 // ── Match System Scheduled Jobs ───────────────────────────────────────

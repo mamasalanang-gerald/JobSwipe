@@ -52,10 +52,6 @@ class JobPostingController extends Controller
             return $this->error('NO_COMPANY_PROFILE', 'No company profile found for this user', 403);
         }
 
-        if ($company->subscription_status !== 'active') {
-            return $this->error('SUBSCRIPTION_REQUIRED', 'An active subscription is required to post jobs.', 402);
-        }
-
         $job = null;
 
         try {
@@ -63,6 +59,11 @@ class JobPostingController extends Controller
                 // Lock the company row to prevent concurrent creates from
                 // both passing the limit check before either increments
                 $locked = CompanyProfile::lockForUpdate()->find($company->id);
+
+                // Re-check subscription inside lock to avoid stale pre-check reads.
+                if (! $locked || $locked->subscription_status !== 'active') {
+                    throw new \RuntimeException('SUBSCRIPTION_REQUIRED');
+                }
 
                 if ($locked->subscription_tier === 'basic' && $locked->active_listings_count >= 5) {
                     throw new ListingLimitReachedException;
@@ -95,6 +96,12 @@ class JobPostingController extends Controller
 
                 $locked->increment('active_listings_count');
             });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'SUBSCRIPTION_REQUIRED') {
+                return $this->error('SUBSCRIPTION_REQUIRED', 'An active subscription is required to post jobs.', 402);
+            }
+
+            throw $e;
         } catch (ListingLimitReachedException) {
             return $this->error('LISTING_LIMIT_REACHED', 'Active listing limit reached for your subscription tier', 403);
         }
