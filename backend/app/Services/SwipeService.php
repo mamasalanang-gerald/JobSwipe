@@ -191,6 +191,17 @@ class SwipeService
             }
 
             throw $e;
+        } catch (QueryException $e) {
+            if ($swipeDoc && $swipeDoc->_id) {
+                $this->swipeHistory->deleteById($swipeDoc->_id);
+            }
+
+            $sqlState = $e->errorInfo[0] ?? $e->getCode();
+            if (in_array((string) $sqlState, ['23000', '23505'], true)) {
+                return ['status' => 'already_swiped'];
+            }
+
+            throw $e;
         } catch (\Throwable $e) {
             if ($swipeDoc && $swipeDoc->_id) {
                 $this->swipeHistory->deleteById($swipeDoc->_id);

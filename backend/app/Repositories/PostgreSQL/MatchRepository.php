@@ -23,6 +23,13 @@ class MatchRepository
         return MatchRecord::findOrFail($id);
     }
 
+    public function findByIdOrFailForUpdate(string $id): MatchRecord
+    {
+        return MatchRecord::where('id', $id)
+            ->lockForUpdate()
+            ->firstOrFail();
+    }
+
     public function findByApplicationId(string $applicationId): ?MatchRecord
     {
         return MatchRecord::where('application_id', $applicationId)->first();
@@ -87,6 +94,22 @@ class MatchRepository
         return MatchRecord::where('status', 'pending')
             ->where('response_deadline', '<=', now())
             ->get();
+    }
+
+    public function expirePendingForApplicant(string $applicantId): int
+    {
+        return MatchRecord::where('applicant_id', $applicantId)
+            ->where('status', 'pending')
+            ->where('response_deadline', '<=', now())
+            ->update(['status' => 'expired']);
+    }
+
+    public function expirePendingForHrUser(string $hrUserId): int
+    {
+        return MatchRecord::where('hr_user_id', $hrUserId)
+            ->where('status', 'pending')
+            ->where('response_deadline', '<=', now())
+            ->update(['status' => 'expired']);
     }
 
     public function updateStatus(string $id, string $status): int
