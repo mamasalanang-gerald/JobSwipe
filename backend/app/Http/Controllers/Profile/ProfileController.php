@@ -21,21 +21,21 @@ class ProfileController extends Controller
 
     public function getApplicantProfile(Request $request): JsonResponse
     {
-        return $this->success(data: $this->profiles->getApplicantProfile($request->user()->id));
+        return $this->successSigned($this->profiles->getApplicantProfile($request->user()->id));
     }
 
     public function updateApplicantBasicInfo(UpdateApplicantBasicInfoRequest $request): JsonResponse
     {
         $result = $this->profiles->updateApplicantBasicInfo($request->user()->id, $request->validated());
 
-        return $this->success(data: $result, message: 'Applicant basic info updated.');
+        return $this->successSigned($result, 'Applicant basic info updated.');
     }
 
     public function updateApplicantSkills(UpdateApplicantSkillsRequest $request): JsonResponse
     {
         $result = $this->profiles->updateApplicantSkills($request->user()->id, $request->validated('skills'));
 
-        return $this->success(data: $result, message: 'Applicant skills updated.');
+        return $this->successSigned($result, 'Applicant skills updated.');
     }
 
     public function addWorkExperience(Request $request): JsonResponse
@@ -51,7 +51,7 @@ class ProfileController extends Controller
 
         $result = $this->profiles->addWorkExperience($request->user()->id, $validated);
 
-        return $this->success(data: $result, message: 'Work experience added.');
+        return $this->successSigned($result, 'Work experience added.');
     }
 
     public function updateWorkExperience(Request $request, int $index): JsonResponse
@@ -68,7 +68,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->updateWorkExperience($request->user()->id, $index, $validated);
 
-            return $this->success(data: $result, message: 'Work experience updated.');
+            return $this->successSigned($result, 'Work experience updated.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -79,7 +79,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->removeWorkExperience($request->user()->id, $index);
 
-            return $this->success(data: $result, message: 'Work experience removed.');
+            return $this->successSigned($result, 'Work experience removed.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -96,7 +96,7 @@ class ProfileController extends Controller
 
         $result = $this->profiles->addEducation($request->user()->id, $validated);
 
-        return $this->success(data: $result, message: 'Education added.');
+        return $this->successSigned($result, 'Education added.');
     }
 
     public function updateEducation(Request $request, int $index): JsonResponse
@@ -111,7 +111,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->updateEducation($request->user()->id, $index, $validated);
 
-            return $this->success(data: $result, message: 'Education updated.');
+            return $this->successSigned($result, 'Education updated.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -122,7 +122,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->removeEducation($request->user()->id, $index);
 
-            return $this->success(data: $result, message: 'Education removed.');
+            return $this->successSigned($result, 'Education removed.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -137,7 +137,7 @@ class ProfileController extends Controller
         $this->fileUploads->validateFileUrl((string) $validated['resume_url']);
         $result = $this->profiles->updateApplicantResume($request->user()->id, (string) $validated['resume_url']);
 
-        return $this->success(data: $result, message: 'Resume updated.');
+        return $this->successSigned($result, 'Resume updated.');
     }
 
     public function updateApplicantCoverLetter(Request $request): JsonResponse
@@ -149,7 +149,7 @@ class ProfileController extends Controller
         $this->fileUploads->validateFileUrl((string) $validated['cover_letter_url']);
         $result = $this->profiles->updateApplicantCoverLetter($request->user()->id, (string) $validated['cover_letter_url']);
 
-        return $this->success(data: $result, message: 'Cover letter updated.');
+        return $this->successSigned($result, 'Cover letter updated.');
     }
 
     public function updateApplicantPhoto(Request $request): JsonResponse
@@ -161,7 +161,7 @@ class ProfileController extends Controller
         $this->fileUploads->validateFileUrl((string) $validated['profile_photo_url']);
         $result = $this->profiles->updateApplicantPhoto($request->user()->id, (string) $validated['profile_photo_url']);
 
-        return $this->success(data: $result, message: 'Profile photo updated.');
+        return $this->successSigned($result, 'Profile photo updated.');
     }
 
     public function updateSocialLinks(Request $request): JsonResponse
@@ -173,7 +173,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->updateSocialLinks($request->user()->id, (array) $validated['social_links']);
 
-            return $this->success(data: $result, message: 'Social links updated.');
+            return $this->successSigned($result, 'Social links updated.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -182,7 +182,7 @@ class ProfileController extends Controller
     public function getCompanyProfile(Request $request): JsonResponse
     {
         try {
-            return $this->success(data: $this->profiles->getCompanyProfile($request->user()->id));
+            return $this->successSigned($this->profiles->getCompanyProfile($request->user()->id));
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -193,7 +193,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->updateCompanyDetails($request->user()->id, $request->validated());
 
-            return $this->success(data: $result, message: 'Company details updated.');
+            return $this->successSigned($result, 'Company details updated.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -210,7 +210,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->updateCompanyLogo($request->user()->id, (string) $validated['logo_url']);
 
-            return $this->success(data: $result, message: 'Company logo updated.');
+            return $this->successSigned($result, 'Company logo updated.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -227,7 +227,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->addOfficeImage($request->user()->id, (string) $validated['image_url']);
 
-            return $this->success(data: $result, message: 'Office image added.');
+            return $this->successSigned($result, 'Office image added.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -238,7 +238,7 @@ class ProfileController extends Controller
         try {
             $result = $this->profiles->removeOfficeImage($request->user()->id, $index);
 
-            return $this->success(data: $result, message: 'Office image removed.');
+            return $this->successSigned($result, 'Office image removed.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -261,7 +261,7 @@ class ProfileController extends Controller
                 (array) $validated['verification_documents']
             );
 
-            return $this->success(data: $result, message: 'Verification documents submitted.');
+            return $this->successSigned($result, 'Verification documents submitted.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -274,7 +274,7 @@ class ProfileController extends Controller
             (string) $request->user()->role
         );
 
-        return $this->success(data: $result);
+        return $this->successSigned($result);
     }
 
     public function completeOnboardingStep(Request $request): JsonResponse
@@ -292,7 +292,7 @@ class ProfileController extends Controller
                 (array) ($validated['step_data'] ?? [])
             );
 
-            return $this->success(data: $result, message: 'Onboarding step completed.');
+            return $this->successSigned($result, 'Onboarding step completed.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -331,5 +331,78 @@ class ProfileController extends Controller
             'STEP_DATA_INVALID' => $this->error('STEP_DATA_INVALID', 'Step data is invalid or incomplete.', 400),
             default => $this->error('PROFILE_UPDATE_FAILED', 'Unable to process the request.', 400),
         };
+    }
+
+    private function successSigned(mixed $data = null, string $message = 'OK'): JsonResponse
+    {
+        return $this->success(data: $this->signFileUrls($data), message: $message);
+    }
+
+    private function signFileUrls(mixed $data, ?string $parentKey = null): mixed
+    {
+        if (is_object($data) && method_exists($data, 'toArray')) {
+            $data = $data->toArray();
+        }
+
+        if (! is_array($data)) {
+            return $data;
+        }
+
+        $arrayFileFields = ['office_images', 'verification_documents'];
+
+        if ($parentKey !== null && in_array($parentKey, $arrayFileFields, true)) {
+            return array_map(function ($item) {
+                if (! is_string($item)) {
+                    return $item;
+                }
+
+                return $this->toSignedReadUrl($item);
+            }, $data);
+        }
+
+        $singleFileFields = [
+            'resume_url',
+            'cover_letter_url',
+            'profile_photo_url',
+            'portfolio_url',
+            'logo_url',
+        ];
+
+        foreach ($data as $key => $value) {
+            if (! is_string($key)) {
+                $data[$key] = $this->signFileUrls($value);
+
+                continue;
+            }
+
+            if (is_string($value) && in_array($key, $singleFileFields, true)) {
+                $data[$key] = $this->toSignedReadUrl($value);
+
+                continue;
+            }
+
+            $data[$key] = $this->signFileUrls($value, $key);
+        }
+
+        return $data;
+    }
+
+    private function toSignedReadUrl(string $fileUrl): string
+    {
+        if ($fileUrl === '') {
+            return $fileUrl;
+        }
+
+        try {
+            $result = $this->fileUploads->generatePresignedReadUrl($fileUrl);
+
+            if (is_array($result) && isset($result['read_url']) && is_string($result['read_url'])) {
+                return $result['read_url'];
+            }
+        } catch (\Throwable) {
+            return $fileUrl;
+        }
+
+        return $fileUrl;
     }
 }
