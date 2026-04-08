@@ -24,6 +24,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // CRITICAL: Must run first to clear stale route cache from Render's pre-start hooks
         $middleware->prepend(ClearStaleRouteCache::class);
 
+        // API-only app: unauthenticated users should get 401 JSON, not a web login redirect.
+        $middleware->redirectGuestsTo(fn () => null);
+
         $middleware->alias([
             'swipe.limit' => CheckSwipeLimit::class,
             'role' => CheckRole::class,
