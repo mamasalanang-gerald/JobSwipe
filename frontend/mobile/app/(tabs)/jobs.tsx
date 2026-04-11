@@ -238,7 +238,6 @@ export default function ExploreTab() {
   const rawIndexRef       = useRef(CAROUSEL_START_INDEX);
   const isJumpingRef      = useRef(false); // true while silently snapping clone->real
   const isAutoScrollingRef = useRef(false); // true during programmatic animated scroll
-  const momentumEndedRef   = useRef(false);  // true once momentum scroll fires after drag
 
   const toggleSave = (id: number) =>
     setSavedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -263,34 +262,9 @@ export default function ExploreTab() {
     setDotIndex(rawIdx - 1);
   };
 
-  const handleScrollEndDrag = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    // Update rawIndex from the drag's final position but do NOT restart
-    // auto-scroll here — momentum may still be running. We restart only
-    // after momentum fully settles (handleMomentumScrollEnd).
-    // If the user stopped with no momentum (slow drag release), iOS fires
-    // onScrollEndDrag but NOT onMomentumScrollEnd, so we use a short timeout
-    // as a fallback that gets cancelled if momentum fires first.
-    const x = e.nativeEvent.contentOffset.x;
-    const raw = Math.round(x / (HERO_CARD_WIDTH + 12));
-    rawIndexRef.current = raw;
-    momentumEndedRef.current = false;
-    setTimeout(() => {
-      if (!momentumEndedRef.current) {
-        // No momentum scroll happened — treat as settled
-        handleSettled(raw);
-      }
-    }, 80);
-  };
-
-  const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-    momentumEndedRef.current = true;
-    const x = e.nativeEvent.contentOffset.x;
-    const raw = Math.round(x / (HERO_CARD_WIDTH + 12));
-    rawIndexRef.current = raw;
-    handleSettled(raw);
-  };
-
-  const handleSettled = (raw: number) => {
+  const handleScrollEndDrag = () => {
+    isPausedRef.current = false;
+    const raw = rawIndexRef.current;
     if (raw === 0) {
       jumpTo(BASE_CAROUSEL.length);
       setDotIndex(BASE_CAROUSEL.length - 1);
@@ -298,8 +272,20 @@ export default function ExploreTab() {
       jumpTo(1);
       setDotIndex(0);
     }
-    isPausedRef.current = false;
     startAutoScroll();
+  };
+
+  const handleMomentumScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const raw = Math.round(x / (HERO_CARD_WIDTH + 12));
+    rawIndexRef.current = raw;
+    if (raw === 0) {
+      jumpTo(BASE_CAROUSEL.length);
+      setDotIndex(BASE_CAROUSEL.length - 1);
+    } else if (raw === CAROUSEL_JOBS.length - 1) {
+      jumpTo(1);
+      setDotIndex(0);
+    }
   };
 
   const startAutoScroll = useCallback(() => {

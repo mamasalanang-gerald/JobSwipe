@@ -80,8 +80,8 @@ const CARD_W = SW - 64;
 
 export default function SubscriptionScreen() {
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
-  const [selectedKey, setSelectedKey] = useState<PlanKey>('free');  
-  const [activeDot, setActiveDot]     = useState(0);
+  const [selectedKey, setSelectedKey] = useState<PlanKey>('gold_yearly');
+  const [activeDot, setActiveDot]     = useState(INITIAL_INDEX);
   const scaleAnim    = useRef(new Animated.Value(1)).current;
   const flatRef      = useRef<FlatList<Plan>>(null);
   const isReadyRef   = useRef(false);
@@ -256,9 +256,9 @@ export default function SubscriptionScreen() {
           : `${selectedPlan.name} · ${selectedPlan.billing} — ${selectedPlan.price}/mo`}
       </Text>
 
-      {/* ── CTA — only show for paid plans ── */}
-      {selectedPlan.tier !== 'free' && (  
-        <Animated.View style={[s.ctaWrap, { transform: [{ scale: scaleAnim }] }]}>
+      {/* ── CTA — always visible ── */}
+      <Animated.View style={[s.ctaWrap, { transform: [{ scale: scaleAnim }] }]}>
+        {selectedPlan.tier !== 'free' ? (
           <TouchableOpacity style={s.ctaBtn} onPress={handleSubscribe} activeOpacity={0.9}>
             <LinearGradient
               colors={ctaColors}
@@ -274,8 +274,12 @@ export default function SubscriptionScreen() {
               </Text>
             </LinearGradient>
           </TouchableOpacity>
-        </Animated.View>
-      )}
+        ) : (
+          <View style={[s.ctaBtn, s.ctaDisabled]}>
+            <Text style={s.ctaDisabledText}>You're on the Free plan</Text>
+          </View>
+        )}
+      </Animated.View>
 
       {/* ── Legal ── */}
       <Text style={s.legal}>

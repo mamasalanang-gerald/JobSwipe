@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useFonts } from 'expo-font';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useNavigation } from '@react-navigation/native';
@@ -70,7 +69,6 @@ const JOBS = [
     ],
     lookingFor: 'React Native · TypeScript · 5+ yrs',
     distanceKm: 3.9,
-    likedBack: true,
     reviews: [
       { author: 'Sarah M.',  role: 'Software Engineer',    rating: 5, date: 'Mar 2024', text: 'Amazing culture and work-life balance. The team is brilliant and leadership actually listens. Shipped some of the most impactful features of my career here.' },
       { author: 'James K.',  role: 'Senior Developer',     rating: 5, date: 'Jan 2024', text: 'Best engineering environment I have worked in. Strong processes, fast feedback loops, and real ownership over the product.' },
@@ -99,7 +97,6 @@ const JOBS = [
     ],
     lookingFor: 'Figma · UX Research · 3+ yrs',
     distanceKm: 8.2,
-    likedBack: true,
     reviews: [
       { author: 'Elena R.',  role: 'UX Designer',          rating: 5, date: 'Feb 2024', text: 'Love the creative freedom here. The design system is world-class and your work genuinely reaches millions of users every day.' },
       { author: 'Tom B.',    role: 'Product Designer',     rating: 4, date: 'Dec 2023', text: 'Collaborative team and strong mentorship. Hybrid setup works really well — good balance of in-office energy and remote flexibility.' },
@@ -128,7 +125,6 @@ const JOBS = [
     ],
     lookingFor: 'Python · PyTorch · MLOps · 4+ yrs',
     distanceKm: 20.4,
-    likedBack: false,
     reviews: [
       { author: 'David W.',  role: 'ML Engineer',          rating: 5, date: 'Mar 2024', text: 'Cutting-edge research environment. You will work on problems that truly push the field forward. The calibre of colleagues is outstanding.' },
       { author: 'Aisha T.',  role: 'Data Scientist',       rating: 5, date: 'Feb 2024', text: 'Exceptional resources and compute budget. Leadership encourages publishing and the internal knowledge sharing culture is incredible.' },
@@ -141,46 +137,6 @@ export default function HomeTab() {
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
   const navigation = useNavigation();
-
-  const [fontsLoaded] = useFonts({
-    'FullPack': require('../assets/fonts/full_Pack_2025.ttf'),
-  });
-
-  // Match modal animations
-  const matchSlideAnim   = useRef(new Animated.Value(SW)).current;
-  const matchOpacityAnim = useRef(new Animated.Value(0)).current;
-  const matchScaleAnim   = useRef(new Animated.Value(0.4)).current;
-  const matchGlowAnim    = useRef(new Animated.Value(0)).current;
-  const matchShimmerAnim = useRef(new Animated.Value(-SW)).current;
-  const matchSubAnim     = useRef(new Animated.Value(0)).current;
-  const matchBtnFadeAnim = useRef(new Animated.Value(1)).current;
-
-  // Confetti pieces
-  const CONFETTI_COLORS = ['#a855f7','#60a5fa','#34d399','#f59e0b','#f472b6','#818cf8','#4ade80','#fb923c','#e879f9'];
-  const confettiPieces = useRef(
-    Array.from({ length: 48 }, () => {
-      const startX = Math.random() * SW;
-      const startY = SH * 0.15 + Math.random() * SH * 0.65;
-      const angle  = Math.random() * Math.PI * 2;
-      const speed  = 0.25 + Math.random() * 0.55;
-      const isCircle = Math.random() > 0.6;
-      return {
-        x:       new Animated.Value(startX),
-        y:       new Animated.Value(startY),
-        rotate:  new Animated.Value(0),
-        opacity: new Animated.Value(0),
-        scale:   new Animated.Value(0),
-        color:   CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
-        size:    8 + Math.random() * 10,
-        isCircle,
-        startX,
-        startY,
-        targetX: Math.cos(angle) * SW * speed,
-        targetY: Math.sin(angle) * SH * speed,
-        rot:     (Math.random() - 0.5) * 900,
-      };
-    })
-  ).current;
   // Dynamic bottom positions — keep buttons above tab bar on all devices
   const actionsBottom  = tabBarHeight + 20;
   const overlayBottom  = actionsBottom + ACTIONS_HEIGHT + 8;
@@ -196,104 +152,6 @@ export default function HomeTab() {
   const [topBarHeight, setTopBarHeight] = useState(0);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [galleryFullscreen, setGalleryFullscreen] = useState(false);
-  const [matchJob, setMatchJob]     = useState<typeof JOBS[number] | null>(null);
-  const pendingIndexBump            = useRef(false);
-
-  // Clear match popup on mount/refresh
-  useEffect(() => {
-    setMatchJob(null);
-    matchOpacityAnim.setValue(0);
-    matchSlideAnim.setValue(SW);
-    matchScaleAnim.setValue(0.4);
-  }, []);
-
-  const showMatch = (job: typeof JOBS[number]) => {
-    // Reset confetti
-    confettiPieces.forEach(p => {
-      const startX = Math.random() * SW;
-      const startY = SH * 0.15 + Math.random() * SH * 0.65;
-      const angle  = Math.random() * Math.PI * 2;
-      const speed  = 0.25 + Math.random() * 0.55;
-      p.startX  = startX;
-      p.startY  = startY;
-      p.x.setValue(startX);
-      p.y.setValue(startY);
-      p.rotate.setValue(0);
-      p.opacity.setValue(0);
-      p.scale.setValue(0);
-      p.targetX = Math.cos(angle) * SW * speed;
-      p.targetY = Math.sin(angle) * SH * speed;
-      p.rot     = (Math.random() - 0.5) * 900;
-      p.color   = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
-    });
-    matchScaleAnim.setValue(0.4);
-    matchGlowAnim.setValue(0);
-    matchShimmerAnim.setValue(-SW);
-    matchSubAnim.setValue(0);
-    matchBtnFadeAnim.setValue(1);
-    matchSlideAnim.setValue(0);
-    matchOpacityAnim.setValue(0);
-    setMatchJob(job);
-
-    // Backdrop fade
-    Animated.timing(matchOpacityAnim, { toValue: 1, duration: 220, useNativeDriver: true }).start();
-
-    // Title bounce in
-    Animated.spring(matchScaleAnim, {
-      toValue: 1, bounciness: 18, speed: 10, useNativeDriver: true,
-    }).start();
-
-    // Glow pulse in then loop
-    Animated.timing(matchGlowAnim, { toValue: 1, duration: 400, delay: 150, useNativeDriver: true }).start(() => {
-      Animated.loop(
-        Animated.sequence([
-          Animated.timing(matchGlowAnim, { toValue: 0.55, duration: 900, useNativeDriver: true }),
-          Animated.timing(matchGlowAnim, { toValue: 1,    duration: 900, useNativeDriver: true }),
-        ])
-      ).start();
-    });
-
-    // Shimmer sweep across title
-    setTimeout(() => {
-      Animated.timing(matchShimmerAnim, { toValue: SW * 1.5, duration: 700, useNativeDriver: true }).start();
-    }, 350);
-
-    // Subtitle fade up
-    Animated.timing(matchSubAnim, { toValue: 1, duration: 400, delay: 300, useNativeDriver: true }).start();
-
-    // Confetti burst
-    setTimeout(() => {
-      const anims = confettiPieces.map(p =>
-        Animated.parallel([
-          Animated.timing(p.scale,   { toValue: 1, duration: 120, useNativeDriver: true }),
-          Animated.timing(p.x,       { toValue: p.startX + p.targetX, duration: 1300, useNativeDriver: true }),
-          Animated.timing(p.y,       { toValue: p.startY + p.targetY + SH * 0.15, duration: 1300, useNativeDriver: true }),
-          Animated.timing(p.rotate,  { toValue: p.rot, duration: 1300, useNativeDriver: true }),
-          Animated.sequence([
-            Animated.timing(p.opacity, { toValue: 1, duration: 80,  useNativeDriver: true }),
-            Animated.timing(p.opacity, { toValue: 0, duration: 600, delay: 500, useNativeDriver: true }),
-          ]),
-        ])
-      );
-      Animated.stagger(18, anims).start();
-    }, 150);
-  };
-
-  const hideMatch = () => {
-    Animated.sequence([
-      Animated.timing(matchBtnFadeAnim, { toValue: 0, duration: 160, useNativeDriver: true }),
-      Animated.parallel([
-        Animated.timing(matchOpacityAnim, { toValue: 0, duration: 300, delay: 100, useNativeDriver: true }),
-        Animated.timing(matchSlideAnim,   { toValue: SW * 1.2, duration: 380, useNativeDriver: true }),
-      ]),
-    ]).start(() => {
-      setMatchJob(null);
-      if (pendingIndexBump.current) {
-        pendingIndexBump.current = false;
-        setIndex(i => i + 1);
-      }
-    });
-  };
 
   // ── Settings state ───────────────────────────────────────────────────────────
   const [settingsOpen, setSettingsOpen]   = useState(false);
@@ -408,7 +266,6 @@ export default function HomeTab() {
 
   const settingsOpenRef = useRef(false);
   const isHoldingRef    = useRef(false);
-  const commitSwipeRef  = useRef<(dir: number) => void>(() => {});
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: (_e, { dx, dy }) => !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy),
@@ -422,7 +279,7 @@ export default function HomeTab() {
         isHoldingRef.current = false;
         if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.6) {
           pausedElapsedRef.current = 0;
-          commitSwipeRef.current(dx > 0 ? 1 : -1);
+          commitSwipe(dx > 0 ? 1 : -1);
         } else {
           resetCard();
           // Don't bump timerKey — the interval is still running and will resume
@@ -434,29 +291,19 @@ export default function HomeTab() {
 
   const commitSwipe = (dir: number) => {
     collapsePanel();
-    const currentJob = filteredJobs[index];
     Animated.timing(position, {
       toValue: { x: dir * SW * 1.5, y: 0 },
       duration: 280,
       useNativeDriver: false,
     }).start(() => {
       position.setValue({ x: 0, y: 0 });
-      const isMatch = dir > 0 && currentJob.likedBack;
-      if (dir > 0) {
-        setLiked(prev => [...prev, currentJob.id]);
-        if (isMatch) showMatch(currentJob);
-      }
-      setHistory(prev => [...prev, { id: currentJob.id, dir }]);
+      if (dir > 0) setLiked(prev => [...prev, filteredJobs[index].id]);
+      setHistory(prev => [...prev, { id: filteredJobs[index].id, dir }]);
       setPhotoIndex(0);
       setGalleryIndex(0);
-      if (isMatch) {
-        pendingIndexBump.current = true;
-      } else {
-        setIndex(i => i + 1);
-      }
+      setIndex(i => i + 1);
     });
   };
-  commitSwipeRef.current = commitSwipe;
 
   const resetCard    = () => Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
   const collapsePanel = () => {
@@ -586,43 +433,10 @@ export default function HomeTab() {
     );
   }
 
-  // Match modal takes priority over the "all caught up" screen —
-  // show the popup first, navigate to empty state only after dismissal.
-  if (matchJob) {
-    return (
-      <View style={[s.screen, { backgroundColor: '#0f0a1e' }]}>
-        <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-          <Animated.View style={[StyleSheet.absoluteFill, s.matchBackdrop, { opacity: matchOpacityAnim }]} pointerEvents="auto">
-            <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={hideMatch} />
-          </Animated.View>
-          {confettiPieces.map((p, i) => (
-            <Animated.View key={i} pointerEvents="none" style={{ position: 'absolute', width: p.size, height: p.isCircle ? p.size : p.size * 0.5, borderRadius: p.isCircle ? p.size / 2 : 2, backgroundColor: p.color, left: -p.size / 2, top: -p.size * 0.3, opacity: p.opacity, transform: [{ translateX: p.x }, { translateY: p.y }, { scale: p.scale }, { rotate: p.rotate.interpolate({ inputRange: [-900, 900], outputRange: ['-900deg', '900deg'] }) }] }} />
-          ))}
-          <Animated.View style={{ position: 'absolute', top: SH * 0.3, left: 0, right: 0, alignItems: 'center', transform: [{ scale: matchScaleAnim }, { translateX: matchSlideAnim }] }} pointerEvents="box-none">
-            <View style={{ overflow: 'hidden' }}>
-              <Text style={[s.matchTitle, fontsLoaded ? { fontFamily: 'FullPack', fontWeight: undefined, fontSize: 52 } : null]}>IT'S A MATCH!</Text>
-              <Animated.View pointerEvents="none" style={{ position: 'absolute', top: 0, bottom: 0, width: 80, opacity: 0.55, backgroundColor: 'transparent', transform: [{ translateX: matchShimmerAnim }, { skewX: '-20deg' }], shadowColor: '#fff', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 1, shadowRadius: 18 }} />
-            </View>
-            <Animated.Text style={[s.matchSub, { opacity: matchSubAnim, transform: [{ translateY: matchSubAnim.interpolate({ inputRange: [0, 1], outputRange: [10, 0] }) }] }]}>
-              {matchJob.company} is also interested, contact them now to start your application process!
-            </Animated.Text>
-            <Animated.View style={{ opacity: matchBtnFadeAnim, marginTop: 24, width: SW * 0.65 }}>
-              <TouchableOpacity style={s.matchContactBtn} activeOpacity={0.85} onPress={() => { hideMatch(); navigation.navigate('matches' as never); }}>
-                <MaterialCommunityIcons name="message-text-outline" size={18} color={Colors.white} />
-                <Text style={s.matchContactBtnText}>Contact Now</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </Animated.View>
-        </View>
-      </View>
-    );
-  }
-
   if (index >= filteredJobs.length) {
     // All cards in range have been swiped
     return (
-      <View style={[s.emptyScreen, { flex: 1 }]}>
+      <View style={s.emptyScreen}>
         <StatusBar barStyle="dark-content" />
         <View style={s.emptyIconWrap}>
           <MaterialCommunityIcons name="rocket-launch-outline" size={40} color={Colors.primary} />
@@ -631,7 +445,7 @@ export default function HomeTab() {
         <Text style={s.emptySub}>New jobs are added daily — check back soon.</Text>
         <TouchableOpacity
           style={s.refreshBtn}
-          onPress={() => { setIndex(0); setLiked([]); setHistory([]); setPhotoIndex(0); setMatchJob(null); }}
+          onPress={() => { setIndex(0); setLiked([]); setHistory([]); setPhotoIndex(0); }}
         >
           <Text style={s.refreshBtnText}>Refresh deck</Text>
         </TouchableOpacity>
@@ -777,14 +591,12 @@ export default function HomeTab() {
       {/*
     
       {/* Layer 2 — Action buttons */}
-      {!matchJob && (
       <View style={[s.actionsRow, { bottom: actionsBottom }]}>
         <TouchableOpacity style={s.btnDark} onPress={() => commitSwipe(-1)} activeOpacity={0.8}>
           <MaterialCommunityIcons name="close" size={32} color={Colors.white} />
         </TouchableOpacity>
         <PrimaryButton   icon="heart" iconSize={32} onPress={() => commitSwipe(1)}  style={s.btnHeart} />
       </View>
-      )}
 
       {/*
         Layer 3 — Expand panel (bottom sheet)
@@ -1077,7 +889,6 @@ export default function HomeTab() {
           </TouchableOpacity>
         </View>
       </Animated.View>
-
     </View>
   );
 }
@@ -1444,90 +1255,6 @@ const s = StyleSheet.create({
     fontSize: 10,
     fontWeight: Typography.bold,
     color: '#0f0a1e',
-    letterSpacing: 0.3,
-  },
-
-  // Match modal
-  matchBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-  },
-  matchModal: {
-    position: 'absolute',
-    top: SH * 0.2,
-    left: (SW - SW * 0.85) / 2,
-    width: SW * 0.85,
-    backgroundColor: 'rgba(18,8,38,0.98)',
-    borderRadius: Radii.xl,
-    borderWidth: 1.5,
-    borderColor: 'rgba(168,85,247,0.35)',
-    overflow: 'hidden',
-    shadowColor: '#a855f7',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.4,
-    shadowRadius: 24,
-    elevation: 20,
-  },
-  matchContent: {
-    paddingHorizontal: Spacing['5'],
-    paddingTop: Spacing['6'],
-    paddingBottom: Spacing['5'],
-    alignItems: 'center',
-    gap: Spacing['2'],
-  },
-  matchEmoji: {
-    fontSize: 64,
-    marginBottom: 4,
-  },
-  matchTitle: {
-    fontSize: Typography['2xl'],
-    fontWeight: Typography.bold,
-    color: Colors.white,
-    textAlign: 'center',
-    letterSpacing: -0.5,
-  },
-  matchSub: {
-    fontSize: Typography.base,
-    color: 'rgba(255,255,255,0.55)',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  matchBtn: {
-    width: '100%',
-    backgroundColor: Colors.success,
-    borderRadius: Radii.lg,
-    paddingVertical: Spacing['3'],
-    alignItems: 'center',
-  },
-  matchBtnText: {
-    fontSize: Typography.base,
-    fontWeight: Typography.bold,
-    color: Colors.white,
-  },
-  matchKeepSwiping: {
-    fontSize: Typography.sm,
-    color: 'rgba(255,255,255,0.3)',
-    fontWeight: Typography.medium,
-    paddingVertical: 10,
-  },
-  matchContactBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: Colors.primary,
-    borderRadius: Radii.lg,
-    paddingVertical: 15,
-    shadowColor: Colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 10,
-  },
-  matchContactBtnText: {
-    fontSize: Typography.md,
-    fontWeight: Typography.bold,
-    color: Colors.white,
     letterSpacing: 0.3,
   },
 });

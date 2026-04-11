@@ -121,10 +121,9 @@ export default function ProfileTab() {
   const tabBarHeight      = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
 
-  const [editMode, setEditMode]         = useState(false);
-  const [avatarPhoto, setAvatarPhoto]   = useState<string | null>(null);
-  const [coverPhoto, setCoverPhoto]     = useState<string | null>(null);
-  const [photos, setPhotos]             = useState<(string | null)[]>([null, null, null]);
+  const [editMode, setEditMode]       = useState(false);
+  const [avatarPhoto, setAvatarPhoto] = useState<string | null>(null);
+  const [photos, setPhotos]           = useState<(string | null)[]>([null, null, null]);
   const [activePlan, setActivePlan]   = useState(0);
   const planRef = useRef<FlatList<Plan>>(null);
 
@@ -171,11 +170,6 @@ export default function ProfileTab() {
   const pickAvatar = async () => {
     const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.85 });
     if (!r.canceled) setAvatarPhoto(r.assets[0].uri);
-  };
-
-  const pickCover = async () => {
-    const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [3, 1], quality: 0.85 });
-    if (!r.canceled) setCoverPhoto(r.assets[0].uri);
   };
 
   const pickPhoto = async (i: number) => {
@@ -237,40 +231,34 @@ export default function ProfileTab() {
   };
 
   return (
-    <View style={s.screen}>
-      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+    <View style={[s.screen, { paddingTop: topInset }]}>
+      <StatusBar barStyle="light-content" />
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarHeight + 40 }}>
 
-        {/* ── Cover photo ──────────────────────────────────────────────────── */}
-        <View style={[s.coverWrap, { height: 190 + topInset }]}>
-          {coverPhoto
-            ? <Image source={{ uri: coverPhoto }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
-            : <View style={[StyleSheet.absoluteFillObject, s.coverFallback]}>
-                <MaterialCommunityIcons name="image-outline" size={32} color="rgba(255,255,255,0.12)" />
-              </View>
-          }
-          {editMode && (
-            <TouchableOpacity style={s.coverEditBtn} onPress={pickCover} activeOpacity={0.8}>
-              <MaterialCommunityIcons name="camera-outline" size={13} color="#fff" />
-              <Text style={s.coverEditText}>Edit cover</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* ── Hero row: avatar overlaps cover ──────────────────────────────── */}
-        <View style={s.heroRow}>
-          <TouchableOpacity onPress={editMode ? pickAvatar : undefined} activeOpacity={0.85} style={s.avatarWrap}>
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <View style={s.hero}>
+          <TouchableOpacity onPress={pickAvatar} activeOpacity={0.85} style={s.avatarWrap}>
             {avatarPhoto
               ? <Image source={{ uri: avatarPhoto }} style={s.avatar} />
               : <View style={s.avatarFallback}><Text style={s.avatarInitials}>JD</Text></View>
             }
-            {editMode && (
-              <View style={s.camBadge}>
-                <MaterialCommunityIcons name="camera" size={10} color="#fff" />
-              </View>
-            )}
+            <View style={s.camBadge}>
+              <MaterialCommunityIcons name="camera" size={10} color="#fff" />
+            </View>
           </TouchableOpacity>
+
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+              <Text style={s.name}>John Doe</Text>
+              <MaterialCommunityIcons name="check-decagram" size={15} color={T.primary} />
+            </View>
+            <Text style={s.headline}>Full Stack Developer</Text>
+            <View style={s.locRow}>
+              <MaterialCommunityIcons name="map-marker-outline" size={11} color={T.textHint} />
+              <Text style={s.loc}>San Francisco, CA</Text>
+            </View>
+          </View>
 
           <TouchableOpacity
             style={[s.editBtn, editMode && s.editBtnSaving]}
@@ -286,19 +274,6 @@ export default function ProfileTab() {
               {editMode ? 'Save' : 'Edit'}
             </Text>
           </TouchableOpacity>
-        </View>
-
-        {/* ── Name / headline / location ───────────────────────────────────── */}
-        <View style={s.heroInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <Text style={s.name}>John Doe</Text>
-            <MaterialCommunityIcons name="check-decagram" size={15} color={T.primary} />
-          </View>
-          <Text style={s.headline}>Full Stack Developer</Text>
-          <View style={s.locRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={11} color={T.textHint} />
-            <Text style={s.loc}>San Francisco, CA</Text>
-          </View>
         </View>
 
         {/* ── Stats ────────────────────────────────────────────────────────── */}
@@ -588,52 +563,17 @@ const ps = StyleSheet.create({
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: T.bg },
 
-  // Cover photo
-  coverWrap: {
-    width: '100%',
-    backgroundColor: '#1a1035',
-    overflow: 'hidden',
+  // Hero
+  hero: {
+    flexDirection: 'row', alignItems: 'flex-start',
+    paddingHorizontal: 24, paddingTop: 16, paddingBottom: 20, gap: 14,
   },
-  coverFallback: {
-    alignItems: 'center', justifyContent: 'center',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.06)',
-  },
-  coverEditBtn: {
-    position: 'absolute', bottom: 12, right: 14,
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
-  },
-  coverEditText: { fontSize: 11, fontWeight: '700', color: '#fff' },
-
-  // Hero row (avatar + edit button)
-  heroRow: {
-    flexDirection: 'row', alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    marginTop: -38,
-    marginBottom: 10,
-  },
-  heroInfo: {
-    paddingHorizontal: 24, paddingBottom: 16,
-  },
-
-  // Avatar
   avatarWrap:     { position: 'relative' },
-  avatar: {
-    width: 84, height: 84, borderRadius: 42,
-    borderWidth: 3, borderColor: T.bg,
-  },
-  avatarFallback: {
-    width: 84, height: 84, borderRadius: 42,
-    backgroundColor: '#2d1b69',
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 3, borderColor: T.bg,
-  },
-  avatarInitials: { fontSize: 26, fontWeight: '800', color: '#fff' },
+  avatar:         { width: 76, height: 76, borderRadius: 38 },
+  avatarFallback: { width: 76, height: 76, borderRadius: 38, backgroundColor: '#2d1b69', alignItems: 'center', justifyContent: 'center' },
+  avatarInitials: { fontSize: 24, fontWeight: '800', color: '#fff' },
   camBadge: {
-    position: 'absolute', bottom: 3, right: 3,
+    position: 'absolute', bottom: 1, right: 1,
     width: 22, height: 22, borderRadius: 11,
     backgroundColor: T.primary, borderWidth: 2, borderColor: T.bg,
     alignItems: 'center', justifyContent: 'center',
@@ -647,7 +587,6 @@ const s = StyleSheet.create({
     borderWidth: 1, borderColor: 'rgba(168,85,247,0.28)',
     borderRadius: 20, paddingHorizontal: 11, paddingVertical: 5,
     backgroundColor: 'rgba(168,85,247,0.08)',
-    marginBottom: 6,
   },
   editBtnSaving:  { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' },
   editBtnText:    { fontSize: 11, fontWeight: '700', color: T.primary },
