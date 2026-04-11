@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, ScrollView, FlatList, TouchableOpacity,
+  View, Text, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, Dimensions, TextInput, Image,
-  SafeAreaView,
+  Keyboard, KeyboardEvent,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,7 +10,7 @@ import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
-// ─── Theme (mirrors MatchesTab) ───────────────────────────────────────────────
+// ─── Theme ────────────────────────────────────────────────────────────────────
 const T = {
   bg:          '#0f0a1e',
   surface:     '#16102a',
@@ -46,10 +46,10 @@ const PIPELINE: {
   status: Status; lastMsg: string; time: string;
   unread: number; expired?: boolean;
 }[] = [
-  { id: '1', name: 'Maria Santos',   role: 'Frontend Developer', avatar: 'https://randomuser.me/api/portraits/women/44.jpg', lastMsg: "Hi! I'm excited about the role. Happy to start anytime!", time: '2m',       unread: 2, status: 'screening' },
-  { id: '2', name: 'Pedro Lim',      role: 'Full Stack Developer',avatar: 'https://randomuser.me/api/portraits/men/55.jpg',   lastMsg: "Thanks for moving me forward! When's the interview?",  time: '1h',       unread: 1, status: 'interview' },
-  { id: '3', name: 'Carla Mendoza',  role: 'Data Analyst',        avatar: 'https://randomuser.me/api/portraits/women/29.jpg', lastMsg: "Sounds good, I'll prepare for the case study.",         time: '3h',       unread: 0, status: 'new', expired: true },
-  { id: '4', name: 'James Reyes',    role: 'Backend Engineer',    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',   lastMsg: "I've sent over my portfolio as requested!",             time: 'Yesterday', unread: 0, status: 'offer' },
+  { id: '1', name: 'Maria Santos',   role: 'Frontend Developer',  avatar: 'https://randomuser.me/api/portraits/women/44.jpg', lastMsg: "Hi! I'm excited about the role. Happy to start anytime!", time: '2m',        unread: 2, status: 'screening' },
+  { id: '2', name: 'Pedro Lim',      role: 'Full Stack Developer', avatar: 'https://randomuser.me/api/portraits/men/55.jpg',   lastMsg: "Thanks for moving me forward! When's the interview?",  time: '1h',        unread: 1, status: 'interview' },
+  { id: '3', name: 'Carla Mendoza',  role: 'Data Analyst',         avatar: 'https://randomuser.me/api/portraits/women/29.jpg', lastMsg: "Sounds good, I'll prepare for the case study.",         time: '3h',        unread: 0, status: 'new', expired: true },
+  { id: '4', name: 'James Reyes',    role: 'Backend Engineer',     avatar: 'https://randomuser.me/api/portraits/men/32.jpg',   lastMsg: "I've sent over my portfolio as requested!",             time: 'Yesterday', unread: 0, status: 'offer' },
 ];
 
 const PIPELINE_STAGES: {
@@ -63,6 +63,44 @@ const PIPELINE_STAGES: {
 
 const CLOSED_APPLICANTS = PIPELINE.filter(p => p.expired);
 
+// ─── Chat data ────────────────────────────────────────────────────────────────
+type ChatMessage = { id: number; from: 'me' | 'them'; text: string; time: string; };
+
+const SEED_MESSAGES: Record<string, ChatMessage[]> = {
+  '1': [
+    { id: 1, from: 'them', text: "Hi! I'm really excited about this Frontend Developer role.", time: '9:45 AM' },
+    { id: 2, from: 'me',   text: "Thanks for applying, Maria! We loved your portfolio.", time: '10:02 AM' },
+    { id: 3, from: 'them', text: "That means a lot! I've been following your company for a while.", time: '10:08 AM' },
+    { id: 4, from: 'me',   text: "Great. We'd love to schedule a screening call. Are you free this week?", time: '10:15 AM' },
+    { id: 5, from: 'them', text: "Hi! I'm excited about the role. Happy to start anytime!", time: '2m ago' },
+  ],
+  '2': [
+    { id: 1, from: 'them', text: "Hi, I just saw I was moved forward in the process!", time: '8:30 AM' },
+    { id: 2, from: 'me',   text: "Yes! Your technical test results were impressive, Pedro.", time: '9:00 AM' },
+    { id: 3, from: 'them', text: "Thanks for moving me forward! When's the interview?", time: '1h ago' },
+  ],
+  '3': [
+    { id: 1, from: 'me',   text: "Hi Carla, thanks for applying to the Data Analyst role.", time: 'Yesterday' },
+    { id: 2, from: 'them', text: "Thank you! I'm very interested in this opportunity.", time: 'Yesterday' },
+    { id: 3, from: 'me',   text: "We'd like to move forward with a case study. Does that work for you?", time: '3h ago' },
+    { id: 4, from: 'them', text: "Sounds good, I'll prepare for the case study.", time: '3h ago' },
+  ],
+  '4': [
+    { id: 1, from: 'me',   text: "Hi James! We're very impressed with your background.", time: 'Mon' },
+    { id: 2, from: 'them', text: "Thank you so much! I'm really excited about this opportunity.", time: 'Mon' },
+    { id: 3, from: 'me',   text: "Could you share your portfolio and some recent work samples?", time: 'Tue' },
+    { id: 4, from: 'them', text: "I've sent over my portfolio as requested!", time: 'Yesterday' },
+  ],
+};
+
+const AUTO_REPLIES: Record<string, string[]> = {
+  '1': ["Thanks for the update! Looking forward to it.", "We'll send the calendar invite shortly.", "Feel free to reach out if you have any questions."],
+  '2': ["The interview is scheduled for Friday at 2 PM.", "We'll send a calendar invite to your email.", "Let us know if you need to reschedule."],
+  '3': ["We'll be in touch soon with more details.", "Thanks for your patience!", "We appreciate your enthusiasm."],
+  '4': ["We're reviewing your portfolio now.", "We'll be in touch with next steps soon.", "Great work, we're impressed!"],
+};
+
+// ─── Review types ─────────────────────────────────────────────────────────────
 type Review = {
   id: number; applicantId: string; rating: number;
   title: string; body: string; date: string;
@@ -148,14 +186,204 @@ function ApplicantAvatar({ uri, size = 52 }: { uri: string; size?: number }) {
   );
 }
 
+// ─── Conversation Screen ──────────────────────────────────────────────────────
+function ConversationScreen({
+  applicant,
+  onBack,
+  tabBarHeight,
+}: {
+  applicant: typeof PIPELINE[number];
+  onBack: () => void;
+  tabBarHeight: number;
+}) {
+  const { top: topInset } = useSafeAreaInsets();
+  const [messages, setMessages] = useState<ChatMessage[]>(SEED_MESSAGES[applicant.id] ?? []);
+  const [draft, setDraft] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const replyIndexRef = useRef(0);
+
+  useEffect(() => {
+    const SCREEN_H = Dimensions.get('screen').height;
+    const show = Keyboard.addListener('keyboardDidShow', (e: KeyboardEvent) => {
+      setKeyboardHeight(SCREEN_H - e.endCoordinates.screenY);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  useEffect(() => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100);
+  }, []);
+
+  const scrollToBottom = (animated = true) => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated }), 100);
+  };
+
+  const sendMessage = () => {
+    const text = draft.trim();
+    if (!text) return;
+    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    setMessages(prev => [...prev, { id: Date.now(), from: 'me', text, time: now }]);
+    setDraft('');
+    scrollToBottom();
+
+    const replies = AUTO_REPLIES[applicant.id] ?? ["Thanks for your message!"];
+    const replyText = replies[replyIndexRef.current % replies.length];
+    replyIndexRef.current += 1;
+    setIsTyping(true);
+    scrollToBottom();
+    setTimeout(() => {
+      setIsTyping(false);
+      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      setMessages(prev => [...prev, { id: Date.now() + 1, from: 'them', text: replyText, time: replyTime }]);
+      scrollToBottom();
+    }, 1400);
+  };
+
+  const stage = PIPELINE_STAGES.find(st => st.key === applicant.status);
+
+  return (
+    <View style={[cs.screen, { paddingTop: topInset }]}>
+      <StatusBar barStyle="light-content" />
+
+      {/* Header */}
+      <View style={cs.header}>
+        <TouchableOpacity onPress={onBack} style={cs.backBtn} activeOpacity={0.7}>
+          <MaterialCommunityIcons name="arrow-left" size={22} color={T.primary} />
+        </TouchableOpacity>
+        <Image source={{ uri: applicant.avatar }} style={cs.headerAvatar} />
+        <View style={cs.headerInfo}>
+          <Text style={cs.headerName}>{applicant.name}</Text>
+          {isTyping
+            ? <Text style={cs.typingLabel}>typing…</Text>
+            : <Text style={cs.headerRole}>{applicant.role}</Text>
+          }
+        </View>
+        {stage && (
+          <View style={[cs.statusBadge, { backgroundColor: stage.bg }]}>
+            <Text style={[cs.statusBadgeText, { color: stage.text }]}>{stage.label}</Text>
+          </View>
+        )}
+      </View>
+      <View style={cs.headerDivider} />
+
+      {/* Messages + input */}
+      <View style={[{ flex: 1 }, keyboardHeight > 0 && { marginBottom: keyboardHeight }]}>
+        <ScrollView
+          ref={scrollRef}
+          style={cs.msgScroll}
+          contentContainerStyle={[
+            cs.msgContent,
+            { paddingBottom: keyboardHeight > 0 ? 16 : tabBarHeight + 16 },
+          ]}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          onContentSizeChange={() => scrollToBottom(false)}
+        >
+          {messages.map((msg, i) => {
+            const isMe = msg.from === 'me';
+            const prevMsg = messages[i - 1];
+            const nextMsg = messages[i + 1];
+            const isFirstInGroup = i === 0 || prevMsg.from !== msg.from;
+            const isLastInGroup  = i === messages.length - 1 || nextMsg?.from !== msg.from;
+
+            return (
+              <View
+                key={msg.id}
+                style={[
+                  cs.bubbleWrap,
+                  isMe ? cs.bubbleWrapMe : cs.bubbleWrapThem,
+                  isFirstInGroup && { marginTop: 8 },
+                ]}
+              >
+                {!isMe && isFirstInGroup && (
+                  <Image source={{ uri: applicant.avatar }} style={cs.bubbleAvatar} />
+                )}
+                {!isMe && !isFirstInGroup && <View style={cs.bubbleAvatarSpacer} />}
+                <View style={cs.bubbleCol}>
+                  <View style={[
+                    cs.bubble,
+                    isMe ? cs.bubbleMe : cs.bubbleThem,
+                    !isMe && isFirstInGroup && cs.bubbleThemFirst,
+                    !isMe && isLastInGroup  && cs.bubbleThemLast,
+                    isMe  && isFirstInGroup && cs.bubbleMeFirst,
+                    isMe  && isLastInGroup  && cs.bubbleMeLast,
+                  ]}>
+                    <Text style={[cs.bubbleText, isMe ? cs.bubbleTextMe : cs.bubbleTextThem]}>
+                      {msg.text}
+                    </Text>
+                  </View>
+                  {isLastInGroup && (
+                    <Text style={[cs.bubbleTime, isMe ? cs.bubbleTimeMe : cs.bubbleTimeThem]}>
+                      {msg.time}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+
+          {isTyping && (
+            <View style={[cs.bubbleWrap, cs.bubbleWrapThem, { marginTop: 8 }]}>
+              <Image source={{ uri: applicant.avatar }} style={cs.bubbleAvatar} />
+              <View style={[cs.bubble, cs.bubbleThem, cs.typingBubble]}>
+                <View style={cs.typingDots}>
+                  <View style={[cs.typingDot, cs.typingDot1]} />
+                  <View style={[cs.typingDot, cs.typingDot2]} />
+                  <View style={[cs.typingDot, cs.typingDot3]} />
+                </View>
+              </View>
+            </View>
+          )}
+
+          {applicant.expired && (
+            <View style={cs.expiredBanner}>
+              <MaterialCommunityIcons name="lock-outline" size={13} color={T.textHint} />
+              <Text style={cs.expiredBannerText}>This conversation has closed</Text>
+            </View>
+          )}
+        </ScrollView>
+
+        {!applicant.expired && (
+          <View style={[cs.inputBar, { paddingBottom: keyboardHeight > 0 ? 8 : tabBarHeight + 8 }]}>
+            <TextInput
+              style={cs.input}
+              value={draft}
+              onChangeText={setDraft}
+              placeholder="Message…"
+              placeholderTextColor={T.textHint}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[cs.sendBtn, !draft.trim() && cs.sendBtnDisabled]}
+              onPress={sendMessage}
+              activeOpacity={0.85}
+              disabled={!draft.trim()}
+            >
+              <MaterialCommunityIcons name="send" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function CompanyMatchesScreen() {
-  const tabBarHeight            = useTabBarHeight();
-  const { top: topInset }       = useSafeAreaInsets();
+  const tabBarHeight          = useTabBarHeight();
+  const { top: topInset }     = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('matches');
   const hasMatches                = NEW_MATCHES.length > 0;
   const totalUnread               = PIPELINE.reduce((a, m) => a + m.unread, 0);
 
+  // Conversation detail (full-screen swap — same pattern as teammate)
+  const [selectedConversation, setSelectedConversation] = useState<typeof PIPELINE[number] | null>(null);
+
+  // Review state
   const [selectedApplicantId, setSelectedApplicantId] = useState<string | null>(null);
   const [reviewRating, setReviewRating]               = useState(0);
   const [reviewTitle, setReviewTitle]                 = useState('');
@@ -200,12 +428,22 @@ export default function CompanyMatchesScreen() {
     { key: 'reviews',  label: 'Review',   badge: 0                  },
   ];
 
+  // ── Full-screen conversation swap (mirrors teammate's pattern exactly) ──────
+  if (selectedConversation) {
+    return (
+      <ConversationScreen
+        applicant={selectedConversation}
+        onBack={() => setSelectedConversation(null)}
+        tabBarHeight={tabBarHeight}
+      />
+    );
+  }
+
   return (
-    // ── Replace SafeAreaView with plain View + manual top inset ──────────────
     <View style={[s.screen, { paddingTop: topInset }]}>
       <StatusBar barStyle="light-content" />
 
-      {/* ── Header ── */}
+      {/* Header */}
       <View style={s.header}>
         <View style={s.headerRow}>
           <Text style={s.pageTitle}>Matches</Text>
@@ -215,10 +453,9 @@ export default function CompanyMatchesScreen() {
         </View>
       </View>
 
-      {/* ── Segment tabs ── */}
+      {/* Segment tabs */}
       <SegmentTabs tabs={tabs} active={activeTab} onSelect={setActiveTab} />
 
-      {/* ── Scrollable content — paddingBottom = tab bar height ── */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: tabBarHeight + 24 }]}
@@ -301,7 +538,8 @@ export default function CompanyMatchesScreen() {
                   {i > 0 && <View style={s.divider} />}
                   <TouchableOpacity
                     style={[s.msgRow, msg.expired && s.msgRowExpired]}
-                    activeOpacity={msg.expired ? 1 : 0.85}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedConversation(msg)}
                   >
                     <View style={{ position: 'relative' }}>
                       <ApplicantAvatar uri={msg.avatar} size={48} />
@@ -527,7 +765,7 @@ export default function CompanyMatchesScreen() {
   );
 }
 
-// ─── Styles ───────────────────────────────────────────────────────────────────
+// ─── Main screen styles ───────────────────────────────────────────────────────
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: T.bg },
 
@@ -562,16 +800,16 @@ const s = StyleSheet.create({
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: T.borderFaint, marginVertical: 8 },
 
   // Empty state
-  emptyWrap:  { alignItems: 'center', paddingTop: 24, paddingHorizontal: 32 },
-  ghostStack: { width: SCREEN_WIDTH - 64, height: 210, position: 'relative', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
-  ghostCard:  { position: 'absolute', width: 136, height: 182, borderRadius: 20, backgroundColor: T.surface, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 6, overflow: 'hidden' },
-  ghostPhoto: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(168,85,247,0.08)' },
-  ghostMeta:  { padding: 12, backgroundColor: T.surface },
-  ghostLine:  { height: 8, borderRadius: 4, backgroundColor: T.borderFaint },
-  boltBadge:  { position: 'absolute', top: 14, left: '28%' as any, width: 34, height: 34, borderRadius: 17, backgroundColor: '#f97316', alignItems: 'center', justifyContent: 'center', shadowColor: '#f97316', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6, zIndex: 10 },
-  emptyTitle: { fontSize: 21, fontWeight: '800', color: T.textPrimary, textAlign: 'center', lineHeight: 30, marginBottom: 12, letterSpacing: -0.3 },
-  emptySub:   { fontSize: 14, color: T.textSub, textAlign: 'center', lineHeight: 21, marginBottom: 32 },
-  boostBtn:   { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: T.primary, borderRadius: 50, paddingVertical: 16, paddingHorizontal: 40, marginBottom: 16, width: '100%', justifyContent: 'center', shadowColor: T.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 4 },
+  emptyWrap:      { alignItems: 'center', paddingTop: 24, paddingHorizontal: 32 },
+  ghostStack:     { width: SCREEN_WIDTH - 64, height: 210, position: 'relative', alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
+  ghostCard:      { position: 'absolute', width: 136, height: 182, borderRadius: 20, backgroundColor: T.surface, borderWidth: 1, borderColor: T.border, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 6, overflow: 'hidden' },
+  ghostPhoto:     { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(168,85,247,0.08)' },
+  ghostMeta:      { padding: 12, backgroundColor: T.surface },
+  ghostLine:      { height: 8, borderRadius: 4, backgroundColor: T.borderFaint },
+  boltBadge:      { position: 'absolute', top: 14, left: '28%' as any, width: 34, height: 34, borderRadius: 17, backgroundColor: '#f97316', alignItems: 'center', justifyContent: 'center', shadowColor: '#f97316', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6, zIndex: 10 },
+  emptyTitle:     { fontSize: 21, fontWeight: '800', color: T.textPrimary, textAlign: 'center', lineHeight: 30, marginBottom: 12, letterSpacing: -0.3 },
+  emptySub:       { fontSize: 14, color: T.textSub, textAlign: 'center', lineHeight: 21, marginBottom: 32 },
+  boostBtn:       { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: T.primary, borderRadius: 50, paddingVertical: 16, paddingHorizontal: 40, marginBottom: 16, width: '100%', justifyContent: 'center', shadowColor: T.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.35, shadowRadius: 12, elevation: 4 },
   boostIconWrap:  { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
   boostBtnText:   { fontSize: 16, fontWeight: '700', color: '#fff' },
   editProfileText:{ fontSize: 15, fontWeight: '600', color: T.textSub, textDecorationLine: 'underline' },
@@ -648,4 +886,61 @@ const s = StyleSheet.create({
   reviewDate:         { fontSize: 11, color: T.textHint, marginLeft: 6 },
   reviewTitle:        { fontSize: 14, fontWeight: '600', color: T.textPrimary },
   reviewBody:         { fontSize: 13, color: T.textSub, lineHeight: 20 },
+});
+
+// ─── Conversation screen styles ───────────────────────────────────────────────
+const cs = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: T.bg },
+
+  header:         { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
+  backBtn:        { width: 38, height: 38, borderRadius: 19, backgroundColor: T.surface, borderWidth: 1, borderColor: T.borderFaint, alignItems: 'center', justifyContent: 'center' },
+  headerAvatar:   { width: 40, height: 40, borderRadius: 12, borderWidth: 1, borderColor: T.border },
+  headerInfo:     { flex: 1 },
+  headerName:     { fontSize: 15, fontWeight: '700', color: T.textPrimary },
+  headerRole:     { fontSize: 12, color: T.textSub, marginTop: 1 },
+  typingLabel:    { fontSize: 12, color: T.primary, fontStyle: 'italic', marginTop: 1 },
+  statusBadge:    { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusBadgeText:{ fontSize: 11, fontWeight: '700' },
+  headerDivider:  { height: StyleSheet.hairlineWidth, backgroundColor: T.borderFaint },
+
+  msgScroll:   { flex: 1 },
+  msgContent:  { paddingHorizontal: 16, paddingTop: 16, gap: 4 },
+
+  bubbleWrap:     { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 2 },
+  bubbleWrapMe:   { justifyContent: 'flex-end' },
+  bubbleWrapThem: { justifyContent: 'flex-start' },
+
+  bubbleAvatar:       { width: 28, height: 28, borderRadius: 9, marginBottom: 2 },
+  bubbleAvatarSpacer: { width: 28 },
+  bubbleCol:          { maxWidth: SCREEN_WIDTH * 0.72, gap: 3 },
+
+  bubble:          { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
+  bubbleMe:        { backgroundColor: T.primary, borderBottomRightRadius: 4 },
+  bubbleThem:      { backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.borderFaint, borderBottomLeftRadius: 4 },
+  bubbleMeFirst:   { borderTopRightRadius: 18 },
+  bubbleMeLast:    { borderBottomRightRadius: 4 },
+  bubbleThemFirst: { borderTopLeftRadius: 18 },
+  bubbleThemLast:  { borderBottomLeftRadius: 4 },
+
+  bubbleText:     { fontSize: 14, lineHeight: 20 },
+  bubbleTextMe:   { color: '#fff' },
+  bubbleTextThem: { color: T.textPrimary },
+  bubbleTime:     { fontSize: 10, color: T.textHint },
+  bubbleTimeMe:   { textAlign: 'right' },
+  bubbleTimeThem: { textAlign: 'left' },
+
+  typingBubble: { paddingVertical: 12, paddingHorizontal: 16 },
+  typingDots:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  typingDot:    { width: 7, height: 7, borderRadius: 4, backgroundColor: T.textHint },
+  typingDot1:   {},
+  typingDot2:   { opacity: 0.65 },
+  typingDot3:   { opacity: 0.35 },
+
+  expiredBanner:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: T.surface, borderRadius: 12, borderWidth: 1, borderColor: T.borderFaint, alignSelf: 'center' },
+  expiredBannerText: { fontSize: 12, color: T.textHint, fontWeight: '600' },
+
+  inputBar:        { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingTop: 10, backgroundColor: T.bg, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: T.borderFaint },
+  input:           { flex: 1, minHeight: 44, maxHeight: 120, backgroundColor: T.surface, borderRadius: 22, borderWidth: 1, borderColor: T.borderFaint, paddingHorizontal: 16, paddingVertical: 11, fontSize: 14, color: T.textPrimary },
+  sendBtn:         { width: 44, height: 44, borderRadius: 22, backgroundColor: T.primary, alignItems: 'center', justifyContent: 'center' },
+  sendBtnDisabled: { opacity: 0.35 },
 });

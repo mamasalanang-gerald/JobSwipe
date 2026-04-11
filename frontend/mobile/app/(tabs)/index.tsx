@@ -131,6 +131,342 @@ const JOBS = [
       { author: 'Leo S.',    role: 'Research Engineer',    rating: 4, date: 'Jan 2024', text: 'Great place if you want to grow fast. On-site requirement is a trade-off but the office and perks more than compensate.' },
     ],
   },
+  {
+    id: 4,
+    company: 'NovaPay',
+    logoColor: '#6366F1',
+    rating: 4.7,
+    position: 'Backend Engineer',
+    salary: '$110k - $140k / yr',
+    location: 'Austin, TX · Remote',
+    tags: [
+      { label: 'Remote',    variant: 'primary'  as const },
+      { label: 'Full-time', variant: 'success'  as const },
+      { label: 'Fintech',   variant: 'warning'  as const },
+    ],
+    description: 'Power the financial infrastructure for millions of users. Design and scale high-throughput payment APIs processing billions in transactions. You will work across Go, Postgres, and Kafka in a cloud-native stack.',
+    matchPercent: 88,
+    photos: [
+      require('../assets/images/accenture.jpg'),
+      require('../assets/images/accenture2.jpg'),
+      require('../assets/images/accenture3.jpg'),
+    ],
+    lookingFor: 'Go · Kafka · PostgreSQL · 4+ yrs',
+    distanceKm: 12.1,
+    reviews: [
+      { author: 'Marcus T.', role: 'Backend Engineer',   rating: 5, date: 'Feb 2024', text: 'Best engineering culture I have experienced. Ownership is real, on-call is manageable, and the pay is top of market.' },
+      { author: 'Yuki S.',   role: 'Platform Engineer',  rating: 4, date: 'Jan 2024', text: 'Challenging problems and a genuinely smart team. Rapid career growth if you show initiative.' },
+      { author: 'Chloe R.',  role: 'Software Engineer',  rating: 5, date: 'Dec 2023', text: 'Remote-first done right. Great async culture, no micromanagement, and actually interesting work.' },
+    ],
+  },
+  {
+    id: 5,
+    company: 'HelixAI',
+    logoColor: '#EC4899',
+    rating: 4.5,
+    position: 'AI Product Manager',
+    salary: '$130k - $160k / yr',
+    location: 'Seattle, WA · Hybrid',
+    tags: [
+      { label: 'Hybrid',    variant: 'primary' as const },
+      { label: 'Full-time', variant: 'success' as const },
+      { label: 'AI/ML',     variant: 'warning' as const },
+    ],
+    description: 'Define the roadmap for AI-powered products used by 5M+ professionals. Partner with research, engineering, and design to ship intelligent features from concept to launch.',
+    matchPercent: 81,
+    photos: [
+      require('../assets/images/socia.png'),
+      require('../assets/images/socia2.jpg'),
+      require('../assets/images/socia3.jpg'),
+    ],
+    lookingFor: 'Product Strategy · AI/ML · 4+ yrs',
+    distanceKm: 6.7,
+    reviews: [
+      { author: 'Amara J.',  role: 'Senior PM',          rating: 5, date: 'Mar 2024', text: 'Incredible place to be at the frontier of AI products. Leadership is transparent and the mission is real.' },
+      { author: 'Ben F.',    role: 'Product Manager',    rating: 4, date: 'Jan 2024', text: 'Fast-paced and demanding, but you ship things that actually matter. Great learning environment.' },
+      { author: 'Rina M.',   role: 'Associate PM',       rating: 5, date: 'Nov 2023', text: 'Collaborative culture with real autonomy. The calibre of people here is exceptional.' },
+    ],
+  },
+  {
+    id: 6,
+    company: 'Orbis Cloud',
+    logoColor: '#0EA5E9',
+    rating: 4.6,
+    position: 'DevOps Engineer',
+    salary: '$105k - $135k / yr',
+    location: 'Denver, CO · Remote',
+    tags: [
+      { label: 'Remote',    variant: 'primary'  as const },
+      { label: 'Full-time', variant: 'success'  as const },
+      { label: 'Cloud',     variant: 'neutral'  as const },
+    ],
+    description: 'Build and maintain the cloud infrastructure powering critical enterprise workloads. Drive automation, reliability, and cost efficiency across AWS and Kubernetes at scale.',
+    matchPercent: 76,
+    photos: [
+      require('../assets/images/alorica.jpg'),
+      require('../assets/images/alorica2.jpg'),
+      require('../assets/images/alorica3.jpg'),
+    ],
+    lookingFor: 'AWS · Kubernetes · Terraform · 3+ yrs',
+    distanceKm: 30.2,
+    reviews: [
+      { author: 'Tariq L.',  role: 'DevOps Engineer',    rating: 4, date: 'Feb 2024', text: 'Solid remote culture, good tooling budget, and interesting infrastructure challenges. Leadership listens to engineers.' },
+      { author: 'Keiko P.',  role: 'SRE',                rating: 5, date: 'Dec 2023', text: 'Best on-call experience I have had. Blameless culture and genuinely supportive team.' },
+      { author: 'Sam W.',    role: 'Cloud Architect',    rating: 4, date: 'Oct 2023', text: 'Great scope of work and a real say in architectural decisions. Pay is competitive.' },
+    ],
+  },
+  {
+    id: 7,
+    company: 'Vantage Health',
+    logoColor: '#10B981',
+    rating: 4.8,
+    position: 'Full-Stack Engineer',
+    salary: '$115k - $145k / yr',
+    location: 'Chicago, IL · Hybrid',
+    tags: [
+      { label: 'Hybrid',    variant: 'primary' as const },
+      { label: 'Full-time', variant: 'success' as const },
+      { label: 'HealthTech',variant: 'warning' as const },
+    ],
+    description: 'Build software that improves patient outcomes for 3M+ users. Own features end-to-end across React, Node, and AWS. Work in a mission-driven team where every release matters.',
+    matchPercent: 90,
+    photos: [
+      require('../assets/images/accenture.jpg'),
+      require('../assets/images/accenture2.jpg'),
+      require('../assets/images/accenture3.jpg'),
+    ],
+    lookingFor: 'React · Node.js · AWS · 4+ yrs',
+    distanceKm: 9.5,
+    reviews: [
+      { author: 'Grace N.',  role: 'Full-Stack Engineer', rating: 5, date: 'Mar 2024', text: 'Working here feels meaningful. The tech stack is modern and the team is collaborative and kind.' },
+      { author: 'Omar A.',   role: 'Software Engineer',   rating: 5, date: 'Feb 2024', text: 'Mission-driven work with strong engineering standards. Best team culture I have been part of.' },
+      { author: 'Lily C.',   role: 'Frontend Engineer',   rating: 4, date: 'Jan 2024', text: 'Great work-life balance for healthcare tech. Thoughtful leadership and clear career paths.' },
+    ],
+  },
+  {
+    id: 8,
+    company: 'Stratum Data',
+    logoColor: '#F59E0B',
+    rating: 4.4,
+    position: 'Data Engineer',
+    salary: '$100k - $125k / yr',
+    location: 'Atlanta, GA · On-site',
+    tags: [
+      { label: 'On-site',   variant: 'warning' as const },
+      { label: 'Full-time', variant: 'success' as const },
+      { label: 'Analytics', variant: 'neutral' as const },
+    ],
+    description: 'Design and operate data pipelines that process 10TB+ daily across retail and logistics clients. Own the full data lifecycle from ingestion to BI dashboards.',
+    matchPercent: 73,
+    photos: [
+      require('../assets/images/alorica.jpg'),
+      require('../assets/images/alorica2.jpg'),
+      require('../assets/images/alorica3.jpg'),
+    ],
+    lookingFor: 'Spark · dbt · Snowflake · 3+ yrs',
+    distanceKm: 45.0,
+    reviews: [
+      { author: 'Priya S.',  role: 'Data Engineer',      rating: 4, date: 'Jan 2024', text: 'Solid data problems and a team that really knows its stuff. On-site works well given the collaborative nature of the work.' },
+      { author: 'Josh M.',   role: 'Analytics Engineer', rating: 4, date: 'Nov 2023', text: 'Good pay and interesting data challenges. Management is supportive of learning and development.' },
+      { author: 'Fiona K.',  role: 'Data Analyst',       rating: 5, date: 'Sep 2023', text: 'The data infrastructure here is impressive. Great place to level up your engineering skills.' },
+    ],
+  },
+  {
+    id: 9,
+    company: 'Luminary UX',
+    logoColor: '#8B5CF6',
+    rating: 4.7,
+    position: 'UX Researcher',
+    salary: '$90k - $115k / yr',
+    location: 'Portland, OR · Remote',
+    tags: [
+      { label: 'Remote',    variant: 'primary'  as const },
+      { label: 'Full-time', variant: 'success'  as const },
+      { label: 'Research',  variant: 'neutral'  as const },
+    ],
+    description: 'Lead qualitative and quantitative research that shapes products used daily by millions. Run usability studies, interviews, and surveys to surface insights that drive roadmap decisions.',
+    matchPercent: 79,
+    photos: [
+      require('../assets/images/socia.png'),
+      require('../assets/images/socia2.jpg'),
+      require('../assets/images/socia3.jpg'),
+    ],
+    lookingFor: 'User Research · Mixed Methods · 3+ yrs',
+    distanceKm: 18.3,
+    reviews: [
+      { author: 'Zara P.',   role: 'UX Researcher',      rating: 5, date: 'Mar 2024', text: 'Research is genuinely valued here — findings actually influence product decisions. Rare and refreshing.' },
+      { author: 'Ian T.',    role: 'Product Researcher',  rating: 4, date: 'Feb 2024', text: 'Flexible remote setup and a team that takes user empathy seriously. Great leadership.' },
+      { author: 'Mei L.',    role: 'UX Designer',         rating: 5, date: 'Dec 2023', text: 'Collaborative and research-driven culture. You will have real impact on what gets built.' },
+    ],
+  },
+  {
+    id: 10,
+    company: 'FortressAI',
+    logoColor: '#EF4444',
+    rating: 4.5,
+    position: 'Security Engineer',
+    salary: '$125k - $155k / yr',
+    location: 'Washington, DC · Hybrid',
+    tags: [
+      { label: 'Hybrid',    variant: 'primary' as const },
+      { label: 'Full-time', variant: 'success' as const },
+      { label: 'Security',  variant: 'warning' as const },
+    ],
+    description: 'Secure AI systems trusted by government and enterprise clients. Lead threat modelling, pen testing, and security architecture reviews across a cutting-edge platform stack.',
+    matchPercent: 83,
+    photos: [
+      require('../assets/images/accenture.jpg'),
+      require('../assets/images/accenture2.jpg'),
+      require('../assets/images/accenture3.jpg'),
+    ],
+    lookingFor: 'AppSec · Pen Testing · Cloud Security · 4+ yrs',
+    distanceKm: 22.8,
+    reviews: [
+      { author: 'Ray K.',    role: 'Security Engineer',   rating: 5, date: 'Feb 2024', text: 'High-stakes, high-reward work. The team is sharp and the mission matters. Pay reflects the seniority of the problems.' },
+      { author: 'Sana B.',   role: 'AppSec Engineer',     rating: 4, date: 'Jan 2024', text: 'Great place to deepen security expertise. Leadership understands the domain and gives engineers real authority.' },
+      { author: 'Deco M.',   role: 'Red Team Lead',       rating: 5, date: 'Nov 2023', text: 'Best security culture I have seen outside a top-tier bank. Blameless, rigorous, and genuinely collaborative.' },
+    ],
+  },
+  {
+    id: 11,
+    company: 'Sprout Commerce',
+    logoColor: '#22C55E',
+    rating: 4.6,
+    position: 'iOS Engineer',
+    salary: '$115k - $140k / yr',
+    location: 'Miami, FL · Remote',
+    tags: [
+      { label: 'Remote',    variant: 'primary'  as const },
+      { label: 'Full-time', variant: 'success'  as const },
+      { label: 'E-commerce',variant: 'neutral'  as const },
+    ],
+    description: 'Build the iOS shopping experience for 4M+ customers. Own feature delivery from design hand-off to App Store release. Work in Swift with a world-class mobile team.',
+    matchPercent: 87,
+    photos: [
+      require('../assets/images/alorica.jpg'),
+      require('../assets/images/alorica2.jpg'),
+      require('../assets/images/alorica3.jpg'),
+    ],
+    lookingFor: 'Swift · UIKit · SwiftUI · 4+ yrs',
+    distanceKm: 5.4,
+    reviews: [
+      { author: 'Tyler G.',  role: 'iOS Engineer',        rating: 5, date: 'Mar 2024', text: 'Fast-moving and fun team. Shipping to millions of users every sprint is genuinely exciting.' },
+      { author: 'Hana R.',   role: 'Mobile Engineer',     rating: 4, date: 'Feb 2024', text: 'Great Swift codebase, sensible architecture, and a product team that works well with engineering.' },
+      { author: 'Joel P.',   role: 'Senior iOS Dev',      rating: 5, date: 'Jan 2024', text: 'Best mobile job I have had. Autonomy, good pay, and a product people actually love.' },
+    ],
+  },
+  {
+    id: 12,
+    company: 'Axiom Robotics',
+    logoColor: '#64748B',
+    rating: 4.9,
+    position: 'Embedded Systems Engineer',
+    salary: '$130k - $165k / yr',
+    location: 'Detroit, MI · On-site',
+    tags: [
+      { label: 'On-site',   variant: 'warning' as const },
+      { label: 'Full-time', variant: 'success' as const },
+      { label: 'Robotics',  variant: 'neutral' as const },
+    ],
+    description: 'Design and ship firmware for next-generation industrial robots deployed in smart factories worldwide. Work close to the metal on real-time systems with a team of world-class engineers.',
+    matchPercent: 77,
+    photos: [
+      require('../assets/images/socia.png'),
+      require('../assets/images/socia2.jpg'),
+      require('../assets/images/socia3.jpg'),
+    ],
+    lookingFor: 'C/C++ · RTOS · Embedded Linux · 5+ yrs',
+    distanceKm: 38.6,
+    reviews: [
+      { author: 'Viktor H.', role: 'Firmware Engineer',   rating: 5, date: 'Feb 2024', text: 'Working on real robots in the real world is incredibly motivating. Hard problems, great team, and top-notch equipment.' },
+      { author: 'Nia S.',    role: 'Embedded Engineer',   rating: 5, date: 'Jan 2024', text: 'The engineering rigour here is exceptional. You will learn more in six months than most places in two years.' },
+      { author: 'Carlos M.', role: 'Systems Engineer',    rating: 4, date: 'Dec 2023', text: 'On-site is worth it given the lab access and hardware. Best embedded role on the market.' },
+    ],
+  },
+  {
+    id: 13,
+    company: 'Pulse Analytics',
+    logoColor: '#F97316',
+    rating: 4.5,
+    position: 'Growth Engineer',
+    salary: '$105k - $130k / yr',
+    location: 'Los Angeles, CA · Hybrid',
+    tags: [
+      { label: 'Hybrid',    variant: 'primary' as const },
+      { label: 'Full-time', variant: 'success' as const },
+      { label: 'Growth',    variant: 'warning' as const },
+    ],
+    description: 'Own the experimentation platform and growth loops driving user acquisition for a consumer app with 8M MAUs. Run A/B tests, build attribution pipelines, and partner with marketing and product.',
+    matchPercent: 80,
+    photos: [
+      require('../assets/images/accenture.jpg'),
+      require('../assets/images/accenture2.jpg'),
+      require('../assets/images/accenture3.jpg'),
+    ],
+    lookingFor: 'Growth Engineering · SQL · A/B Testing · 3+ yrs',
+    distanceKm: 14.7,
+    reviews: [
+      { author: 'Alicia F.', role: 'Growth Engineer',     rating: 4, date: 'Mar 2024', text: 'Great mix of product thinking and engineering. The impact of your work is directly measurable, which is motivating.' },
+      { author: 'Marco D.',  role: 'Data Engineer',       rating: 5, date: 'Feb 2024', text: 'Fast experimentation culture, strong data foundations, and a team that celebrates wins together.' },
+      { author: 'Petra L.',  role: 'Analytics Engineer',  rating: 4, date: 'Dec 2023', text: 'Good scope and autonomy. The hybrid setup works well and the office days are genuinely productive.' },
+    ],
+  },
+  {
+    id: 14,
+    company: 'Crestline EdTech',
+    logoColor: '#06B6D4',
+    rating: 4.7,
+    position: 'Platform Engineer',
+    salary: '$108k - $132k / yr',
+    location: 'Nashville, TN · Remote',
+    tags: [
+      { label: 'Remote',    variant: 'primary'  as const },
+      { label: 'Full-time', variant: 'success'  as const },
+      { label: 'EdTech',    variant: 'neutral'  as const },
+    ],
+    description: 'Build the platform powering online learning for 6M+ students globally. Own core infrastructure, developer tooling, and reliability initiatives across a modern cloud-native stack.',
+    matchPercent: 84,
+    photos: [
+      require('../assets/images/alorica.jpg'),
+      require('../assets/images/alorica2.jpg'),
+      require('../assets/images/alorica3.jpg'),
+    ],
+    lookingFor: 'Platform Engineering · GCP · Go · 4+ yrs',
+    distanceKm: 27.3,
+    reviews: [
+      { author: 'Sophie K.', role: 'Platform Engineer',   rating: 5, date: 'Mar 2024', text: 'Mission-driven company with genuinely modern engineering practices. Remote culture is one of the best I have seen.' },
+      { author: 'Ravi P.',   role: 'SRE',                 rating: 4, date: 'Feb 2024', text: 'Great scope and trust in engineers. The infra problems are interesting and the team is supportive.' },
+      { author: 'Dana W.',   role: 'Backend Engineer',    rating: 5, date: 'Jan 2024', text: 'Flexible, well-run, and impactful. Knowing your work helps students learn makes a real difference.' },
+    ],
+  },
+  {
+    id: 15,
+    company: 'ZenithPay',
+    logoColor: '#A855F7',
+    rating: 4.8,
+    position: 'Android Engineer',
+    salary: '$112k - $142k / yr',
+    location: 'Phoenix, AZ · Remote',
+    tags: [
+      { label: 'Remote',    variant: 'primary'  as const },
+      { label: 'Full-time', variant: 'success'  as const },
+      { label: 'Fintech',   variant: 'warning'  as const },
+    ],
+    description: 'Ship Android experiences for a payments app trusted by 7M+ users. Own the full feature lifecycle in Kotlin, collaborate closely with product and design, and drive a zero-crash culture.',
+    matchPercent: 89,
+    photos: [
+      require('../assets/images/socia.png'),
+      require('../assets/images/socia2.jpg'),
+      require('../assets/images/socia3.jpg'),
+    ],
+    lookingFor: 'Kotlin · Jetpack Compose · Android SDK · 4+ yrs',
+    distanceKm: 11.9,
+    reviews: [
+      { author: 'Finn O.',   role: 'Android Engineer',    rating: 5, date: 'Mar 2024', text: 'Best Android codebase I have worked in. Modern Compose architecture, sensible processes, and great pay.' },
+      { author: 'Asha N.',   role: 'Mobile Engineer',     rating: 5, date: 'Feb 2024', text: 'The team is collaborative, the product is used by millions, and leadership genuinely cares about quality.' },
+      { author: 'Luke B.',   role: 'Senior Android Dev',  rating: 4, date: 'Jan 2024', text: 'Challenging and rewarding. Remote culture is well established and the work-life balance is real.' },
+    ],
+  },
 ] as const;
 
 export default function HomeTab() {
@@ -142,7 +478,11 @@ export default function HomeTab() {
   const overlayBottom  = actionsBottom + ACTIONS_HEIGHT + 8;
   const badgeBottom    = overlayBottom + 92;
 
+  const MAX_SWIPES = 15;
+  const [swipesUsed, setSwipesUsed] = useState(0);
   const [index, setIndex]           = useState(0);
+  const indexRef = useRef(0);  // always reflects latest index for use inside closures
+  const growingJobRef = useRef<(typeof filteredJobs)[number] | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [timerKey, setTimerKey]     = useState(0);
   const [liked, setLiked]           = useState<number[]>([]);
@@ -178,7 +518,7 @@ export default function HomeTab() {
   const applySettings = () => {
     setMaxDistanceKm(draftDistance);
     setUseKm(draftUseKm);
-    setIndex(0);          // reset card deck so the new filter takes effect from the start
+    setIndex(0); indexRef.current = 0;  // reset card deck so the new filter takes effect from the start
     setPhotoIndex(0);
     closeSettings();
   };
@@ -196,9 +536,14 @@ export default function HomeTab() {
 
   // Filtered jobs use the committed/applied value
   const filteredJobs = JOBS.filter(j => j.distanceKm <= maxDistanceKm);
+  const filteredJobsRef = useRef(filteredJobs);
+  filteredJobsRef.current = filteredJobs; // always up to date, safe inside stale closures
 
-  const position   = useRef(new Animated.ValueXY()).current;
-  const expandAnim = useRef(new Animated.Value(0)).current;
+  const position      = useRef(new Animated.ValueXY()).current;
+  const cardOpacity   = useRef(new Animated.Value(1)).current;
+  const expandAnim    = useRef(new Animated.Value(0)).current;
+  // 0 = next card at rest scale/dim (0.93, dark overlay), 1 = full size/undimmed
+  const nextCardAnim  = useRef(new Animated.Value(0)).current;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const photoScrollRef = useRef<ScrollView>(null);
 
@@ -261,19 +606,27 @@ export default function HomeTab() {
   const rotate             = position.x.interpolate({ inputRange: [-SW, 0, SW],         outputRange: ['-18deg', '0deg', '18deg'] });
   const likeOverlayOpacity = position.x.interpolate({ inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 0.45],    extrapolate: 'clamp' });
   const nopeOverlayOpacity = position.x.interpolate({ inputRange: [-SWIPE_THRESHOLD, 0],outputRange: [0.45, 0],    extrapolate: 'clamp' });
-  const nextCardScale      = position.x.interpolate({ inputRange: [-SW, 0, SW],         outputRange: [1, 0.93, 1], extrapolate: 'clamp' });
-  const panelTranslateY    = expandAnim.interpolate({ inputRange: [0, 1],               outputRange: [PANEL_HEIGHT, 0] });
+  // Used for the post-swipe settle animation on the next card
+  // Back card starts small and dim, grows to full size as it becomes the new front card
+  const nextCardSettleScale        = nextCardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
+  const nextCardSettleOverlay      = nextCardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.70, 0] });
+  const nextCardSettleImageOpacity = nextCardAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.7, 1] });
+  const panelTranslateY    = expandAnim.interpolate({ inputRange: [0, 1],                 outputRange: [PANEL_HEIGHT, 0] });
 
   const settingsOpenRef = useRef(false);
+  const expandedRef     = useRef(false);
   const isHoldingRef    = useRef(false);
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: (_e, { dx, dy }) => !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy),
-      onMoveShouldSetPanResponder:  (_e, { dx, dy }) => !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5,
+      onStartShouldSetPanResponder: (_e, { dx, dy }) => !expandedRef.current && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy),
+      onMoveShouldSetPanResponder:  (_e, { dx, dy }) => !expandedRef.current && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5,
       onPanResponderGrant: () => {
         isDraggingRef.current = true;
       },
-      onPanResponderMove:    (_e, { dx, dy }) => { isDraggingRef.current = true; position.setValue({ x: dx, y: dy * 0.25 }); },
+      onPanResponderMove: (_e, { dx, dy }) => {
+        isDraggingRef.current = true;
+        position.setValue({ x: dx, y: dy * 0.25 });
+      },
       onPanResponderRelease: (_e, { dx, vx }) => {
         isDraggingRef.current = false;
         isHoldingRef.current = false;
@@ -282,35 +635,73 @@ export default function HomeTab() {
           commitSwipe(dx > 0 ? 1 : -1);
         } else {
           resetCard();
-          // Don't bump timerKey — the interval is still running and will resume
-          // automatically now that isDraggingRef is false. No reset needed.
         }
       },
     })
   ).current;
 
   const commitSwipe = (dir: number) => {
+    if (swipesUsed >= MAX_SWIPES) return;
     collapsePanel();
+    // Snapshot the card that is currently behind — this is the one that will
+    // grow into view. We capture it now before index increments.
+    const upcomingJob = filteredJobsRef.current[indexRef.current + 1] ?? null;
     Animated.timing(position, {
       toValue: { x: dir * SW * 1.5, y: 0 },
       duration: 280,
       useNativeDriver: false,
     }).start(() => {
+      // Step 1: hide current card instantly
+      cardOpacity.setValue(0);
+      // Step 2: reset position while card is invisible
       position.setValue({ x: 0, y: 0 });
-      if (dir > 0) setLiked(prev => [...prev, filteredJobs[index].id]);
-      setHistory(prev => [...prev, { id: filteredJobs[index].id, dir }]);
+      // Step 3: flush state — index increments
+      const currentJob = filteredJobsRef.current[indexRef.current];
+      if (currentJob && dir > 0) setLiked(prev => [...prev, currentJob.id]);
+      if (currentJob) setHistory(prev => [...prev, { id: currentJob.id, dir }]);
       setPhotoIndex(0);
       setGalleryIndex(0);
-      setIndex(i => i + 1);
+      setIndex(i => { indexRef.current = i + 1; return i + 1; });
+      setSwipesUsed(s => s + 1);
+      // Step 4: pin the growing card to the snapshot so it doesn't flicker
+      // to a different job when index changes
+      growingJobRef.current = upcomingJob;
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            nextCardAnim.stopAnimation();
+            nextCardAnim.setValue(0);
+            cardOpacity.setValue(0);
+            // Back card (snapshot) grows into full size
+            Animated.timing(nextCardAnim, {
+              toValue: 1,
+              duration: 420,
+              useNativeDriver: false,
+            }).start(() => {
+              // Front card fades in on top, then reset back card to hidden
+              Animated.timing(cardOpacity, {
+                toValue: 1,
+                duration: 180,
+                useNativeDriver: false,
+              }).start(() => {
+                growingJobRef.current = null;
+                nextCardAnim.setValue(0); // hide back card so it doesn't show on next swipe
+              });
+            });
+          })
+        )
+      );
     });
   };
 
-  const resetCard    = () => Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+  const resetCard = () => Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
   const collapsePanel = () => {
+    expandedRef.current = false;
     setExpanded(false);
     Animated.timing(expandAnim, { toValue: 0, duration: 250, useNativeDriver: false }).start();
   };
   const openPanel = () => {
+    expandedRef.current = true;
     setExpanded(true);
     Animated.spring(expandAnim, { toValue: 1, bounciness: 3, useNativeDriver: false }).start();
   };
@@ -322,7 +713,7 @@ export default function HomeTab() {
     setPhotoIndex(0);
     pausedElapsedRef.current = 0;
     collapsePanel();
-    setIndex(i => Math.max(0, i - 1));
+    setIndex(i => { const n = Math.max(0, i - 1); indexRef.current = n; return n; });
   };
   const handleImageTap = (evt: any) => {
     if (expanded) return;
@@ -433,6 +824,25 @@ export default function HomeTab() {
     );
   }
 
+  if (swipesUsed >= MAX_SWIPES) {
+    return (
+      <View style={s.emptyScreen}>
+        <StatusBar barStyle="dark-content" />
+        <View style={s.emptyIconWrap}>
+          <MaterialCommunityIcons name="lightning-bolt" size={40} color={Colors.primary} />
+        </View>
+        <Text style={s.emptyTitle}>Daily limit reached</Text>
+        <Text style={s.emptySub}>You've used all 15 swipes for today. Upgrade to Pro for unlimited swipes.</Text>
+        <TouchableOpacity
+          style={s.refreshBtn}
+          onPress={() => { setSwipesUsed(0); setIndex(0); indexRef.current = 0; setLiked([]); setHistory([]); setPhotoIndex(0); nextCardAnim.setValue(0); cardOpacity.setValue(1); }}
+        >
+          <Text style={s.refreshBtnText}>Reset (demo)</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   if (index >= filteredJobs.length) {
     // All cards in range have been swiped
     return (
@@ -445,7 +855,7 @@ export default function HomeTab() {
         <Text style={s.emptySub}>New jobs are added daily — check back soon.</Text>
         <TouchableOpacity
           style={s.refreshBtn}
-          onPress={() => { setIndex(0); setLiked([]); setHistory([]); setPhotoIndex(0); }}
+          onPress={() => { setIndex(0); indexRef.current = 0; setLiked([]); setHistory([]); setPhotoIndex(0); nextCardAnim.setValue(0); cardOpacity.setValue(1); }}
         >
           <Text style={s.refreshBtnText}>Refresh deck</Text>
         </TouchableOpacity>
@@ -454,7 +864,8 @@ export default function HomeTab() {
   }
 
   const job     = filteredJobs[index];
-  const nextJob = filteredJobs[index + 1];
+  // During the grow animation use the snapshot; otherwise show the real next card
+  const nextJob = growingJobRef.current ?? filteredJobs[index + 1];
   const photo   = job.photos[photoIndex];
 
   // ── Main render ─────────────────────────────────────────────────────────────
@@ -462,21 +873,23 @@ export default function HomeTab() {
     <View style={s.screen} onLayout={onCardLayout}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* Layer 0 — next card peek */}
-      {nextJob ? (
-        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: nextCardScale }] }]} pointerEvents="none">
-          <Image source={nextJob.photos[0]} style={{ width: cardSize.width, height: cardSize.height }} resizeMode="cover" fadeDuration={0} />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.55)' }]} />
+      {/* Layer 0 — solid background always present so nothing bleeds through mid-swipe */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0f0a1e' }]} pointerEvents="none" />
+
+      {/* Layer 0b — next card, only visible after swipe commits (nextCardAnim > 0) */}
+      {nextJob && (
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: nextCardSettleScale }], opacity: nextCardSettleImageOpacity }]} pointerEvents="none">
+          <Animated.Image source={nextJob.photos[0]} style={{ width: cardSize.width, height: cardSize.height }} resizeMode="cover" fadeDuration={0} />
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: nextCardSettleOverlay }]} />
         </Animated.View>
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }]} pointerEvents="none" />
       )}
 
-      {/* Layer 1 — swipeable card */}
+      {/* Layer 1 — swipeable card: photo + gradients + stamps + company info */}
       <Animated.View
-        style={[StyleSheet.absoluteFill, { transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }] }]}
+        style={[StyleSheet.absoluteFill, { opacity: cardOpacity, transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }] }]}
         {...panResponder.panHandlers}
       >
+        {/* Photo scroll */}
         <TouchableOpacity
           activeOpacity={1}
           style={StyleSheet.absoluteFill}
@@ -500,7 +913,6 @@ export default function HomeTab() {
             onMomentumScrollEnd={(e) => {
               const offsetX = e.nativeEvent.contentOffset.x;
               const total = job.photos.length;
-              // If we've scrolled to the cloned first photo at the end, silently jump to real first
               if (offsetX >= total * cardSize.width) {
                 photoScrollRef.current?.scrollTo({ x: 0, animated: false });
                 setPhotoIndex(0);
@@ -510,7 +922,6 @@ export default function HomeTab() {
             {job.photos.map((p, i) => (
               <Image key={i} source={p} style={{ width: cardSize.width, height: cardSize.height }} resizeMode="cover" fadeDuration={0} />
             ))}
-            {/* Clone of first photo for seamless loop */}
             <Image source={job.photos[0]} style={{ width: cardSize.width, height: cardSize.height }} resizeMode="cover" fadeDuration={0} />
           </ScrollView>
         </TouchableOpacity>
@@ -523,11 +934,40 @@ export default function HomeTab() {
         <Animated.View style={[s.stampWrap, { alignSelf: 'center', opacity: likeOpacity }]} pointerEvents="none"><SwipeLabel type="like" visible /></Animated.View>
         <Animated.View style={[s.stampWrap, { alignSelf: 'center', opacity: nopeOpacity }]} pointerEvents="none"><SwipeLabel type="pass" visible /></Animated.View>
 
-        {/* Top bar */}
+        {/* Top gradient scrim */}
+        <LinearGradient
+          colors={['rgba(15,10,30,1)', 'rgba(15,10,30,1)', 'rgba(15,10,30,0.85)', 'rgba(15,10,30,0.3)', 'transparent']}
+          style={[StyleSheet.absoluteFill, { bottom: '75%', zIndex: 3 }]}
+          pointerEvents="none"
+        />
+
+        {/* Bottom gradient scrim */}
+        <LinearGradient
+          colors={['transparent', 'rgba(15,10,30,0.3)', 'rgba(15,10,30,0.85)', 'rgba(15,10,30,1)', 'rgba(15,10,30,1)']}
+          style={[StyleSheet.absoluteFill, { top: '75%', zIndex: 3 }]}
+          pointerEvents="none"
+        />
+
+        {/* Top bar — inside card, swipes with it */}
         <View style={[s.topBar, { paddingTop: topInset > 0 ? topInset + 8 : (Platform.OS === 'ios' ? 54 : 40) }]} pointerEvents="box-none" onLayout={e => setTopBarHeight(e.nativeEvent.layout.height)}>
           <View style={s.tabRow}>
-            <TouchableOpacity style={s.iconPill} onPress={openSettings}><MaterialCommunityIcons name="tune-variant"   size={19} color={Colors.white} /></TouchableOpacity>
-            <TouchableOpacity style={s.iconPill} onPress={() => navigation.navigate('subscription' as never)}><MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA"      /></TouchableOpacity>
+            <TouchableOpacity style={s.iconPill} onPress={openSettings}><MaterialCommunityIcons name="tune-variant" size={19} color={Colors.white} /></TouchableOpacity>
+            {(() => {
+              const remaining = MAX_SWIPES - swipesUsed;
+              const accentColor = remaining > Math.floor(MAX_SWIPES / 2)
+                ? '#10B981'
+                : remaining > Math.floor(MAX_SWIPES * 0.25)
+                  ? '#F59E0B'
+                  : '#EF4444';
+              return (
+                <View style={[s.swipeCounterPill, { borderColor: accentColor }]}>
+                  <Text style={[s.swipeCounterText, { color: accentColor }]}>
+                    {remaining}/{MAX_SWIPES} swipes left
+                  </Text>
+                </View>
+              );
+            })()}
+            <TouchableOpacity style={s.iconPill} onPress={() => navigation.navigate('subscription' as never)}><MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA" /></TouchableOpacity>
           </View>
           <View style={s.dotsRow}>
             {job.photos.map((_, i) => (
@@ -542,22 +982,8 @@ export default function HomeTab() {
           </View>
         </View>
 
-        {/* Top gradient scrim — nearly solid block covering ~25% */}
-        <LinearGradient
-          colors={['rgba(15,10,30,1)', 'rgba(15,10,30,1)', 'rgba(15,10,30,0.85)', 'rgba(15,10,30,0.3)', 'transparent']}
-          style={[StyleSheet.absoluteFill, { bottom: '75%', zIndex: 3 }]}
-          pointerEvents="none"
-        />
-
-        {/* Bottom gradient scrim — nearly solid block covering ~25% */}
-        <LinearGradient
-          colors={['transparent', 'rgba(15,10,30,0.3)', 'rgba(15,10,30,0.85)', 'rgba(15,10,30,1)', 'rgba(15,10,30,1)']}
-          style={[StyleSheet.absoluteFill, { top: '75%', zIndex: 3 }]}
-          pointerEvents="none"
-        />
-
-        {/* Company info strip */}
-        <View style={[s.bottomOverlay, { bottom: overlayBottom }]} pointerEvents="box-none">
+        {/* Company info strip — pinned to bottom of card, travels with swipe */}
+        <View style={[s.bottomOverlay, { position: 'absolute', bottom: overlayBottom, left: 0, right: 0 }]} pointerEvents="box-none">
           <View style={s.nameRow}>
             <View style={{ flex: 1 }}>
               <View style={s.companyNameRow}>
@@ -567,7 +993,6 @@ export default function HomeTab() {
               <View style={s.verifiedRow}>
                 <Text style={s.salaryInline}>{job.salary}</Text>
               </View>
-              {/* Always-visible distance */}
               <View style={s.cardDistanceRow}>
                 <MaterialCommunityIcons name="map-marker-distance" size={13} color="rgba(255,255,255,0.65)" />
                 <Text style={s.cardDistanceText}>{formatDistance(job.distanceKm)}</Text>
@@ -585,18 +1010,21 @@ export default function HomeTab() {
           </View>
           <Text style={s.positionText}>{job.position}</Text>
         </View>
+
       </Animated.View>
       {/* END layer 1 */}
 
-      {/*
-    
-      {/* Layer 2 — Action buttons */}
-      <View style={[s.actionsRow, { bottom: actionsBottom }]}>
+      {/* Skip / Apply buttons — outside card, stay fixed on screen */}
+      <View style={[s.actionsRow, { position: 'absolute', bottom: actionsBottom, left: 0, right: 0, zIndex: 40 }]}>
         <TouchableOpacity style={s.btnDark} onPress={() => commitSwipe(-1)} activeOpacity={0.8}>
           <MaterialCommunityIcons name="close" size={32} color={Colors.white} />
         </TouchableOpacity>
-        <PrimaryButton   icon="heart" iconSize={32} onPress={() => commitSwipe(1)}  style={s.btnHeart} />
+        <PrimaryButton icon="heart" iconSize={32} onPress={() => commitSwipe(1)} style={s.btnHeart} />
       </View>
+
+
+
+
 
       {/*
         Layer 3 — Expand panel (bottom sheet)
@@ -926,7 +1354,11 @@ const s = StyleSheet.create({
   dotActive:{ backgroundColor: Colors.white },
   dotFill:  { height: '100%', borderRadius: 2, backgroundColor: Colors.white },
 
-  bottomOverlay: { position: 'absolute', left: 0, right: 0, paddingHorizontal: Spacing['5'], zIndex: 10 },
+  cardInfoGroup: {
+    position: 'absolute', left: 0, right: 0,
+    zIndex: 10,
+  },
+  bottomOverlay: { paddingHorizontal: Spacing['5'], marginBottom: Spacing['3'] },
   nameRow:       { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 4 },
   companyNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   companyName: {
@@ -957,9 +1389,8 @@ const s = StyleSheet.create({
 
 
   actionsRow: {
-    position: 'absolute', left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    gap: Spacing['5'], zIndex: 40,
+    gap: Spacing['5'], paddingVertical: Spacing['2'],
   },
   btnDark: {
     width: 70, height: 70,
@@ -1056,6 +1487,21 @@ const s = StyleSheet.create({
   lightboxArrow: {
     position: 'absolute', top: '50%', marginTop: -24,
     backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: Radii.full, padding: 8,
+  },
+  // Swipe counter
+  swipeCounterPill: {
+    height: 38,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+  },
+  swipeCounterText: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    letterSpacing: 0.2,
   },
   lightboxArrowLeft:  { left: Spacing['4'] },
   lightboxArrowRight: { right: Spacing['4'] },
