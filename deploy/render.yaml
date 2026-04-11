@@ -3,13 +3,14 @@ services:
   - type: web
     name: jobapp-backend
     env: docker
-    dockerfilePath: ./Dockerfile
-    rootDir: .
+    dockerCommand: /start.sh
+    image:
+      url: docker.io/gm1026/jobapp-backend:latest
     plan: starter
     region: oregon
-    branch: main
     healthCheckPath: /api/health
     envVars:
+      # App Configuration
       - key: APP_NAME
         value: JobApp
       - key: APP_ENV
@@ -28,7 +29,211 @@ services:
       - key: LOG_CHANNEL
         value: stderr
       - key: LOG_LEVEL
-        value: error
+        value: info
+      
+      # PostgreSQL Database
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: jobapp-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: jobapp-postgres
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: jobapp-postgres
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: jobapp-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: jobapp-postgres
+          property: password
+      
+      # Redis Cache
+      - key: REDIS_HOST
+        fromDatabase:
+          name: jobapp-redis
+          property: host
+      - key: REDIS_PORT
+        fromDatabase:
+          name: jobapp-redis
+          property: port
+      - key: REDIS_PASSWORD
+        fromDatabase:
+          name: jobapp-redis
+          property: password
+      - key: CACHE_DRIVER
+        value: redis
+      - key: SESSION_DRIVER
+        value: redis
+      - key: QUEUE_CONNECTION
+        value: redis
+      
+      # Mail Configuration (CRITICAL for email verification)
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value:                # Add your SMTP host (e.g., smtp.sendgrid.net)
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        value:                # Add your SMTP username
+      - key: MAIL_PASSWORD
+        value:                # Add your SMTP password
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@yourdomain.com
+      - key: MAIL_FROM_NAME
+        value: JobApp
+      
+      # MongoDB (External - Add these manually in Render dashboard)
+      - key: MONGO_HOST
+        value: your-mongodb-atlas-host
+      - key: MONGO_PORT
+        value: "27017"
+      - key: MONGO_DATABASE
+        value: jobapp
+      - key: MONGO_USERNAME
+        value: your-mongo-username
+      - key: MONGO_PASSWORD
+        value: your-mongo-password
+
+  # Laravel Horizon Worker (Background Jobs)
+  - type: worker
+    name: jobapp-horizon
+    env: docker
+    image:
+      url: docker.io/gm1026/jobapp-backend:latest
+    plan: starter
+    region: oregon
+    envVars:
+      # Flag to run Horizon instead of web server
+      - key: RUN_HORIZON
+        value: "true"
+      
+      # App Configuration
+      - key: APP_NAME
+        value: JobApp
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: APP_URL
+        fromService:
+          type: web
+          name: jobapp-backend
+          property: host
+      - key: JWT_SECRET
+        sync: false
+      - key: APP_KEY
+        sync: false
+      - key: LOG_CHANNEL
+        value: stderr
+      - key: LOG_LEVEL
+        value: info
+      
+      # PostgreSQL Database
+      - key: DB_CONNECTION
+        value: pgsql
+      - key: DB_HOST
+        fromDatabase:
+          name: jobapp-postgres
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: jobapp-postgres
+          property: port
+      - key: DB_DATABASE
+        fromDatabase:
+          name: jobapp-postgres
+          property: database
+      - key: DB_USERNAME
+        fromDatabase:
+          name: jobapp-postgres
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: jobapp-postgres
+          property: password
+      
+      # Redis Cache
+      - key: REDIS_HOST
+        fromDatabase:
+          name: jobapp-redis
+          property: host
+      - key: REDIS_PORT
+        fromDatabase:
+          name: jobapp-redis
+          property: port
+      - key: REDIS_PASSWORD
+        fromDatabase:
+          name: jobapp-redis
+          property: password
+      - key: CACHE_DRIVER
+        value: redis
+      - key: SESSION_DRIVER
+        value: redis
+      - key: QUEUE_CONNECTION
+        value: redis
+      
+      # Mail Configuration (CRITICAL for email verification)
+      - key: MAIL_MAILER
+        value: smtp
+      - key: MAIL_HOST
+        value:                # Add your SMTP host (e.g., smtp.sendgrid.net)
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USERNAME
+        value:                # Add your SMTP username
+      - key: MAIL_PASSWORD
+        value:                # Add your SMTP password
+      - key: MAIL_ENCRYPTION
+        value: tls
+      - key: MAIL_FROM_ADDRESS
+        value: noreply@yourdomain.com
+      - key: MAIL_FROM_NAME
+        value: JobApp
+      
+      # MongoDB (External - Add these manually in Render dashboard)
+      - key: MONGO_HOST
+        value: your-mongodb-atlas-host
+      - key: MONGO_PORT
+        value: "27017"
+      - key: MONGO_DATABASE
+        value: jobapp
+      - key: MONGO_USERNAME
+        value: your-mongo-username
+      - key: MONGO_PASSWORD
+        value: your-mongo-password
+
+  # Next.js Web Frontend
+  - type: web
+    name: jobapp-web
+    env: docker
+    image:
+      url: docker.io/gm1026/jobapp-web:latest
+    plan: starter
+    region: oregon
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: jobapp-backend
+          property: host
+      - key: NEXT_PUBLIC_API_VERSION
+        value: v1
+      - key: NEXT_TELEMETRY_DISABLED
+        value: "1"
 
 databases:
   # PostgreSQL Database

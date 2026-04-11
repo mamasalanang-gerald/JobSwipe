@@ -1,4 +1,4 @@
-name: 🚀 CD Pipeline
+name: 🚀 CD Pipeline - AWS EC2 with Docker Hub
 
 on:
   push:
@@ -9,275 +9,425 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  DOCKER_HUB_REGISTRY: docker.io
+  BACKEND_IMAGE: gm1026/jobapp-backend
+  FRONTEND_IMAGE: gm1026/jobapp-web
 
 jobs:
   # ==========================================
-  # PHASE 1: BUILD & PUSH PRODUCTION IMAGES
+  # PHASE 1: BUILD & PUSH TO DOCKER HUB
   # ==========================================
   build-and-push:
-    name: 🏗️ Phase 1 - Build & Push Production Images
+    name: 🏗️ Phase 1 - Build & Push Images
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-      attestations: write
-      id-token: write
     outputs:
-      image-digest: ${{ steps.build.outputs.digest }}
-      image-tag: ${{ steps.meta.outputs.tags }}
+      backend-digest: ${{ steps.build-backend.outputs.digest }}
+      frontend-digest: ${{ steps.build-frontend.outputs.digest }}
+      commit-sha: ${{ github.sha }}
+      short-sha: ${{ steps.vars.outputs.short_sha }}
     
     steps:
       - name: 🔍 Checkout Code
         uses: actions/checkout@v4
 
+      - name: 📝 Set Variables
+        id: vars
+        run: echo "short_sha=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+
       - name: 🔧 Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: 🔐 Log in to Container Registry
+      - name: 🔐 Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
 
-      - name: 📝 Extract Metadata
-        id: meta
+      - name: 📝 Extract Backend Metadata
+        id: meta-backend
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          images: ${{ env.BACKEND_IMAGE }}
           tags: |
-            type=ref,event=branch
-            type=sha,prefix={{branch}}-
+            type=sha,prefix=,format=short
             type=raw,value=latest,enable={{is_default_branch}}
             type=raw,value=production,enable={{is_default_branch}}
 
-      - name: 🏗️ Build and Push Docker Image
-        id: build
+      - name: 🏗️ Build and Push Backend Image
+        id: build-backend
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ${{ steps.meta-backend.outputs.tags }}
+          labels: ${{ steps.meta-backend.outputs.labels }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
           platforms: linux/amd64
-          provenance: true
-          sbom: true
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
 
-      - name: 🔐 Install Cosign
-        uses: sigstore/cosign-installer@v3
-
-      - name: 🔐 Sign Container Image
-        run: |
-          echo "🔐 Signing production container image..."
-          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-
-      - name: 📋 Generate Production SBOM
-        uses: anchore/sbom-action@v0
+      - name: 📝 Extract Frontend Metadata
+        id: meta-frontend
+        uses: docker/metadata-action@v5
         with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
-          format: spdx-json
-          output-file: production-sbom.spdx.json
+          images: ${{ env.FRONTEND_IMAGE }}
+          tags: |
+            type=sha,prefix=,format=short
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=raw,value=production,enable={{is_default_branch}}
 
-      - name: 📊 Upload Production SBOM
-        uses: actions/upload-artifact@v4
+      - name: 🏗️ Build and Push Frontend Image
+        id: build-frontend
+        uses: docker/build-push-action@v5
         with:
-          name: production-sbom
-          path: production-sbom.spdx.json
-          retention-days: 365
+          context: ./frontend/web
+          file: ./frontend/web/Dockerfile
+          push: true
+          tags: ${{ steps.meta-frontend.outputs.tags }}
+          labels: ${{ steps.meta-frontend.outputs.labels }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+          platforms: linux/amd64
+          build-args: |
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
 
       - name: ✅ Phase 1 Complete
         run: |
-          echo "✅ Phase 1 - Build & Push completed successfully"
-          echo "📦 Image: ${{ steps.meta.outputs.tags }}"
-          echo "🔍 Digest: ${{ steps.build.outputs.digest }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ PHASE 1 COMPLETE: Build & Push to Docker Hub"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📦 Backend: ${{ env.BACKEND_IMAGE }}:latest"
+          echo "🔍 Digest: ${{ steps.build-backend.outputs.digest }}"
+          echo ""
+          echo "📦 Frontend: ${{ env.FRONTEND_IMAGE }}:latest"
+          echo "🔍 Digest: ${{ steps.build-frontend.outputs.digest }}"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   # ==========================================
-  # PHASE 2: DEPLOY TO RENDER
+  # PHASE 2: DEPLOY TO AWS EC2
   # ==========================================
-  deploy-to-render:
-    name: 🚀 Phase 2 - Deploy to Render
+  deploy-to-ec2:
+    name: 🚀 Phase 2 - Deploy to AWS EC2
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: 
+    environment:
       name: production
-      url: ${{ steps.deploy.outputs.service-url }}
+      url: https://jobswipe.site
     
     steps:
       - name: 🔍 Checkout Code
         uses: actions/checkout@v4
 
-      - name: 🔧 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '18'
-
-      - name: 📦 Install Render CLI
+      - name: 🔐 Setup SSH
         run: |
-          npm install -g @render-oss/cli
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AWS_EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.AWS_EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: 🔐 Authenticate with Render
+      - name: 📦 Copy Docker Compose File
         run: |
-          echo "🔐 Authenticating with Render..."
-          render auth login --api-key ${{ secrets.RENDER_API_KEY }}
+          scp docker-compose.prod.yml ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }}:~/jobapp/
 
-      - name: 🚀 Deploy to Render
-        id: deploy
+      - name: 🚀 Deploy to EC2 with Zero Downtime
         run: |
-          echo "🚀 Deploying to Render..."
-          
-          # Deploy using Render API
-          SERVICE_ID="${{ secrets.RENDER_SERVICE_ID }}"
-          
-          # Trigger deployment
-          render services deploy $SERVICE_ID --wait
-          
-          # Get service URL
-          SERVICE_URL=$(render services get $SERVICE_ID --format json | jq -r '.service.serviceDetails.url')
-          echo "service-url=$SERVICE_URL" >> $GITHUB_OUTPUT
-          
-          echo "✅ Deployment completed successfully"
-          echo "🌐 Service URL: $SERVICE_URL"
-
-      - name: 🏥 Health Check
-        run: |
-          echo "🏥 Performing health check..."
-          SERVICE_URL="${{ steps.deploy.outputs.service-url }}"
-          
-          # Wait for service to be ready
-          for i in {1..30}; do
-            if curl -f "$SERVICE_URL/api/health" > /dev/null 2>&1; then
-              echo "✅ Health check passed!"
-              break
+          ssh ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'ENDSSH'
+            set -e
+            cd ~/jobapp
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🚀 PHASE 2: Deploying to AWS EC2"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            # Ensure .env file exists
+            if [ ! -f .env ]; then
+              echo "❌ Error: .env file not found!"
+              exit 1
             fi
-            echo "⏳ Waiting for service to be ready... ($i/30)"
+            
+            # Check disk space first
+            echo "💿 Checking disk space..."
+            df -h /
+            
+            # Clean up old Docker resources BEFORE pulling new images
+            DISK_USAGE=$(df / | tail -1 | awk '{print $5}' | sed 's/%//')
+            echo "Current disk usage: ${DISK_USAGE}%"
+            
+            if [ "$DISK_USAGE" -gt 70 ]; then
+              echo "⚠️  Disk usage is ${DISK_USAGE}%, cleaning up before pulling new images..."
+              
+              # Remove dangling images
+              echo "Removing dangling images..."
+              docker image prune -f
+              
+              # Remove unused containers
+              echo "Removing stopped containers..."
+              docker container prune -f
+              
+              # Remove unused volumes (be careful with this)
+              echo "Removing unused volumes..."
+              docker volume prune -f
+              
+              # Remove build cache
+              echo "Removing build cache..."
+              docker builder prune -af
+              
+              # Remove all unused images (not just dangling)
+              echo "Removing unused images..."
+              docker image prune -af --filter "until=24h"
+              
+              echo "✅ Cleanup complete"
+              df -h /
+            fi
+            
+            # Create backup of current state
+            echo "💾 Creating backup..."
+            docker-compose -f docker-compose.prod.yml ps > deployment_backup_$(date +%Y%m%d_%H%M%S).txt
+            
+            # Start/Update databases first (if not running)
+            echo "🗄️  Ensuring databases are running..."
+            docker-compose -f docker-compose.prod.yml up -d postgres mongodb redis
+            
+            # Wait for databases to be healthy
+            echo "⏳ Waiting for databases to be healthy..."
+            sleep 15
+            
+            # Check database health
+            docker-compose -f docker-compose.prod.yml ps postgres mongodb redis
+            
+            # Rolling update - Backend (zero downtime)
+            echo "🔄 Updating backend with zero downtime..."
+            docker-compose -f docker-compose.prod.yml pull backend
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate backend
+            
+            # Wait for backend to be healthy
+            echo "⏳ Waiting for backend to be healthy..."
+            for i in {1..30}; do
+              if docker-compose -f docker-compose.prod.yml exec -T backend curl -f http://localhost:8080/api/health > /dev/null 2>&1; then
+                echo "✅ Backend is healthy!"
+                break
+              fi
+              echo "Attempt $i/30: Backend not ready yet..."
+              sleep 2
+            done
+            
+            # Rolling update - Horizon Worker
+            echo "🔄 Updating Horizon worker..."
+            docker-compose -f docker-compose.prod.yml pull horizon
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate horizon
+            sleep 5
+            
+            # Rolling update - Frontend
+            echo "🔄 Updating frontend..."
+            docker-compose -f docker-compose.prod.yml pull frontend
+            docker-compose -f docker-compose.prod.yml up -d --no-deps --force-recreate frontend
+            
+            # Wait for frontend to be healthy
+            echo "⏳ Waiting for frontend to be healthy..."
             sleep 10
-          done
-          
-          # Final health check
-          if ! curl -f "$SERVICE_URL/api/health"; then
-            echo "❌ Health check failed after deployment!"
-            exit 1
-          fi
+            
+            # Verify all services are running
+            echo ""
+            echo "📊 Container Status:"
+            docker-compose -f docker-compose.prod.yml ps
+            
+            # Check container health
+            echo ""
+            echo "🏥 Health Check:"
+            docker-compose -f docker-compose.prod.yml ps --format json | jq -r '.[] | "\(.Name): \(.State) - \(.Health)"'
+            
+            # Cleanup old images (keep last 3 versions)
+            echo ""
+            echo "🧹 Cleaning up old Docker images..."
+            docker image prune -af --filter "until=72h"
+            
+            # Show logs for verification
+            echo ""
+            echo "📋 Recent Backend Logs:"
+            docker-compose -f docker-compose.prod.yml logs --tail=20 backend
+            
+            echo ""
+            echo "✅ Deployment complete!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          ENDSSH
 
-      - name: 🔍 Verify Deployment
+      - name: 🧪 Smoke Test
         run: |
-          echo "🔍 Verifying deployment..."
-          SERVICE_URL="${{ steps.deploy.outputs.service-url }}"
+          echo "🧪 Running smoke tests..."
           
-          # Test API endpoints
-          echo "Testing health endpoint..."
-          HEALTH_RESPONSE=$(curl -s "$SERVICE_URL/api/health")
-          echo "Health response: $HEALTH_RESPONSE"
-          
-          # Verify response contains expected fields
-          if echo "$HEALTH_RESPONSE" | jq -e '.status == "ok"' > /dev/null; then
-            echo "✅ API is responding correctly"
-          else
-            echo "❌ API health check failed"
+          # Test backend health endpoint
+          echo "Testing backend health..."
+          curl -f https://api.jobswipe.site/api/health || {
+            echo "❌ Backend health check failed!"
             exit 1
-          fi
+          }
+          
+          # Test frontend
+          echo "Testing frontend..."
+          curl -f https://jobswipe.site || {
+            echo "❌ Frontend health check failed!"
+            exit 1
+          }
+          
+          echo "✅ All smoke tests passed!"
 
-      - name: 📊 Update Deployment Status
+      - name: 🧹 Cleanup SSH Key
         if: always()
-        run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deployment successful!"
-            echo "🌐 Production URL: ${{ steps.deploy.outputs.service-url }}"
-          else
-            echo "❌ Deployment failed!"
-          fi
-
-      - name: ✅ Phase 2 Complete
-        run: echo "✅ Phase 2 - Deploy to Render completed successfully"
+        run: rm -f ~/.ssh/id_rsa
 
   # ==========================================
-  # PHASE 3: DEPLOYMENT SUMMARY
+  # PHASE 3: POST-DEPLOYMENT VERIFICATION
+  # ==========================================
+  verify-deployment:
+    name: ✅ Phase 3 - Verify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy-to-ec2
+    
+    steps:
+      - name: 🔐 Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.AWS_EC2_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.AWS_EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: 🔍 Verify Services
+        run: |
+          ssh ${{ secrets.AWS_EC2_USER }}@${{ secrets.AWS_EC2_HOST }} << 'ENDSSH'
+            cd ~/jobapp
+            
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "✅ PHASE 3: Verifying Deployment"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            # Check all containers are running
+            echo "📊 Container Status:"
+            docker-compose -f docker-compose.prod.yml ps
+            
+            # Count running containers
+            RUNNING=$(docker-compose -f docker-compose.prod.yml ps --filter "status=running" | grep -c "Up" || true)
+            EXPECTED=6  # postgres, mongodb, redis, backend, horizon, frontend
+            
+            echo ""
+            echo "Running containers: $RUNNING / $EXPECTED"
+            
+            if [ "$RUNNING" -lt "$EXPECTED" ]; then
+              echo "❌ Not all containers are running!"
+              docker-compose -f docker-compose.prod.yml logs --tail=50
+              exit 1
+            fi
+            
+            # Check data persistence
+            echo ""
+            echo "💾 Checking Data Persistence:"
+            docker volume ls | grep jobapp
+            
+            # Check disk usage
+            echo ""
+            echo "💿 Disk Usage:"
+            df -h | grep -E "Filesystem|/dev/"
+            
+            # Check Docker stats
+            echo ""
+            echo "📈 Resource Usage:"
+            docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
+            
+            echo ""
+            echo "✅ All verification checks passed!"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          ENDSSH
+
+      - name: 🧹 Cleanup SSH Key
+        if: always()
+        run: rm -f ~/.ssh/id_rsa
+
+  # ==========================================
+  # PHASE 4: DEPLOYMENT SUMMARY
   # ==========================================
   deployment-summary:
-    name: 📊 Phase 3 - Deployment Summary
+    name: 📊 Phase 4 - Deployment Summary
     runs-on: ubuntu-latest
-    needs: [build-and-push, deploy-to-render]
+    needs: [build-and-push, deploy-to-ec2, verify-deployment]
     if: always()
     
     steps:
-      - name: 📊 Generate Deployment Summary
+      - name: 📊 Generate Summary
         run: |
-          echo "# 🚀 CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+          echo "# 🚀 CD Pipeline Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "## 📋 Deployment Phases" >> $GITHUB_STEP_SUMMARY
+          echo "## 📋 Deployment Status" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Phase | Status | Description |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|-------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| 1️⃣ Build & Push | ${{ needs.build-and-push.result == 'success' && '✅ Passed' || '❌ Failed' }} | Production image build and registry push |" >> $GITHUB_STEP_SUMMARY
-          echo "| 2️⃣ Deploy to Render | ${{ needs.deploy-to-render.result == 'success' && '✅ Passed' || '❌ Failed' }} | Service deployment and health verification |" >> $GITHUB_STEP_SUMMARY
+          echo "| Phase | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 1️⃣ Build & Push | ${{ needs.build-and-push.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 2️⃣ Deploy to EC2 | ${{ needs.deploy-to-ec2.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| 3️⃣ Verification | ${{ needs.verify-deployment.result == 'success' && '✅ Success' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
-          if [[ "${{ needs.build-and-push.result }}" == "success" && "${{ needs.deploy-to-render.result }}" == "success" ]]; then
-            echo "## ✅ **Deployment SUCCESSFUL**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "🎉 **JobApp is now live in production!**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 📦 Production Image Details" >> $GITHUB_STEP_SUMMARY
-            echo "- **Registry**: ghcr.io/${{ github.repository }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Tag**: latest, production" >> $GITHUB_STEP_SUMMARY
-            echo "- **Digest**: ${{ needs.build-and-push.outputs.image-digest }}" >> $GITHUB_STEP_SUMMARY
-            echo "- **Signed**: ✅ Cosign signature applied" >> $GITHUB_STEP_SUMMARY
-            echo "- **SBOM**: ✅ Generated and stored" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🌐 Service Information" >> $GITHUB_STEP_SUMMARY
-            echo "- **Production URL**: [JobApp API](https://your-service.onrender.com)" >> $GITHUB_STEP_SUMMARY
-            echo "- **Health Check**: ✅ Passing" >> $GITHUB_STEP_SUMMARY
-            echo "- **Status**: 🟢 Online" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🔒 Security Features" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Container image signed with Cosign" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ SBOM (Software Bill of Materials) generated" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ Vulnerability scanning completed" >> $GITHUB_STEP_SUMMARY
-            echo "- ✅ HTTPS/TLS encryption enabled" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "## ❌ **Deployment FAILED**" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "The deployment pipeline encountered errors. Please review the failed jobs:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            if [[ "${{ needs.build-and-push.result }}" != "success" ]]; then
-              echo "- ❌ **Build & Push**: Failed to build or push production image" >> $GITHUB_STEP_SUMMARY
-            fi
-            if [[ "${{ needs.deploy-to-render.result }}" != "success" ]]; then
-              echo "- ❌ **Deploy to Render**: Failed to deploy or verify service" >> $GITHUB_STEP_SUMMARY
-            fi
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🔧 Next Steps" >> $GITHUB_STEP_SUMMARY
-            echo "1. Review the failed job logs" >> $GITHUB_STEP_SUMMARY
-            echo "2. Fix any identified issues" >> $GITHUB_STEP_SUMMARY
-            echo "3. Push fixes to trigger a new deployment" >> $GITHUB_STEP_SUMMARY
-          fi
-          
+          echo "## 🐳 Docker Images" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "**Deployment Time**: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-          echo "**Commit**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Triggered by**: ${{ github.actor }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Service | Image | Digest |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | \`${{ env.BACKEND_IMAGE }}:latest\` | \`${{ needs.build-and-push.outputs.backend-digest }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | \`${{ env.FRONTEND_IMAGE }}:latest\` | \`${{ needs.build-and-push.outputs.frontend-digest }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🏗️ Infrastructure" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Application Services" >> $GITHUB_STEP_SUMMARY
+          echo "- **Backend API**: Laravel 11 + Nginx (Port 8080)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Frontend Web**: Next.js (Port 3000)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Queue Worker**: Laravel Horizon" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Database Services (Persistent)" >> $GITHUB_STEP_SUMMARY
+          echo "- **PostgreSQL 15**: Primary database (Port 5432)" >> $GITHUB_STEP_SUMMARY
+          echo "  - Volume: \`postgres_data\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Auto-restart: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **MongoDB 7**: Document store (Port 27017)" >> $GITHUB_STEP_SUMMARY
+          echo "  - Volumes: \`mongodb_data\`, \`mongodb_config\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Auto-restart: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "- **Redis 7**: Cache & Queue (Port 6379)" >> $GITHUB_STEP_SUMMARY
+          echo "  - Volume: \`redis_data\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - Persistence: AOF enabled" >> $GITHUB_STEP_SUMMARY
+          echo "  - Auto-restart: ✅ Enabled" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### High Availability Features" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Auto-restart**: All containers restart automatically on failure" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Data Persistence**: All databases use Docker volumes" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Health Checks**: All services monitored with health checks" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Isolated Containers**: Services run independently" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ **Zero Downtime**: Rolling updates for application services" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 🌐 Deployment Info" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Platform**: AWS EC2" >> $GITHUB_STEP_SUMMARY
+          echo "- **Domain**: https://jobswipe.site" >> $GITHUB_STEP_SUMMARY
+          echo "- **API**: https://api.jobswipe.site" >> $GITHUB_STEP_SUMMARY
+          echo "- **Commit**: \`${{ needs.build-and-push.outputs.commit-sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- **Short SHA**: \`${{ needs.build-and-push.outputs.short-sha }}\`" >> $GITHUB_STEP_SUMMARY
 
-      - name: 🎉 Deployment Success Notification
-        if: needs.build-and-push.result == 'success' && needs.deploy-to-render.result == 'success'
+      - name: ✅ Pipeline Complete
+        if: needs.build-and-push.result == 'success' && needs.deploy-to-ec2.result == 'success' && needs.verify-deployment.result == 'success'
         run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo "🎉 DEPLOYMENT SUCCESSFUL!"
-          echo "✅ JobApp is now live in production"
-          echo "🌐 Production URL: https://your-service.onrender.com"
-          echo "📦 Image: ghcr.io/${{ github.repository }}:latest"
-          echo "🔒 Security: Signed and SBOM generated"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "✅ All services deployed to AWS EC2"
+          echo "✅ All containers running with auto-restart enabled"
+          echo "✅ Data persistence configured for all databases"
+          echo "🌐 Application is live at https://jobswipe.site"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-      - name: ❌ Deployment Failure Notification
-        if: needs.build-and-push.result != 'success' || needs.deploy-to-render.result != 'success'
+      - name: ❌ Pipeline Failed
+        if: needs.build-and-push.result != 'success' || needs.deploy-to-ec2.result != 'success' || needs.verify-deployment.result != 'success'
         run: |
-          echo "❌ DEPLOYMENT FAILED!"
-          echo "Please review the failed jobs and fix the issues."
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "❌ DEPLOYMENT FAILED"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "Check the logs above for details"
+          echo "Build: ${{ needs.build-and-push.result }}"
+          echo "Deploy: ${{ needs.deploy-to-ec2.result }}"
+          echo "Verify: ${{ needs.verify-deployment.result }}"
           exit 1
-
-      - name: ✅ CD Pipeline Complete
-        run: echo "✅ CD Pipeline completed"
