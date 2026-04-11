@@ -208,13 +208,23 @@ function ConversationScreen({
 const [keyboardHeight, setKeyboardHeight] = useState(0);
 
 useEffect(() => {
-  const SCREEN_H = Dimensions.get('screen').height;
-  const show = Keyboard.addListener('keyboardDidShow', (e: KeyboardEvent) => {
-    // screenY is the top of the keyboard on screen — subtract from screen height
-    // to get true height including toolbar row
-    setKeyboardHeight(SCREEN_H - e.endCoordinates.screenY);
-  });
-  const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+  const show = Keyboard.addListener(
+    Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+    (e: KeyboardEvent) => {
+      if (Platform.OS === 'android') {
+        // On Android, use windowHeight (excludes nav bar) not screenHeight
+        const windowHeight = Dimensions.get('window').height;
+        const keyboardTop = e.endCoordinates.screenY;
+        setKeyboardHeight(Math.max(0, windowHeight - keyboardTop));
+      } else {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    },
+  );
+  const hide = Keyboard.addListener(
+    Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+    () => setKeyboardHeight(0),
+  );
   return () => { show.remove(); hide.remove(); };
 }, []);
   const [isTyping, setIsTyping] = useState(false);
