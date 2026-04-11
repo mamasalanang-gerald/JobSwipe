@@ -12,9 +12,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        $middleware->alias([
-            'swipe.limit' => \App\Http\Middleware\CheckSwipeLimit::class,
-        ]);
+        //
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

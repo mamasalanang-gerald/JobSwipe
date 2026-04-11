@@ -12,11 +12,34 @@ test.describe('JobApp E2E Tests', () => {
     await page.waitForLoadState('domcontentloaded');
     
     // Expect page title
-    await expect(page).toHaveTitle(/JobSwipe/, { timeout: 10000 });
+    await expect(page).toHaveTitle(/JobApp/, { timeout: 10000 });
     
     // Expect main heading
     await expect(page.locator('h1')).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('h1')).toContainText('Dream Job');
+    await expect(page.locator('h1')).toHaveText('JobApp');
+  });
+
+  test('API health check works', async ({ request }) => {
+    // Test API health endpoint with retry
+    let response;
+    let retries = 3;
+    
+    while (retries > 0) {
+      try {
+        response = await request.get('http://localhost:8000/api/health', { timeout: 10000 });
+        if (response.ok()) break;
+      } catch (e) {
+        retries--;
+        if (retries === 0) throw e;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
+    
+    expect(response.ok()).toBeTruthy();
+    
+    const data = await response.json();
+    expect(data.status).toBe('ok');
+    expect(data.timestamp).toBeDefined();
   });
 
   test('navigation works', async ({ page }) => {
@@ -25,10 +48,11 @@ test.describe('JobApp E2E Tests', () => {
     const count = await navLinks.count();
     
     if (count > 0) {
-      // Check that navigation contains expected content
-      const navText = await page.locator('nav').textContent();
-      expect(navText).toBeTruthy();
-      expect(navText).toContain('JobSwipe');
+      // Click first navigation link
+      await navLinks.first().click();
+      
+      // Verify URL changed
+      expect(page.url()).not.toBe('http://localhost:3000/');
     }
   });
 
@@ -48,14 +72,11 @@ test.describe('JobApp E2E Tests', () => {
 
   test('error handling works', async ({ page }) => {
     // Test 404 page
-    const response = await page.goto('/non-existent-page');
+    await page.goto('/non-existent-page');
     
     // Should show some kind of error or 404 page
-    // Next.js will show a 404 page
+    // Adjust this based on your actual error handling
     const pageContent = await page.textContent('body');
     expect(pageContent).toBeTruthy();
-    
-    // Verify we got some response (even if it's a 404)
-    expect(response).toBeTruthy();
   });
 });

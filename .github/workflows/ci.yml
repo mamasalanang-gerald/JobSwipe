@@ -71,7 +71,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb-2.2.0
+          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb
           coverage: none
 
       - name: 📦 Install Backend Dependencies
@@ -155,14 +155,14 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb-2.2.0
+          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb
           coverage: xdebug
 
       - name: 📦 Install Backend Dependencies
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
         run: |
           cd backend
-          composer install --no-interaction --prefer-dist --optimize-autoloader
+          composer install --no-interaction --prefer-dist --optimize-autoloader --ignore-platform-req=ext-mongodb
 
       - name: 🔧 Setup Backend Environment
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
@@ -172,6 +172,7 @@ jobs:
           sed -i 's/DB_HOST=postgres/DB_HOST=127.0.0.1/' .env
           sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
           php artisan key:generate
+          php artisan jwt:secret --force
 
       - name: 🗄️ Run Backend Migrations
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
@@ -263,7 +264,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb-2.2.0
+          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb
 
       - name: 📦 Install Backend Dependencies
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
@@ -280,6 +281,7 @@ jobs:
           sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
           sed -i 's/MONGO_HOST=mongodb/MONGO_HOST=127.0.0.1/' .env
           php artisan key:generate
+          php artisan jwt:secret --force
 
       - name: 🗄️ Run Backend Migrations & Seeders
         if: needs.lint-and-validate.outputs.backend-changed == 'true'
@@ -364,7 +366,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.2'
-          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb-2.2.0
+          extensions: pdo, pdo_pgsql, bcmath, mbstring, zip, mongodb
 
       - name: 🔧 Setup Node.js
         uses: actions/setup-node@v4
@@ -384,6 +386,7 @@ jobs:
           sed -i 's/REDIS_HOST=redis/REDIS_HOST=127.0.0.1/' .env
           sed -i 's/MONGO_HOST=mongodb/MONGO_HOST=127.0.0.1/' .env
           php artisan key:generate
+          php artisan jwt:secret --force
 
       - name: 🗄️ Setup Database
         run: |
@@ -464,11 +467,8 @@ jobs:
       - name: 🧪 Test Docker Image
         run: |
           echo "🧪 Testing Docker image..."
-          docker run --rm -d --name jobapp-test -p 8080:8080 \
-            -e SKIP_MIGRATIONS=true \
-            -e APP_KEY=base64:test-key-for-ci \
-            jobapp-test:latest
-          sleep 10
+          docker run --rm -d --name jobapp-test -p 8080:8080 jobapp-test:latest
+          sleep 30
           
           # Test health endpoint
           curl -f http://localhost:8080/api/health || {

@@ -28,7 +28,7 @@ return new class extends Migration
             $table->string('status', 10)->default('draft');
             $table->timestampTz('expires_at')->nullable();
             $table->timestampTz('published_at')->nullable();
-            $table->timestampsTz();
+            $table->timestamps();
 
             $table->foreign('company_id')->references('id')->on('company_profiles')->onDelete('cascade');
         });
