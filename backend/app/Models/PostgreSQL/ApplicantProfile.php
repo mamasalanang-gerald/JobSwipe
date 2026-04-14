@@ -16,6 +16,7 @@ class ApplicantProfile extends Model
     {
         return ApplicantProfileFactory::new();
     }
+
     protected $connection = 'pgsql';
 
     protected $table = 'applicant_profiles';

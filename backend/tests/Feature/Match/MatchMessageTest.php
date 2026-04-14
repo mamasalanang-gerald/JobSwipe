@@ -20,8 +20,11 @@ class MatchMessageTest extends TestCase
     use RefreshDatabase;
 
     private User $applicantUser;
+
     private ApplicantProfile $applicantProfile;
+
     private User $hrUser;
+
     private MatchRecord $acceptedMatch;
 
     protected function setUp(): void

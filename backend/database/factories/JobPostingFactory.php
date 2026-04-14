@@ -24,7 +24,7 @@ class JobPostingFactory extends Factory
             'salary_max' => fake()->numberBetween(50001, 100000),
             'salary_is_hidden' => false,
             'work_type' => fake()->randomElement(['remote', 'hybrid', 'on_site']),
-            'location' => fake()->city() . ', ' . fake()->country(),
+            'location' => fake()->city().', '.fake()->country(),
             'location_city' => fake()->city(),
             'location_region' => fake()->state(),
             'status' => 'active',

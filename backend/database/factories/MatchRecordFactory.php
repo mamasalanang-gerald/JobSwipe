@@ -75,7 +75,7 @@ class MatchRecordFactory extends Factory
     /**
      * Indicate the match has been closed by HR.
      */
-    public function closed(string $closedByUserId = null): static
+    public function closed(?string $closedByUserId = null): static
     {
         return $this->state([
             'status' => 'closed',

@@ -17,12 +17,12 @@ class LoginTest extends TestCase
     {
         User::factory()->create([
             'email' => 'user@example.com',
-            'password_hash' => Hash::make('StrongP@ss1'),
+            'password_hash' => Hash::make('T3st!ngUs3r2024'),
         ]);
 
         $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'user@example.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'T3st!ngUs3r2024',
         ]);
 
         $response->assertOk()
@@ -36,12 +36,12 @@ class LoginTest extends TestCase
     {
         User::factory()->hr()->create([
             'email' => 'hr@company.com',
-            'password_hash' => Hash::make('StrongP@ss1'),
+            'password_hash' => Hash::make('HrT3st!ng2024'),
         ]);
 
         $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'hr@company.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'HrT3st!ng2024',
         ]);
 
         $response->assertOk()
@@ -60,12 +60,12 @@ class LoginTest extends TestCase
     {
         User::factory()->create([
             'email' => 'user@example.com',
-            'password_hash' => Hash::make('CorrectP@ss1'),
+            'password_hash' => Hash::make('C0rr3ctT3st!ng2024'),
         ]);
 
         $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'user@example.com',
-            'password' => 'WrongP@ss1',
+            'password' => 'Wr0ngT3st!ng2024',
         ]);
 
         $response->assertStatus(401)
@@ -79,7 +79,7 @@ class LoginTest extends TestCase
     {
         $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'nobody@example.com',
-            'password' => 'AnyP@ss123',
+            'password' => 'N0b0dyT3st!ng2024',
         ]);
 
         $response->assertStatus(401)
@@ -97,12 +97,12 @@ class LoginTest extends TestCase
 
         User::factory()->unverified()->create([
             'email' => 'unverified@example.com',
-            'password_hash' => Hash::make('StrongP@ss1'),
+            'password_hash' => Hash::make('Unv3r!f!3dT3st2024'),
         ]);
 
         $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'unverified@example.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'Unv3r!f!3dT3st2024',
         ]);
 
         $response->assertStatus(403)
@@ -116,12 +116,12 @@ class LoginTest extends TestCase
     {
         User::factory()->banned()->create([
             'email' => 'banned@example.com',
-            'password_hash' => Hash::make('StrongP@ss1'),
+            'password_hash' => Hash::make('B@nn3dUs3rT3st2024'),
         ]);
 
         $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'banned@example.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'B@nn3dUs3rT3st2024',
         ]);
 
         $response->assertStatus(403)
@@ -158,21 +158,21 @@ class LoginTest extends TestCase
     {
         User::factory()->create([
             'email' => 'limited@example.com',
-            'password_hash' => Hash::make('StrongP@ss1'),
+            'password_hash' => Hash::make('R@t3L!m!tT3st2024'),
         ]);
 
         // Make 5 failed attempts
         for ($i = 0; $i < 5; $i++) {
             $this->postJson('/api/v1/auth/login', [
                 'email' => 'limited@example.com',
-                'password' => 'WrongP@ss' . $i,
+                'password' => 'Wr0ngAttempt'.$i.'!2024',
             ]);
         }
 
         // 6th attempt should be rate limited
         $response = $this->postJson('/api/v1/auth/login', [
             'email' => 'limited@example.com',
-            'password' => 'WrongP@ss99',
+            'password' => 'F!nalWr0ngAttempt2024',
         ]);
 
         $response->assertStatus(429);

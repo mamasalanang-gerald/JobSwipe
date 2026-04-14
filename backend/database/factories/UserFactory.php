@@ -18,7 +18,7 @@ class UserFactory extends Factory
         return [
             'id' => Str::uuid()->toString(),
             'email' => fake()->unique()->safeEmail(),
-            'password_hash' => bcrypt('password'),
+            'password_hash' => bcrypt('T3st!ngP@ssw0rd2024'),
             'role' => 'applicant',
             'is_active' => true,
             'is_banned' => false,

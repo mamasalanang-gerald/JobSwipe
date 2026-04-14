@@ -17,6 +17,7 @@ class MatchRecord extends Model
     {
         return MatchRecordFactory::new();
     }
+
     protected $connection = 'pgsql';
 
     protected $table = 'matches';

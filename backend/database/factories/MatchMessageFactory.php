@@ -35,7 +35,7 @@ class MatchMessageFactory extends Factory
     /**
      * Set the client_message_id for idempotency.
      */
-    public function withClientMessageId(string $clientMessageId = null): static
+    public function withClientMessageId(?string $clientMessageId = null): static
     {
         return $this->state([
             'client_message_id' => $clientMessageId ?? Str::uuid()->toString(),

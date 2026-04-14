@@ -3,8 +3,6 @@
 namespace Tests\Feature\Swipe;
 
 use App\Models\PostgreSQL\ApplicantProfile;
-use App\Models\PostgreSQL\CompanyProfile;
-use App\Models\PostgreSQL\JobPosting;
 use App\Models\PostgreSQL\User;
 use App\Services\DeckService;
 use App\Services\SwipeService;
@@ -17,6 +15,7 @@ class SwipeTest extends TestCase
     use RefreshDatabase;
 
     private User $user;
+
     private ApplicantProfile $profile;
 
     protected function setUp(): void

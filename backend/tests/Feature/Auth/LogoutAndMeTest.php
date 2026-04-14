@@ -21,7 +21,7 @@ class LogoutAndMeTest extends TestCase
         $token = $user->createToken('test')->plainTextToken;
 
         $response = $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
         ])->postJson('/api/v1/auth/logout');
 
         $response->assertOk()
@@ -32,7 +32,7 @@ class LogoutAndMeTest extends TestCase
 
         // Token should be revoked — subsequent requests fail
         $this->withHeaders([
-            'Authorization' => 'Bearer ' . $token,
+            'Authorization' => 'Bearer '.$token,
         ])->getJson('/api/v1/auth/me')
             ->assertStatus(401);
     }

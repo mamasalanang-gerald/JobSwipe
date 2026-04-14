@@ -5,7 +5,6 @@ namespace Tests\Feature\Auth;
 use App\Models\PostgreSQL\User;
 use App\Services\OTPService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Hash;
 use Mockery;
 use Tests\TestCase;
 
@@ -32,7 +31,7 @@ class RegistrationTest extends TestCase
 
         $response = $this->postJson('/api/v1/auth/register', [
             'email' => 'newuser@example.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'N3wUs3rR3g!str2024',
             'role' => 'applicant',
         ]);
 
@@ -50,7 +49,7 @@ class RegistrationTest extends TestCase
 
         $response = $this->postJson('/api/v1/auth/register', [
             'email' => 'admin@brand-new-domain.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'Adm!nR3g!str2024',
             'role' => 'company_admin',
         ]);
 
@@ -75,7 +74,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->postJson('/api/v1/auth/register', [
             'email' => 'test@example.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'Inv@l!dR0l3T3st2024',
             'role' => 'superuser',
         ]);
 
@@ -99,7 +98,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->postJson('/api/v1/auth/register', [
             'email' => 'not-an-email',
-            'password' => 'StrongP@ss1',
+            'password' => 'Inv@l!dEm@!lT3st2024',
             'role' => 'applicant',
         ]);
 
@@ -117,7 +116,7 @@ class RegistrationTest extends TestCase
 
         $response = $this->postJson('/api/v1/auth/register', [
             'email' => 'taken@example.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'Dupl!c@t3T3st2024',
             'role' => 'applicant',
         ]);
 
@@ -132,7 +131,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->postJson('/api/v1/auth/register', [
             'email' => 'hr@company.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'HrO@uthT3st2024',
             'role' => 'hr',
             'oauth_provider' => 'google',
         ]);
@@ -148,7 +147,7 @@ class RegistrationTest extends TestCase
     {
         $response = $this->postJson('/api/v1/auth/register', [
             'email' => 'admin@company.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'Adm!nO@uthT3st2024',
             'role' => 'company_admin',
             'oauth_provider' => 'google',
         ]);
@@ -165,7 +164,7 @@ class RegistrationTest extends TestCase
 
         $response = $this->postJson('/api/v1/auth/register', [
             'email' => 'structure@example.com',
-            'password' => 'StrongP@ss1',
+            'password' => 'Struct!r3T3st2024',
             'role' => 'applicant',
         ]);
 

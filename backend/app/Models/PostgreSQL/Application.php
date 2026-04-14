@@ -16,6 +16,7 @@ class Application extends Model
     {
         return ApplicationFactory::new();
     }
+
     protected $connection = 'pgsql';
 
     protected $table = 'applications';

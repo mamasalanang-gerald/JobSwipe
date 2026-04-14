@@ -18,9 +18,13 @@ class MatchLifecycleTest extends TestCase
     use RefreshDatabase;
 
     private User $applicantUser;
+
     private ApplicantProfile $applicantProfile;
+
     private User $hrUser;
+
     private CompanyProfile $company;
+
     private JobPosting $job;
 
     protected function setUp(): void

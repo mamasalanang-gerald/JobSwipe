@@ -16,6 +16,7 @@ class MatchMessage extends Model
     {
         return MatchMessageFactory::new();
     }
+
     protected $connection = 'pgsql';
 
     protected $table = 'match_messages';

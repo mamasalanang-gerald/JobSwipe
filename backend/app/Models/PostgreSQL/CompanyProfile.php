@@ -16,6 +16,7 @@ class CompanyProfile extends Model
     {
         return CompanyProfileFactory::new();
     }
+
     protected $connection = 'pgsql';
 
     protected $table = 'company_profiles';
