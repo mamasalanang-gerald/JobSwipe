@@ -2,15 +2,7 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-// ─── Theme ───────────────────────────────────────────────────────────────────
-const T = {
-  bg:       '#0f0a1e',
-  surface:  '#130d22',
-  border:   'rgba(255,255,255,0.07)',
-  active:   '#e91e8c',   // hot pink — matches reference
-  inactive: 'rgba(255,255,255,0.38)',
-};
+import { useTheme } from '../../theme'; // ← centralised theme
 
 type IconName =
   | 'home-outline'
@@ -19,28 +11,27 @@ type IconName =
   | 'chat-outline'
   | 'account-circle-outline';
 
-const TABS: { name: string; label: string; icon: IconName; activeIcon: IconName }[] = [
-  { name: 'index',   label: 'Home',    icon: 'home-outline',           activeIcon: 'home-outline'           },
-  { name: 'jobs',    label: 'Explore', icon: 'compass-outline',        activeIcon: 'compass-outline'        },
-  { name: 'matches', label: 'Messages', icon: 'chat-outline',           activeIcon: 'chat-outline'           },
-  { name: 'profile', label: 'Profile', icon: 'account-circle-outline', activeIcon: 'account-circle-outline' },
+const TABS: { name: string; label: string; icon: IconName }[] = [
+  { name: 'index',   label: 'Home',     icon: 'home-outline'           },
+  { name: 'jobs',    label: 'Explore',  icon: 'compass-outline'        },
+  { name: 'matches', label: 'Messages', icon: 'chat-outline'           },
+  { name: 'profile', label: 'Profile',  icon: 'account-circle-outline' },
 ];
 
-// Custom tab bar so we have full control over layout
 function CustomTabBar({ state, descriptors, navigation }: any) {
+  const T      = useTheme();                           // ← live tokens
   const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 8);
 
   return (
-    <View style={[styles.bar, { paddingBottom: bottomPad }]}>
-      {/* Top border line */}
-      <View style={styles.topBorder} />
+    <View style={[styles.bar, { backgroundColor: T.tabBar, paddingBottom: bottomPad }]}>
+      <View style={[styles.topBorder, { backgroundColor: T.borderFaint }]} />
 
       <View style={styles.row}>
         {state.routes.map((route: any, i: number) => {
           const focused = state.index === i;
-          const tab = TABS[i];
-          const color = focused ? T.active : T.inactive;
+          const tab     = TABS[i];
+          const color   = focused ? T.tabActive : T.tabInactive;
 
           const onPress = () => {
             const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
@@ -54,16 +45,9 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
               activeOpacity={0.7}
               style={styles.tab}
             >
-              <MaterialCommunityIcons
-                name={(tab?.icon ?? 'home-outline') as any}
-                size={24}
-                color={color}
-              />
-              <Text style={[styles.label, { color }]}>
-                {tab?.label ?? route.name}
-              </Text>
-              {/* Underline indicator */}
-              {focused && <View style={styles.indicator} />}
+              <MaterialCommunityIcons name={(tab?.icon ?? 'home-outline') as any} size={24} color={color} />
+              <Text style={[styles.label, { color }]}>{tab?.label ?? route.name}</Text>
+              {focused && <View style={[styles.indicator, { backgroundColor: T.tabActive }]} />}
             </TouchableOpacity>
           );
         })}
@@ -78,23 +62,22 @@ export default function TabLayout() {
       screenOptions={{ headerShown: false }}
       tabBar={props => <CustomTabBar {...props} />}
     >
-      <Tabs.Screen name="index"   options={{ title: 'Home'    }} />
-      <Tabs.Screen name="jobs"    options={{ title: 'Explore' }} />
+      <Tabs.Screen name="index"   options={{ title: 'Home'     }} />
+      <Tabs.Screen name="jobs"    options={{ title: 'Explore'  }} />
       <Tabs.Screen name="matches" options={{ title: 'Messages' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile'  }} />
     </Tabs>
   );
 }
 
+// Only structural / size styles here — colours are applied inline from T
 const styles = StyleSheet.create({
   bar: {
     position: 'absolute',
     bottom: 0, left: 0, right: 0,
-    backgroundColor: T.surface,
   },
   topBorder: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: T.border,
   },
   row: {
     flexDirection: 'row',
@@ -119,6 +102,5 @@ const styles = StyleSheet.create({
     width: 20,
     height: 2,
     borderRadius: 2,
-    backgroundColor: T.active,
   },
 });

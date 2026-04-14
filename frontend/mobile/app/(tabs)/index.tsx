@@ -19,6 +19,7 @@ import {
   Switch,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTheme } from '../../theme';
 import {
   SwipeLabel,
   MatchBadge,
@@ -470,6 +471,7 @@ const JOBS = [
 ] as const;
 
 export default function HomeTab() {
+  const T = useTheme();
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
   const navigation = useNavigation();
@@ -754,23 +756,24 @@ export default function HomeTab() {
           style={[
             s.settingsPanel,
             {
+              backgroundColor: T.surface,
               paddingBottom: tabBarHeight + 16,
               transform: [{ translateY: settingsAnim.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }],
             },
           ]}
           pointerEvents={settingsOpen ? 'box-none' : 'none'}
         >
-          <View style={s.panelHandle} />
-          <TouchableOpacity style={s.panelCloseBtn} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
-            <MaterialCommunityIcons name="chevron-down" size={24} color="rgba(255,255,255,0.9)" />
+          <View style={[s.panelHandle, { backgroundColor: T.borderFaint }]} />
+          <TouchableOpacity style={[s.panelCloseBtn, { backgroundColor: T.surfaceHigh }]} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+            <MaterialCommunityIcons name="chevron-down" size={24} color={T.textSub} />
           </TouchableOpacity>
           <View style={s.settingsContent}>
-            <Text style={s.settingsTitle}>Filters</Text>
+            <Text style={[s.settingsTitle, { color: T.textPrimary }]}>Filters</Text>
             <View style={s.settingsSection}>
               <View style={s.settingsLabelRow}>
-                <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color="rgba(255,255,255,0.6)" />
-                <Text style={s.settingsLabel}>Max Distance</Text>
-                <Text style={s.settingsValue}>{draftLabel}</Text>
+                <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={T.textSub} />
+                <Text style={[s.settingsLabel, { color: T.textSub }]}>Max Distance</Text>
+                <Text style={[s.settingsValue, { color: T.primary }]}>{draftLabel}</Text>
               </View>
               <View
                 style={s.sliderWrapper}
@@ -789,34 +792,34 @@ export default function HomeTab() {
                   setDraftDistance(Math.max(1, Math.round(pct * 100)));
                 }}
               >
-                <View style={s.sliderTrack} pointerEvents="none">
-                  <View style={[s.sliderFill, { width: `${(draftDistance / 100) * 100}%` }]} />
+                <View style={[s.sliderTrack, { backgroundColor: T.borderFaint }]} pointerEvents="none">
+                  <View style={[s.sliderFill, { width: `${(draftDistance / 100) * 100}%`, backgroundColor: T.primary }]} />
                 </View>
                 <View style={[s.sliderThumb, { left: (draftDistance / 100) * sliderTrackWidth - 10 }]} pointerEvents="none" />
               </View>
               <View style={s.sliderLabels}>
-                <Text style={s.sliderMin}>1 {draftUseKm ? 'km' : 'mi'}</Text>
-                <Text style={s.sliderMax}>100 {draftUseKm ? 'km' : 'mi'}</Text>
+                <Text style={[s.sliderMin, { color: T.textHint }]}>1 {draftUseKm ? 'km' : 'mi'}</Text>
+                <Text style={[s.sliderMax, { color: T.textHint }]}>100 {draftUseKm ? 'km' : 'mi'}</Text>
               </View>
             </View>
-            <View style={s.exDivider} />
+            <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
             <View style={s.settingsSection}>
               <View style={s.settingsLabelRow}>
-                <MaterialCommunityIcons name="map-outline" size={16} color="rgba(255,255,255,0.6)" />
-                <Text style={s.settingsLabel}>Distance Unit</Text>
+                <MaterialCommunityIcons name="map-outline" size={16} color={T.textSub} />
+                <Text style={[s.settingsLabel, { color: T.textSub }]}>Distance Unit</Text>
               </View>
               <View style={s.unitToggleRow}>
-                <Text style={[s.unitLabel, !draftUseKm && s.unitLabelActive]}>Miles</Text>
-                <Switch value={draftUseKm} onValueChange={setDraftUseKm} trackColor={{ false: 'rgba(255,255,255,0.15)', true: Colors.primary }} thumbColor={Colors.white} ios_backgroundColor="rgba(255,255,255,0.15)" />
-                <Text style={[s.unitLabel, draftUseKm && s.unitLabelActive]}>Kilometres</Text>
+                <Text style={[s.unitLabel, { color: T.textHint }, !draftUseKm && { color: T.textPrimary }]}>Miles</Text>
+                <Switch value={draftUseKm} onValueChange={setDraftUseKm} trackColor={{ false: T.borderFaint, true: T.primary + '88' }} thumbColor={T.primary} ios_backgroundColor={T.borderFaint} />
+                <Text style={[s.unitLabel, { color: T.textHint }, draftUseKm && { color: T.textPrimary }]}>Kilometres</Text>
               </View>
             </View>
-            <View style={s.exDivider} />
+            <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
             <View style={s.settingsResultRow}>
-              <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={Colors.primary} />
-              <Text style={s.settingsResultText}>{draftFilteredCount} job{draftFilteredCount !== 1 ? 's' : ''} within {draftLabel}</Text>
+              <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={T.primary} />
+              <Text style={[s.settingsResultText, { color: T.textSub }]}>{draftFilteredCount} job{draftFilteredCount !== 1 ? 's' : ''} within {draftLabel}</Text>
             </View>
-            <TouchableOpacity style={s.applyFiltersBtn} onPress={applySettings} activeOpacity={0.85}>
+            <TouchableOpacity style={[s.applyFiltersBtn, { backgroundColor: T.primary }]} onPress={applySettings} activeOpacity={0.85}>
               <Text style={s.applyFiltersBtnText}>Apply Filters</Text>
             </TouchableOpacity>
           </View>
@@ -1037,13 +1040,13 @@ export default function HomeTab() {
         always scrolls fully clear of the tab bar.
       */}
       <Animated.View
-        style={[s.expandPanel, { height: PANEL_HEIGHT, transform: [{ translateY: panelTranslateY }] }]}
+        style={[s.expandPanel, { height: PANEL_HEIGHT, backgroundColor: T.surface, transform: [{ translateY: panelTranslateY }] }]}
         pointerEvents={expanded ? 'box-none' : 'none'}
       >
-        <View style={s.panelHandle} />
+        <View style={[s.panelHandle, { backgroundColor: T.borderFaint }]} />
 
-        <TouchableOpacity style={s.panelCloseBtn} onPress={collapsePanel} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
-          <MaterialCommunityIcons name="chevron-down" size={24} color="rgba(255,255,255,0.9)" />
+        <TouchableOpacity style={[s.panelCloseBtn, { backgroundColor: T.surfaceHigh }]} onPress={collapsePanel} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+          <MaterialCommunityIcons name="chevron-down" size={24} color={T.textSub} />
         </TouchableOpacity>
 
         <ScrollView
@@ -1053,30 +1056,30 @@ export default function HomeTab() {
           bounces
           overScrollMode="always"
         >
-          <Text style={s.exRole}>{job.position}</Text>
-          <Text style={s.exSalary}>{job.salary}</Text>
+          <Text style={[s.exRole, { color: T.textPrimary }]}>{job.position}</Text>
+          <Text style={[s.exSalary, { color: T.primary }]}>{job.salary}</Text>
 
           <View style={s.exDistanceRow}>
-            <MaterialCommunityIcons name="map-marker-distance" size={14} color="rgba(255,255,255,0.5)" />
-            <Text style={s.exDistance}>{formatDistance(job.distanceKm)}</Text>
+            <MaterialCommunityIcons name="map-marker-distance" size={14} color={T.textHint} />
+            <Text style={[s.exDistance, { color: T.textHint }]}>{formatDistance(job.distanceKm)}</Text>
           </View>
 
           <View style={s.exLocRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={13} color="rgba(255,255,255,0.6)" />
-            <Text style={s.exLoc}>{job.location}</Text>
+            <MaterialCommunityIcons name="map-marker-outline" size={13} color={T.textSub} />
+            <Text style={[s.exLoc, { color: T.textSub }]}>{job.location}</Text>
           </View>
 
           <View style={s.exTags}>
             {job.tags.map((tag, i) => <TagBadge key={i} label={tag.label} variant={tag.variant} />)}
           </View>
 
-          <View style={s.exDivider} />
-          <Text style={s.exSectionTitle}>About the role</Text>
-          <Text style={s.exDesc}>{job.description}</Text>
+          <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
+          <Text style={[s.exSectionTitle, { color: T.textHint }]}>About the role</Text>
+          <Text style={[s.exDesc, { color: T.textSub }]}>{job.description}</Text>
 
           {/* ── Company photo gallery ── */}
-          <View style={s.exDivider} />
-          <Text style={s.exSectionTitle}>Company photos</Text>
+          <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
+          <Text style={[s.exSectionTitle, { color: T.textHint }]}>Company photos</Text>
           {/* Main large preview */}
           <TouchableOpacity
             activeOpacity={0.92}
@@ -1118,36 +1121,36 @@ export default function HomeTab() {
             ))}
           </ScrollView>
 
-          <View style={s.exDivider} />
-          <Text style={s.exSectionTitle}>Requirements</Text>
+          <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
+          <Text style={[s.exSectionTitle, { color: T.textHint }]}>Requirements</Text>
           <View style={s.exMetaRow}>
-            <MaterialCommunityIcons name="briefcase-outline" size={14} color="rgba(255,255,255,0.5)" />
-            <Text style={s.exMeta}>{job.lookingFor}</Text>
+            <MaterialCommunityIcons name="briefcase-outline" size={14} color={T.textHint} />
+            <Text style={[s.exMeta, { color: T.textSub }]}>{job.lookingFor}</Text>
           </View>
 
-          <View style={s.exDivider} />
-          <Text style={s.exSectionTitle}>Company rating</Text>
+          <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
+          <Text style={[s.exSectionTitle, { color: T.textHint }]}>Company rating</Text>
           <View style={s.exMetaRow}>
-            <MaterialCommunityIcons name="star" size={14} color={Colors.warning} />
-            <Text style={s.exMeta}>{job.rating} · Glassdoor</Text>
+            <MaterialCommunityIcons name="star" size={14} color={T.gold} />
+            <Text style={[s.exMeta, { color: T.textSub }]}>{job.rating} · Glassdoor</Text>
           </View>
 
           {/* ── Employee reviews ── */}
-          <View style={s.exDivider} />
+          <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
           <View style={s.reviewsTitleRow}>
-            <Text style={s.exSectionTitle}>Employee reviews</Text>
-            <Text style={s.reviewsCount}>{job.reviews.length} reviews</Text>
+            <Text style={[s.exSectionTitle, { color: T.textHint }]}>Employee reviews</Text>
+            <Text style={[s.reviewsCount, { color: T.textHint }]}>{job.reviews.length} reviews</Text>
           </View>
           <View style={{ gap: 10 }}>
             {job.reviews.slice(0, 3).map((review, i) => (
-              <View key={i} style={[s.reviewCard, i === 2 && s.reviewCardFaded]}>
+              <View key={i} style={[s.reviewCard, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint }, i === 2 && s.reviewCardFaded]}>
                 <View style={s.reviewHeader}>
-                  <View style={s.reviewAvatar}>
-                    <Text style={s.reviewAvatarText}>{review.author.charAt(0)}</Text>
+                  <View style={[s.reviewAvatar, { backgroundColor: T.primary + '25', borderColor: T.primary + '55' }]}>
+                    <Text style={[s.reviewAvatarText, { color: T.primary }]}>{review.author.charAt(0)}</Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={s.reviewAuthor}>{review.author}</Text>
-                    <Text style={s.reviewRole}>{review.role}</Text>
+                    <Text style={[s.reviewAuthor, { color: T.textPrimary }]}>{review.author}</Text>
+                    <Text style={[s.reviewRole, { color: T.textHint }]}>{review.role}</Text>
                   </View>
                   <View style={s.reviewMeta}>
                     <View style={s.reviewStars}>
@@ -1156,29 +1159,29 @@ export default function HomeTab() {
                           key={si}
                           name={si < review.rating ? 'star' : 'star-outline'}
                           size={11}
-                          color={si < review.rating ? Colors.warning : 'rgba(255,255,255,0.2)'}
+                          color={si < review.rating ? T.gold : T.borderFaint}
                         />
                       ))}
                     </View>
-                    <Text style={s.reviewDate}>{review.date}</Text>
+                    <Text style={[s.reviewDate, { color: T.textHint }]}>{review.date}</Text>
                   </View>
                 </View>
-                <Text style={[s.reviewText, i === 2 && { opacity: 0.35 }]}>{review.text}</Text>
+                <Text style={[s.reviewText, { color: T.textSub }, i === 2 && { opacity: 0.35 }]}>{review.text}</Text>
               </View>
             ))}
           </View>
 
           {/* Locked "View more reviews" button */}
-          <TouchableOpacity style={s.viewMoreBtn} activeOpacity={0.8} onPress={() => navigation.navigate('subscription' as never)}>
-            <View style={s.viewMoreLockBadge}>
-              <MaterialCommunityIcons name="lock" size={11} color="#fff" />
+          <TouchableOpacity style={[s.viewMoreBtn, { borderColor: T.gold + '44', backgroundColor: T.gold + '0d' }]} activeOpacity={0.8} onPress={() => navigation.navigate('subscription' as never)}>
+            <View style={[s.viewMoreLockBadge, { backgroundColor: T.gold + '33', borderColor: T.gold + '55' }]}>
+              <MaterialCommunityIcons name="lock" size={11} color={T.gold} />
             </View>
-            <Text style={s.viewMoreText}>View all reviews</Text>
+            <Text style={[s.viewMoreText, { color: T.textSub }]}>View all reviews</Text>
             <View style={s.viewMorePremiumBadge}>
               <MaterialCommunityIcons name="lightning-bolt" size={10} color="#0f0a1e" />
               <Text style={s.viewMorePremiumText}>Premium</Text>
             </View>
-            <MaterialCommunityIcons name="chevron-right" size={16} color="rgba(255,255,255,0.3)" style={{ marginLeft: 'auto' }} />
+            <MaterialCommunityIcons name="chevron-right" size={16} color={T.textHint} style={{ marginLeft: 'auto' }} />
           </TouchableOpacity>
         </ScrollView>
       </Animated.View>
@@ -1222,26 +1225,27 @@ export default function HomeTab() {
         style={[
           s.settingsPanel,
           {
+            backgroundColor: T.surface,
             paddingBottom: tabBarHeight + 16,
             transform: [{ translateY: settingsAnim.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }],
           },
         ]}
         pointerEvents={settingsOpen ? 'box-none' : 'none'}
       >
-        <View style={s.panelHandle} />
-        <TouchableOpacity style={s.panelCloseBtn} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
-          <MaterialCommunityIcons name="chevron-down" size={24} color="rgba(255,255,255,0.9)" />
+        <View style={[s.panelHandle, { backgroundColor: T.borderFaint }]} />
+        <TouchableOpacity style={[s.panelCloseBtn, { backgroundColor: T.surfaceHigh }]} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+          <MaterialCommunityIcons name="chevron-down" size={24} color={T.textSub} />
         </TouchableOpacity>
 
         <View style={s.settingsContent}>
-          <Text style={s.settingsTitle}>Filters</Text>
+          <Text style={[s.settingsTitle, { color: T.textPrimary }]}>Filters</Text>
 
           {/* Distance slider */}
           <View style={s.settingsSection}>
             <View style={s.settingsLabelRow}>
-              <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color="rgba(255,255,255,0.6)" />
-              <Text style={s.settingsLabel}>Max Distance</Text>
-              <Text style={s.settingsValue}>{draftLabel}</Text>
+              <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={T.textSub} />
+              <Text style={[s.settingsLabel, { color: T.textSub }]}>Max Distance</Text>
+              <Text style={[s.settingsValue, { color: T.primary }]}>{draftLabel}</Text>
             </View>
 
             {/* Slider wrapper — tall touch target, visual track centred inside */}
@@ -1265,8 +1269,8 @@ export default function HomeTab() {
               }}
             >
               {/* Visual track */}
-              <View style={s.sliderTrack} pointerEvents="none">
-                <View style={[s.sliderFill, { width: `${(draftDistance / 100) * 100}%` }]} />
+              <View style={[s.sliderTrack, { backgroundColor: T.borderFaint }]} pointerEvents="none">
+                <View style={[s.sliderFill, { width: `${(draftDistance / 100) * 100}%`, backgroundColor: T.primary }]} />
               </View>
               {/* Thumb — positioned relative to wrapper */}
               <View
@@ -1276,44 +1280,44 @@ export default function HomeTab() {
             </View>
 
             <View style={s.sliderLabels}>
-              <Text style={s.sliderMin}>1 {draftUseKm ? 'km' : 'mi'}</Text>
-              <Text style={s.sliderMax}>100 {draftUseKm ? 'km' : 'mi'}</Text>
+              <Text style={[s.sliderMin, { color: T.textHint }]}>1 {draftUseKm ? 'km' : 'mi'}</Text>
+              <Text style={[s.sliderMax, { color: T.textHint }]}>100 {draftUseKm ? 'km' : 'mi'}</Text>
             </View>
           </View>
 
-          <View style={s.exDivider} />
+          <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
 
           {/* Unit toggle */}
           <View style={s.settingsSection}>
             <View style={s.settingsLabelRow}>
-              <MaterialCommunityIcons name="map-outline" size={16} color="rgba(255,255,255,0.6)" />
-              <Text style={s.settingsLabel}>Distance Unit</Text>
+              <MaterialCommunityIcons name="map-outline" size={16} color={T.textSub} />
+              <Text style={[s.settingsLabel, { color: T.textSub }]}>Distance Unit</Text>
             </View>
             <View style={s.unitToggleRow}>
-              <Text style={[s.unitLabel, !draftUseKm && s.unitLabelActive]}>Miles</Text>
+              <Text style={[s.unitLabel, { color: T.textHint }, !draftUseKm && { color: T.textPrimary }]}>Miles</Text>
               <Switch
                 value={draftUseKm}
                 onValueChange={setDraftUseKm}
-                trackColor={{ false: 'rgba(255,255,255,0.15)', true: Colors.primary }}
-                thumbColor={Colors.white}
-                ios_backgroundColor="rgba(255,255,255,0.15)"
+                trackColor={{ false: T.borderFaint, true: T.primary + '88' }}
+                thumbColor={T.primary}
+                ios_backgroundColor={T.borderFaint}
               />
-              <Text style={[s.unitLabel, draftUseKm && s.unitLabelActive]}>Kilometres</Text>
+              <Text style={[s.unitLabel, { color: T.textHint }, draftUseKm && { color: T.textPrimary }]}>Kilometres</Text>
             </View>
           </View>
 
-          <View style={s.exDivider} />
+          <View style={[s.exDivider, { backgroundColor: T.borderFaint }]} />
 
           {/* Preview count */}
           <View style={s.settingsResultRow}>
-            <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={Colors.primary} />
-            <Text style={s.settingsResultText}>
+            <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={T.primary} />
+            <Text style={[s.settingsResultText, { color: T.textSub }]}>
               {draftFilteredCount} job{draftFilteredCount !== 1 ? 's' : ''} within {draftLabel}
             </Text>
           </View>
 
           {/* Apply button */}
-          <TouchableOpacity style={s.applyFiltersBtn} onPress={applySettings} activeOpacity={0.85}>
+          <TouchableOpacity style={[s.applyFiltersBtn, { backgroundColor: T.primary }]} onPress={applySettings} activeOpacity={0.85}>
             <Text style={s.applyFiltersBtnText}>Apply Filters</Text>
           </TouchableOpacity>
         </View>
@@ -1406,7 +1410,6 @@ const s = StyleSheet.create({
   // Expand panel
   expandPanel: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(10,10,14,0.97)',
     zIndex: 60,
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
     overflow: 'hidden',
@@ -1522,7 +1525,6 @@ const s = StyleSheet.create({
   settingsBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 65, backgroundColor: 'rgba(0,0,0,0.5)' },
   settingsPanel: {
     position: 'absolute', bottom: 0, left: 0, right: 0,
-    backgroundColor: 'rgba(10,10,14,0.98)',
     zIndex: 70,
     borderTopLeftRadius: 22, borderTopRightRadius: 22,
     overflow: 'hidden',
