@@ -36,7 +36,7 @@ import {
 } from '../../components/ui';
 
 const { width: SW, height: SH } = Dimensions.get('window');
-const SWIPE_THRESHOLD = SW * 0.28;
+const SWIPE_THRESHOLD = SW * 0.20;
 
 // ── Layout constants at module level — never change, never move with the card ──
 const ACTIONS_BOTTOM = Platform.OS === 'ios' ? 72 : 100;
@@ -116,7 +116,7 @@ const JOBS = [
       { label: 'Full-time',  variant: 'success' as const },
       { label: 'Enterprise', variant: 'neutral' as const },
     ],
-    description: 'Lead machine learning initiatives for Fortune 500 clients. Publish research and own the ML roadmap. Work with petabyte-scale datasets and cutting-edge model architectures.',
+    description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur id pharetra magna. Donec imperdiet est sed enim faucibus lobortis. Nullam nec semper ante. Maecenas condimentum, enim et imperdiet laoreet, velit neque molestie mi, non pretium ante tortor a leo. Donec id enim at felis lobortis sollicitudin quis in arcu. Praesent massa libero, tincidunt vel orci in, pulvinar vehicula risus. Pellentesque id lorem tincidunt, interdum erat id, pretium augue. Cras blandit enim nisi. Suspendisse rutrum, massa vel tempor laoreet, eros mauris accumsan magna, ac finibus massa urna ut leo.\nDuis ornare enim felis, nec pulvinar mi suscipit scelerisque. Etiam sit amet lorem aliquam, commodo elit in, interdum nulla. Aenean quis elit et sem suscipit vulputate eu et ligula. In pharetra consequat ligula, sed molestie ex sollicitudin in. Duis a tellus in nulla posuere lacinia ut eget arcu. Vivamus mi mi, convallis non magna ac, blandit gravida elit. Vivamus volutpat sapien ac turpis luctus, a mollis erat accumsan. Pellentesque eros est, faucibus vel justo a, porta varius diam. Vivamus commodo, sem ac tincidunt vulputate, neque purus interdum enim, id feugiat ante magna sit amet nisl. Aliquam erat volutpat. Duis ut justo efficitur, convallis metus sollicitudin, elementum nibh. Donec pellentesque tempus dui, in tristique dui cursus et. Donec ultricies vehicula risus, nec sollicitudin nulla suscipit a. Vestibulum tincidunt diam at dui sollicitudin, vel facilisis nisl laoreet.\nAliquam vehicula ultricies nulla, sollicitudin interdum purus luctus quis. Integer imperdiet, est convallis auctor scelerisque, velit lectus ullamcorper nulla, non pretium dui turpis quis ipsum. Donec faucibus vulputate tortor, vitae porta ex condimentum et. Etiam malesuada sem ac elementum vestibulum. Proin tincidunt nisi quam, a rhoncus leo elementum id. Fusce gravida iaculis velit. In lobortis a justo ac maximus. Nam vel euismod metus. Cras lacus tellus, pretium consequat placerat quis, vehicula hendrerit justo.\nInteger auctor tortor sit amet dolor interdum, sit amet cursus mi auctor. Nam eget vestibulum erat. Aenean vehicula magna eget enim tempus pretium. Aliquam nec ante dolor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse dignissim orci eu massa mattis, eu finibus lorem laoreet. In et tincidunt erat.\nVestibulum non tempor neque, eget vulputate tortor. Nunc imperdiet dui vitae porta mattis. Curabitur nisl purus, consequat convallis sapien id, consequat dignissim tellus. Nam tincidunt magna a tellus placerat ultricies. Nunc vestibulum pulvinar mauris quis rutrum. Nullam tristique nisi eu diam imperdiet pretium. Duis vulputate tempus vehicula. Sed congue nunc erat, nec posuere tellus dignissim at. Nulla nLorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur id pharetra magna. Donec imperdiet est sed enim faucibus lobortis. Nullam nec semper ante. Maecenas condimentum, enim et imperdiet laoreet, velit neque molestie mi, non pretium ante tortor a leo. Donec id enim at felis lobortis sollicitudin quis in arcu. Praesent massa libero, tincidunt vel orci in, pulvinar vehicula risus. Pellentesque id lorem tincidunt, interdum erat id, pretium augue. Cras blandit enim nisi. Suspendisse rutrum, massa vel tempor laoreet, eros mauris accumsan magna, ac finibus massa urna ut leo.\nDuis ornare enim felis, nec pulvinar mi suscipit scelerisque. Etiam sit amet lorem aliquam, commodo elit in, interdum nulla. Aenean quis elit et sem suscipit vulputate eu et ligula. In pharetra consequat ligula, sed molestie ex sollicitudin in. Duis a tellus in nulla posuere lacinia ut eget arcu. Vivamus mi mi, convallis non magna ac, blandit gravida elit. Vivamus volutpat sapien ac turpis luctus, a mollis erat accumsan. Pellentesque eros est, faucibus vel justo a, porta varius diam. Vivamus commodo, sem ac tincidunt vulputate, neque purus interdum enim, id feugiat ante magna sit amet nisl. Aliquam erat volutpat. Duis ut justo efficitur, convallis metus sollicitudin, elementum nibh. Donec pellentesque tempus dui, in tristique dui cursus et. Donec ultricies vehicula risus, nec sollicitudin nulla suscipit a. Vestibulum tincidunt diam at dui sollicitudin, vel facilisis nisl laoreet.\nAliquam vehicula ultricies nulla, sollicitudin interdum purus luctus quis. Integer imperdiet, est convallis auctor scelerisque, velit lectus ullamcorper nulla, non pretium dui turpis quis ipsum. Donec faucibus vulputate tortor, vitae porta ex condimentum et. Etiam malesuada sem ac elementum vestibulum. Proin tincidunt nisi quam, a rhoncus leo elementum id. Fusce gravida iaculis velit. In lobortis a justo ac maximus. Nam vel euismod metus. Cras lacus tellus, pretium consequat placerat quis, vehicula hendrerit justo.\nInteger auctor tortor sit amet dolor interdum, sit amet cursus mi auctor. Nam eget vestibulum erat. Aenean vehicula magna eget enim tempus pretium. Aliquam nec ante dolor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse dignissim orci eu massa mattis, eu finibus lorem laoreet. In et tincidunt erat.\nVestibulum non tempor neque, eget vulputate tortor. Nunc imperdiet dui vitae porta mattis. Curabitur nisl purus, consequat convallis sapien id, consequat dignissim tellus. Nam tincidunt magna a tellus placerat ultricies. Nunc vestibulum pulvinar mauris quis rutrum. Nullam tristique nisi eu diam imperdiet pretium. Duis vulputate tempus vehicula. Sed congue nunc erat, nec posuere tellus dignissim at. Nulla non ante ante. Donec cursus nisl eget nunc porttitor, vel efficitur ipsum aliquam. Aliquam nec viverra lacus.on ante ante. Donec cursus nisl eget nunc porttitor, vel efficitur ipsum aliquam. Aliquam nec viverra lacus.Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur id pharetra magna. Donec imperdiet est sed enim faucibus lobortis. Nullam nec semper ante. Maecenas condimentum, enim et imperdiet laoreet, velit neque molestie mi, non pretium ante tortor a leo. Donec id enim at felis lobortis sollicitudin quis in arcu. Praesent massa libero, tincidunt vel orci in, pulvinar vehicula risus. Pellentesque id lorem tincidunt, interdum erat id, pretium augue. Cras blandit enim nisi. Suspendisse rutrum, massa vel tempor laoreet, eros mauris accumsan magna, ac finibus massa urna ut leo.\nDuis ornare enim felis, nec pulvinar mi suscipit scelerisque. Etiam sit amet lorem aliquam, commodo elit in, interdum nulla. Aenean quis elit et sem suscipit vulputate eu et ligula. In pharetra consequat ligula, sed molestie ex sollicitudin in. Duis a tellus in nulla posuere lacinia ut eget arcu. Vivamus mi mi, convallis non magna ac, blandit gravida elit. Vivamus volutpat sapien ac turpis luctus, a mollis erat accumsan. Pellentesque eros est, faucibus vel justo a, porta varius diam. Vivamus commodo, sem ac tincidunt vulputate, neque purus interdum enim, id feugiat ante magna sit amet nisl. Aliquam erat volutpat. Duis ut justo efficitur, convallis metus sollicitudin, elementum nibh. Donec pellentesque tempus dui, in tristique dui cursus et. Donec ultricies vehicula risus, nec sollicitudin nulla suscipit a. Vestibulum tincidunt diam at dui sollicitudin, vel facilisis nisl laoreet.\nAliquam vehicula ultricies nulla, sollicitudin interdum purus luctus quis. Integer imperdiet, est convallis auctor scelerisque, velit lectus ullamcorper nulla, non pretium dui turpis quis ipsum. Donec faucibus vulputate tortor, vitae porta ex condimentum et. Etiam malesuada sem ac elementum vestibulum. Proin tincidunt nisi quam, a rhoncus leo elementum id. Fusce gravida iaculis velit. In lobortis a justo ac maximus. Nam vel euismod metus. Cras lacus tellus, pretium consequat placerat quis, vehicula hendrerit justo.\nInteger auctor tortor sit amet dolor interdum, sit amet cursus mi auctor. Nam eget vestibulum erat. Aenean vehicula magna eget enim tempus pretium. Aliquam nec ante dolor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse dignissim orci eu massa mattis, eu finibus lorem laoreet. In et tincidunt erat.\nVestibulum non tempor neque, eget vulputate tortor. Nunc imperdiet dui vitae porta mattis. Curabitur nisl purus, consequat convallis sapien id, consequat dignissim tellus. Nam tincidunt magna a tellus placerat ultricies. Nunc vestibulum pulvinar mauris quis rutrum. Nullam tristique nisi eu diam imperdiet pretium. Duis vulputate tempus vehicula. Sed congue nunc erat, nec posuere tellus dignissim at. Nulla non ante ante. Donec cursus nisl eget nunc porttitor, vel efficitur ipsum aliquam. Aliquam nec viverra lacus.",
     matchPercent: 85,
     photos: [
       require('../assets/images/socia.png'),
@@ -603,7 +603,7 @@ export default function HomeTab() {
 
   const likeOpacity        = position.x.interpolate({ inputRange: [0, 80],              outputRange: [0, 1],       extrapolate: 'clamp' });
   const nopeOpacity        = position.x.interpolate({ inputRange: [-80, 0],             outputRange: [1, 0],       extrapolate: 'clamp' });
-  const rotate             = position.x.interpolate({ inputRange: [-SW, 0, SW],         outputRange: ['-18deg', '0deg', '18deg'] });
+  const rotate             = position.x.interpolate({ inputRange: [-SW, 0, SW],         outputRange: ['-28deg', '0deg', '28deg'] });
   const likeOverlayOpacity = position.x.interpolate({ inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 0.45],    extrapolate: 'clamp' });
   const nopeOverlayOpacity = position.x.interpolate({ inputRange: [-SWIPE_THRESHOLD, 0],outputRange: [0.45, 0],    extrapolate: 'clamp' });
   // Used for the post-swipe settle animation on the next card
@@ -625,12 +625,12 @@ export default function HomeTab() {
       },
       onPanResponderMove: (_e, { dx, dy }) => {
         isDraggingRef.current = true;
-        position.setValue({ x: dx, y: dy * 0.25 });
+        position.setValue({ x: dx * 1.08, y: dy * 0.45 });
       },
       onPanResponderRelease: (_e, { dx, vx }) => {
         isDraggingRef.current = false;
         isHoldingRef.current = false;
-        if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.6) {
+        if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.4) {
           pausedElapsedRef.current = 0;
           commitSwipe(dx > 0 ? 1 : -1);
         } else {
@@ -661,6 +661,7 @@ export default function HomeTab() {
       if (currentJob) setHistory(prev => [...prev, { id: currentJob.id, dir }]);
       setPhotoIndex(0);
       setGalleryIndex(0);
+      photoScrollRef.current?.scrollTo({ x: 0, animated: false });
       setIndex(i => { indexRef.current = i + 1; return i + 1; });
       setSwipesUsed(s => s + 1);
       // Step 4: pin the growing card to the snapshot so it doesn't flicker
@@ -694,7 +695,7 @@ export default function HomeTab() {
     });
   };
 
-  const resetCard = () => Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+  const resetCard = () => Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false, bounciness: 10, speed: 8 }).start();
   const collapsePanel = () => {
     expandedRef.current = false;
     setExpanded(false);
@@ -835,9 +836,9 @@ export default function HomeTab() {
         <Text style={s.emptySub}>You've used all 15 swipes for today. Upgrade to Pro for unlimited swipes.</Text>
         <TouchableOpacity
           style={s.refreshBtn}
-          onPress={() => { setSwipesUsed(0); setIndex(0); indexRef.current = 0; setLiked([]); setHistory([]); setPhotoIndex(0); nextCardAnim.setValue(0); cardOpacity.setValue(1); }}
+          onPress={() => navigation.navigate('subscription' as never)}
         >
-          <Text style={s.refreshBtnText}>Reset (demo)</Text>
+          <Text style={s.refreshBtnText}>Upgrade to Pro</Text>
         </TouchableOpacity>
       </View>
     );
