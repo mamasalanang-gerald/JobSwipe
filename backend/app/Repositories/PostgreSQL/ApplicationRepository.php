@@ -118,4 +118,15 @@ class ApplicationRepository
             ->where('status', $status)
             ->count();
     }
+
+    /**
+     * Check if an applicant has applied to at least one job at a company
+     */
+    public function hasAppliedToCompany(string $applicantId, string $companyId): bool
+    {
+        return Application::where('applications.applicant_id', $applicantId)
+            ->join('job_postings', 'applications.job_posting_id', '=', 'job_postings.id')
+            ->where('job_postings.company_id', $companyId)
+            ->exists();
+    }
 }

@@ -122,6 +122,24 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(20)->by($request->ip());
         });
 
+        RateLimiter::for('match-messages-send', function (Request $request) {
+            $identifier = $request->user()?->id ? (string) $request->user()->id : $request->ip();
+
+            return Limit::perMinute(30)->by($identifier);
+        });
+
+        RateLimiter::for('match-messages-typing', function (Request $request) {
+            $identifier = $request->user()?->id ? (string) $request->user()->id : $request->ip();
+
+            return Limit::perMinute(120)->by($identifier);
+        });
+
+        RateLimiter::for('match-messages-read', function (Request $request) {
+            $identifier = $request->user()?->id ? (string) $request->user()->id : $request->ip();
+
+            return Limit::perMinute(60)->by($identifier);
+        });
+
         // CRITICAL FIX: Disable route caching on Render.com
         // Render runs `php artisan route:cache` before our container starts,
         // caching routes before api.php is loaded. This causes all API routes to 404.

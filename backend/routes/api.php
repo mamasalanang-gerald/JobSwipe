@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminReviewController;
 use App\Http\Controllers\Applicant\ApplicationController;
 use App\Http\Controllers\Applicant\MatchController as ApplicantMatchController;
 use App\Http\Controllers\Applicant\SwipeController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\IAP\IAPController;
 use App\Http\Controllers\Match\MatchMessageController;
 use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Controllers\Profile\ProfileController;
+use App\Http\Controllers\Review\ReviewController;
 use App\Http\Controllers\Subscription\SubscriptionController;
 use App\Http\Controllers\Webhook\AppleWebhookController;
 use App\Http\Controllers\Webhook\GoogleWebhookController;
@@ -165,6 +167,20 @@ Route::middleware('throttle:api-tiered')->group(function () {
                 Route::post('/', [MatchMessageController::class, 'store'])->middleware('throttle:match-messages-send');
                 Route::post('typing', [MatchMessageController::class, 'typing'])->middleware('throttle:match-messages-typing');
                 Route::patch('read', [MatchMessageController::class, 'markAsRead'])->middleware('throttle:match-messages-read');
+            });
+
+            // ── Company Reviews ───────────────────────────────────────────────
+            Route::prefix('reviews')->group(function () {
+                Route::middleware('role:applicant')->post('/', [ReviewController::class, 'store']);
+                Route::get('company/{companyId}', [ReviewController::class, 'index']);
+                Route::post('{id}/flag', [ReviewController::class, 'flag']);
+            });
+
+            // ── Admin Review Moderation ───────────────────────────────────────
+            Route::middleware('role:moderator,super_admin')->prefix('admin/reviews')->group(function () {
+                Route::get('flagged', [AdminReviewController::class, 'getFlaggedReviews']);
+                Route::post('{id}/unflag', [AdminReviewController::class, 'unflag']);
+                Route::delete('{id}', [AdminReviewController::class, 'remove']);
             });
         });
     });
