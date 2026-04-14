@@ -7,16 +7,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useTheme } from '../theme';
 
 const { width: SW } = Dimensions.get('window');
 
-const T = {
-  gold:     '#f59e0b',
-  plat:     '#cbd5e1',
-  primary:  '#a855f7',
-  bg:       '#0D0D1A',
-  textHint: 'rgba(255,255,255,0.28)',
-  swipe:    '#06b6d4',
+// ─── Subscription-specific accent colours (not theme-dependent) ───────────────
+const ACCENT = {
+  gold:  '#f59e0b',
+  plat:  '#cbd5e1',
+  swipe: '#06b6d4',
 };
 
 type PlanKey = 'free' | 'gold_monthly' | 'gold_yearly' | 'plat_monthly' | 'plat_yearly';
@@ -45,7 +44,7 @@ const PLANS: Plan[] = [
   {
     key: 'free', tier: 'free', name: 'Free', billing: 'Forever',
     price: null, billed: null, badge: null, saving: null,
-    color: T.primary, border: 'rgba(168,85,247,0.3)', bg: 'rgba(168,85,247,0.05)',
+    color: '#a855f7', border: 'rgba(168,85,247,0.3)', bg: 'rgba(168,85,247,0.05)',
     icon: 'star-outline',
     features: ['10 applications / month', 'Basic job matching'],
     locked: ['See who liked you', 'Priority results', 'Advanced insights', 'Career coach'],
@@ -54,7 +53,7 @@ const PLANS: Plan[] = [
   {
     key: 'gold_monthly', tier: 'gold', name: 'Gold', billing: 'Monthly',
     price: '$15.99', billed: 'Billed monthly', badge: 'POPULAR', saving: null,
-    color: T.gold, border: 'rgba(245,158,11,0.35)', bg: 'rgba(245,158,11,0.05)',
+    color: ACCENT.gold, border: 'rgba(245,158,11,0.35)', bg: 'rgba(245,158,11,0.05)',
     icon: 'lightning-bolt',
     features: ['Unlimited applications', 'Advanced matching', 'See who liked you', 'Priority results'],
     locked: ['Advanced insights', 'Career coach'],
@@ -63,7 +62,7 @@ const PLANS: Plan[] = [
   {
     key: 'gold_yearly', tier: 'gold', name: 'Gold', billing: 'Yearly',
     price: '$7.99', billed: 'Billed $95.88 / year', badge: 'BEST VALUE', saving: 'Save 50%',
-    color: T.gold, border: 'rgba(245,158,11,0.35)', bg: 'rgba(245,158,11,0.05)',
+    color: ACCENT.gold, border: 'rgba(245,158,11,0.35)', bg: 'rgba(245,158,11,0.05)',
     icon: 'lightning-bolt',
     features: ['Unlimited applications', 'Advanced matching', 'See who liked you', 'Priority results'],
     locked: ['Advanced insights', 'Career coach'],
@@ -72,7 +71,7 @@ const PLANS: Plan[] = [
   {
     key: 'plat_monthly', tier: 'platinum', name: 'Platinum', billing: 'Monthly',
     price: '$29.99', billed: 'Billed monthly', badge: null, saving: null,
-    color: T.plat, border: 'rgba(203,213,225,0.3)', bg: 'rgba(148,163,184,0.05)',
+    color: ACCENT.plat, border: 'rgba(203,213,225,0.3)', bg: 'rgba(148,163,184,0.05)',
     icon: 'diamond-stone',
     features: ['Everything in Gold', 'Advanced insights', 'Dedicated career coach', 'AI-powered matching'],
     locked: [], ctaLabel: 'Upgrade to Platinum', ctaTextColor: '#0f172a',
@@ -80,7 +79,7 @@ const PLANS: Plan[] = [
   {
     key: 'plat_yearly', tier: 'platinum', name: 'Platinum', billing: 'Yearly',
     price: '$19.99', billed: 'Billed $239.88 / year', badge: 'BEST DEAL', saving: 'Save 33%',
-    color: T.plat, border: 'rgba(203,213,225,0.3)', bg: 'rgba(148,163,184,0.05)',
+    color: ACCENT.plat, border: 'rgba(203,213,225,0.3)', bg: 'rgba(148,163,184,0.05)',
     icon: 'diamond-stone',
     features: ['Everything in Gold', 'Advanced insights', 'Dedicated career coach', 'AI-powered matching'],
     locked: [], ctaLabel: 'Upgrade to Platinum', ctaTextColor: '#0f172a',
@@ -130,6 +129,7 @@ const planSnapOffsets  = PLANS.map((_, i) => i * (CARD_W + CARD_GAP));
 const swipeSnapOffsets = SWIPE_PACKS.map((_, i) => i * (CARD_W + CARD_GAP));
 
 export default function SubscriptionScreen() {
+  const T = useTheme();
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
 
   const [selectedPlanKey,  setSelectedPlanKey]  = useState<PlanKey>('gold_monthly');
@@ -201,7 +201,7 @@ export default function SubscriptionScreen() {
   const ctaColors: [string, string] =
     selectedPlan.tier === 'platinum' ? ['#cbd5e1', '#94a3b8'] :
     selectedPlan.tier === 'gold'     ? ['#f59e0b', '#d97706'] :
-                                       ['#a855f7', '#7c3aed'];
+                                       [T.primary, T.primaryDark];
   const ctaIconColor = selectedPlan.tier === 'platinum' ? '#0f172a' : '#fff';
 
   // ── Render: plan card ────────────────────────────────────────────────────────
@@ -213,7 +213,7 @@ export default function SubscriptionScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[pc.name, { color: item.color }]}>{item.name}</Text>
-          <Text style={pc.billing}>{item.billing}</Text>
+          <Text style={[pc.billing, { color: T.textHint }]}>{item.billing}</Text>
         </View>
         {item.badge && (
           <View style={[pc.badge, { backgroundColor: item.color + '18', borderColor: item.color + '40' }]}>
@@ -224,18 +224,18 @@ export default function SubscriptionScreen() {
 
       <View style={pc.priceRow}>
         <Text style={[pc.price, { color: item.color }]}>{item.price ?? 'Free'}</Text>
-        {item.price && <Text style={pc.pricePeriod}> / mo</Text>}
+        {item.price && <Text style={[pc.pricePeriod, { color: T.textHint }]}> / mo</Text>}
         {item.saving && <Text style={pc.saving}>{'  '}{item.saving}</Text>}
       </View>
-      <Text style={pc.billed}>{item.billed ?? ' '}</Text>
+      <Text style={[pc.billed, { color: T.textHint }]}>{item.billed ?? ' '}</Text>
 
-      <View style={pc.sep} />
+      <View style={[pc.sep, { backgroundColor: T.borderFaint }]} />
 
       <View style={{ gap: 10 }}>
         {item.features.map((f, i) => (
           <View key={`inc-${i}`} style={pc.row}>
             <MaterialCommunityIcons name="check-circle" size={14} color={item.color} />
-            <Text style={pc.rowText}>{f}</Text>
+            <Text style={[pc.rowText, { color: T.textSub }]}>{f}</Text>
           </View>
         ))}
         {item.locked.map((f, i) => (
@@ -249,7 +249,7 @@ export default function SubscriptionScreen() {
       {item.tier === 'free' && (
         <View style={pc.currentPill}>
           <MaterialCommunityIcons name="check-circle" size={12} color={T.primary} />
-          <Text style={pc.currentText}>Current plan</Text>
+          <Text style={[pc.currentText, { color: T.primary }]}>Current plan</Text>
         </View>
       )}
     </View>
@@ -259,33 +259,33 @@ export default function SubscriptionScreen() {
   const renderSwipeCard = ({ item }: { item: SwipePack }) => (
     <View style={[pc.card, { width: CARD_W, borderColor: 'rgba(6,182,212,0.35)', backgroundColor: 'rgba(6,182,212,0.05)' }]}>
       <View style={pc.top}>
-        <View style={[pc.iconWrap, { backgroundColor: T.swipe + '22' }]}>
-          <MaterialCommunityIcons name="gesture-swipe-right" size={18} color={T.swipe} />
+        <View style={[pc.iconWrap, { backgroundColor: ACCENT.swipe + '22' }]}>
+          <MaterialCommunityIcons name="gesture-swipe-right" size={18} color={ACCENT.swipe} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[pc.name, { color: T.swipe }]}>{item.count} Swipes</Text>
-          <Text style={pc.billing}>One-time purchase</Text>
+          <Text style={[pc.name, { color: ACCENT.swipe }]}>{item.count} Swipes</Text>
+          <Text style={[pc.billing, { color: T.textHint }]}>One-time purchase</Text>
         </View>
         {item.badge && (
-          <View style={[pc.badge, { backgroundColor: T.swipe + '18', borderColor: T.swipe + '40' }]}>
-            <Text style={[pc.badgeText, { color: T.swipe }]}>{item.badge}</Text>
+          <View style={[pc.badge, { backgroundColor: ACCENT.swipe + '18', borderColor: ACCENT.swipe + '40' }]}>
+            <Text style={[pc.badgeText, { color: ACCENT.swipe }]}>{item.badge}</Text>
           </View>
         )}
       </View>
 
       <View style={pc.priceRow}>
-        <Text style={[pc.price, { color: T.swipe }]}>{item.price}</Text>
+        <Text style={[pc.price, { color: ACCENT.swipe }]}>{item.price}</Text>
         {item.saving && <Text style={pc.saving}>{'  '}{item.saving}</Text>}
       </View>
-      <Text style={pc.billed}>{item.perSwipe}</Text>
+      <Text style={[pc.billed, { color: T.textHint }]}>{item.perSwipe}</Text>
 
-      <View style={pc.sep} />
+      <View style={[pc.sep, { backgroundColor: T.borderFaint }]} />
 
       <View style={{ gap: 10 }}>
         {item.features.map((f, i) => (
           <View key={`f-${i}`} style={pc.row}>
-            <MaterialCommunityIcons name="check-circle" size={14} color={T.swipe} />
-            <Text style={pc.rowText}>{f}</Text>
+            <MaterialCommunityIcons name="check-circle" size={14} color={ACCENT.swipe} />
+            <Text style={[pc.rowText, { color: T.textSub }]}>{f}</Text>
           </View>
         ))}
       </View>
@@ -293,10 +293,10 @@ export default function SubscriptionScreen() {
   );
 
   return (
-    <View style={[s.screen, { paddingTop, paddingBottom: safeBottom }]}>
+    <View style={[s.screen, { paddingTop, paddingBottom: safeBottom, backgroundColor: T.bg }]}>
       <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
-      <LinearGradient colors={['#0D0D1A', '#13102B', '#0D0D1A']} style={StyleSheet.absoluteFill} />
-      <View style={s.glowBlob} pointerEvents="none" />
+      <LinearGradient colors={[T.bg, T.surface, T.bg]} style={StyleSheet.absoluteFill} />
+      <View style={[s.glowBlob, { backgroundColor: T.primaryDark }]} pointerEvents="none" />
 
       {/* Close */}
       <TouchableOpacity
@@ -304,22 +304,22 @@ export default function SubscriptionScreen() {
         onPress={() => router.back()}
         hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
       >
-        <MaterialCommunityIcons name="close" size={20} color="rgba(255,255,255,0.7)" />
+        <MaterialCommunityIcons name="close" size={20} color={T.textSub} />
       </TouchableOpacity>
 
       {/* Hero */}
       <View style={s.heroWrap}>
-        <View style={s.heroRing}>
-          <LinearGradient colors={['#818CF8', '#6366F1']} style={s.heroGradient}>
+        <View style={[s.heroRing, { borderColor: T.border }]}>
+          <LinearGradient colors={[T.primary, T.primaryDark]} style={s.heroGradient}>
             <MaterialCommunityIcons name="lightning-bolt" size={28} color="#fff" />
           </LinearGradient>
         </View>
-        <Text style={s.heroTitle}>JobSwipe Pro</Text>
-        <Text style={s.heroSub}>Land your dream job faster with tools{'\n'}that give you the edge.</Text>
+        <Text style={[s.heroTitle, { color: T.textPrimary }]}>JobSwipe Pro</Text>
+        <Text style={[s.heroSub, { color: T.textSub }]}>Land your dream job faster with tools{'\n'}that give you the edge.</Text>
       </View>
 
       {/* Tab switcher */}
-      <View style={s.tabRow}>
+      <View style={[s.tabRow, { backgroundColor: T.surfaceHigh }]}>
         <TouchableOpacity
           style={[s.tab, activeTab === 'plans' && s.tabActive]}
           onPress={() => setActiveTab('plans')}
@@ -327,9 +327,9 @@ export default function SubscriptionScreen() {
         >
           <MaterialCommunityIcons
             name="crown-outline" size={14}
-            color={activeTab === 'plans' ? '#fff' : 'rgba(255,255,255,0.4)'}
+            color={activeTab === 'plans' ? T.textPrimary : T.textHint}
           />
-          <Text style={[s.tabText, activeTab === 'plans' && s.tabTextActive]}>Subscription</Text>
+          <Text style={[s.tabText, { color: T.textHint }, activeTab === 'plans' && { color: T.textPrimary }]}>Subscription</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[s.tab, activeTab === 'swipes' && s.tabActiveSwipe]}
@@ -338,9 +338,9 @@ export default function SubscriptionScreen() {
         >
           <MaterialCommunityIcons
             name="gesture-swipe-right" size={14}
-            color={activeTab === 'swipes' ? '#fff' : 'rgba(255,255,255,0.4)'}
+            color={activeTab === 'swipes' ? T.textPrimary : T.textHint}
           />
-          <Text style={[s.tabText, activeTab === 'swipes' && s.tabTextActive]}>Buy Swipes</Text>
+          <Text style={[s.tabText, { color: T.textHint }, activeTab === 'swipes' && { color: T.textPrimary }]}>Buy Swipes</Text>
         </TouchableOpacity>
       </View>
 
@@ -370,14 +370,14 @@ export default function SubscriptionScreen() {
             {PLANS.map((plan, i) => (
               <TouchableOpacity key={plan.key} onPress={() => goToPlan(i)}>
                 <View style={[s.dot, {
-                  backgroundColor: planDot === i ? plan.color : 'rgba(255,255,255,0.15)',
+                  backgroundColor: planDot === i ? plan.color : T.borderFaint,
                   width: planDot === i ? 20 : 6,
                 }]} />
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text style={s.selectedLabel}>
+          <Text style={[s.selectedLabel, { color: T.textHint }]}>
             {selectedPlan.tier === 'free'
               ? 'You are on the Free plan'
               : `${selectedPlan.name} · ${selectedPlan.billing} — ${selectedPlan.price}/mo`}
@@ -401,8 +401,8 @@ export default function SubscriptionScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             ) : (
-              <View style={[s.ctaBtn, s.ctaDisabled]}>
-                <Text style={s.ctaDisabledText}>You're on the Free plan</Text>
+              <View style={[s.ctaBtn, s.ctaDisabled, { backgroundColor: T.surfaceHigh }]}>
+                <Text style={[s.ctaDisabledText, { color: T.textHint }]}>You're on the Free plan</Text>
               </View>
             )}
           </Animated.View>
@@ -433,14 +433,14 @@ export default function SubscriptionScreen() {
             {SWIPE_PACKS.map((pack, i) => (
               <TouchableOpacity key={pack.key} onPress={() => goToSwipe(i)}>
                 <View style={[s.dot, {
-                  backgroundColor: swipeDot === i ? T.swipe : 'rgba(255,255,255,0.15)',
+                  backgroundColor: swipeDot === i ? ACCENT.swipe : T.borderFaint,
                   width: swipeDot === i ? 20 : 6,
                 }]} />
               </TouchableOpacity>
             ))}
           </View>
 
-          <Text style={s.selectedLabel}>
+          <Text style={[s.selectedLabel, { color: T.textHint }]}>
             {`${selectedPack.count} Swipes · ${selectedPack.price} · ${selectedPack.perSwipe}`}
           </Text>
 
@@ -462,7 +462,7 @@ export default function SubscriptionScreen() {
       )}
 
       {/* Legal */}
-      <Text style={s.legal}>
+      <Text style={[s.legal, { color: T.textHint }]}>
         {activeTab === 'plans'
           ? 'Cancel anytime · Renews automatically · Terms & Privacy apply'
           : 'One-time charge · No subscription · Terms & Privacy apply'}
@@ -471,34 +471,34 @@ export default function SubscriptionScreen() {
   );
 }
 
-// ─── Card styles ──────────────────────────────────────────────────────────────
+// ─── Card styles (layout only — colours applied inline) ───────────────────────
 const pc = StyleSheet.create({
   card:        { borderRadius: 20, borderWidth: 1.5, padding: 20 },
   top:         { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
   iconWrap:    { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   name:        { fontSize: 16, fontWeight: '800', letterSpacing: -0.2 },
-  billing:     { fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  billing:     { fontSize: 11, marginTop: 2 },
   badge:       { borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
   badgeText:   { fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
   priceRow:    { flexDirection: 'row', alignItems: 'flex-end', marginBottom: 2 },
   price:       { fontSize: 30, fontWeight: '800', letterSpacing: -0.5 },
-  pricePeriod: { fontSize: 14, color: 'rgba(255,255,255,0.4)', marginBottom: 5 },
+  pricePeriod: { fontSize: 14, marginBottom: 5 },
   saving:      { fontSize: 12, fontWeight: '700', color: '#34D399', marginBottom: 5 },
-  billed:      { fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 16 },
-  sep:         { height: 1, backgroundColor: 'rgba(255,255,255,0.07)', marginBottom: 16 },
+  billed:      { fontSize: 11, marginBottom: 16 },
+  sep:         { height: 1, marginBottom: 16 },
   row:         { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  rowText:     { fontSize: 13, color: 'rgba(255,255,255,0.7)', flex: 1 },
+  rowText:     { fontSize: 13, flex: 1 },
   currentPill: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14, justifyContent: 'center' },
-  currentText: { fontSize: 11, fontWeight: '600', color: 'rgba(168,85,247,0.6)' },
+  currentText: { fontSize: 11, fontWeight: '600' },
 });
 
-// ─── Screen styles ────────────────────────────────────────────────────────────
+// ─── Screen styles (layout only — colours applied inline) ─────────────────────
 const s = StyleSheet.create({
-  screen:   { flex: 1, backgroundColor: '#0D0D1A' },
+  screen:   { flex: 1 },
   glowBlob: {
     position: 'absolute', width: SW * 0.9, height: SW * 0.9,
     borderRadius: SW * 0.45, top: -SW * 0.25, alignSelf: 'center',
-    backgroundColor: '#6366F1', opacity: 0.13,
+    opacity: 0.13,
   },
   closeBtn: {
     position: 'absolute', right: 20, top: 60, zIndex: 20,
@@ -509,23 +509,21 @@ const s = StyleSheet.create({
   heroWrap:     { alignItems: 'center', paddingTop: 12, paddingBottom: 16, paddingHorizontal: 24 },
   heroRing:     {
     width: 64, height: 64, borderRadius: 32,
-    borderWidth: 1.5, borderColor: 'rgba(99,102,241,0.4)',
+    borderWidth: 1.5,
     alignItems: 'center', justifyContent: 'center', marginBottom: 12,
   },
   heroGradient: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
-  heroTitle:    { fontSize: 24, fontWeight: '800', color: '#fff', letterSpacing: -0.5, marginBottom: 6 },
-  heroSub:      { fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center', lineHeight: 20 },
+  heroTitle:    { fontSize: 24, fontWeight: '800', letterSpacing: -0.5, marginBottom: 6 },
+  heroSub:      { fontSize: 14, textAlign: 'center', lineHeight: 20 },
 
   tabRow: {
     flexDirection: 'row', marginHorizontal: 20, marginBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 14, padding: 4, gap: 4,
   },
   tab:            { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 9, borderRadius: 10 },
   tabActive:      { backgroundColor: 'rgba(168,85,247,0.25)' },
   tabActiveSwipe: { backgroundColor: 'rgba(6,182,212,0.25)' },
-  tabText:        { fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.4)' },
-  tabTextActive:  { color: '#fff' },
+  tabText:        { fontSize: 13, fontWeight: '700' },
 
   carouselWrap: { flex: 1, overflow: 'hidden' },
 
@@ -533,7 +531,7 @@ const s = StyleSheet.create({
   dot:     { height: 6, borderRadius: 3 },
 
   selectedLabel: {
-    textAlign: 'center', fontSize: 12, color: 'rgba(255,255,255,0.4)',
+    textAlign: 'center', fontSize: 12,
     marginTop: 4, marginBottom: 10, paddingHorizontal: 20,
   },
 
@@ -541,11 +539,11 @@ const s = StyleSheet.create({
   ctaBtn:          { borderRadius: 16, overflow: 'hidden' },
   ctaGradient:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 16 },
   ctaText:         { fontSize: 16, fontWeight: '800', letterSpacing: 0.2 },
-  ctaDisabled:     { backgroundColor: 'rgba(255,255,255,0.06)', paddingVertical: 16, alignItems: 'center' },
-  ctaDisabledText: { fontSize: 14, color: 'rgba(255,255,255,0.3)', fontWeight: '600' },
+  ctaDisabled:     { paddingVertical: 16, alignItems: 'center' },
+  ctaDisabledText: { fontSize: 14, fontWeight: '600' },
 
   legal: {
-    fontSize: 10, color: 'rgba(255,255,255,0.2)',
+    fontSize: 10,
     textAlign: 'center', lineHeight: 14, paddingHorizontal: 24, marginBottom: 2,
   },
 });

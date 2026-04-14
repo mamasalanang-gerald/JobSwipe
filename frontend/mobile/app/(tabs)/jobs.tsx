@@ -1,36 +1,23 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { useRouter } from 'expo-router';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, TextInput, ImageBackground,
   Dimensions, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-// ─── Theme ───────────────────────────────────────────────────────────────────
-const T = {
-  bg:          '#0f0a1e',
-  surface:     '#1a1030',
-  border:      'rgba(168,85,247,0.18)',
-  borderFaint: 'rgba(255,255,255,0.07)',
-  primary:     '#a855f7',
-  primaryDark: '#7c3aed',
-  pink:        '#ec4899',
-  textPrimary: '#ffffff',
-  textSub:     'rgba(255,255,255,0.55)',
-  textHint:    'rgba(255,255,255,0.35)',
-};
+import { useTheme } from '../../theme'; // ← centralized theme
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-// 20px padding each side + 12px gap between the two cards
-const CARD_WIDTH = (SCREEN_WIDTH - 40 - 12) / 2;
-// Hero carousel card width = full content width
+const CARD_WIDTH      = (SCREEN_WIDTH - 40 - 12) / 2;
 const HERO_CARD_WIDTH = SCREEN_WIDTH - 40;
 
 // ─── Types & data ─────────────────────────────────────────────────────────────
 type TagVariant = 'remote' | 'full' | 'hybrid' | 'contract' | 'onsite';
 
+// Tag styles that look good on both dark image overlays — kept static.
 const TAG_STYLES: Record<TagVariant, { bg: string; text: string; border: string }> = {
   remote:   { bg: 'rgba(168,85,247,0.22)', text: '#d8b4fe', border: 'rgba(168,85,247,0.35)' },
   full:     { bg: 'rgba(34,197,94,0.18)',  text: '#86efac', border: 'rgba(34,197,94,0.28)'  },
@@ -116,13 +103,10 @@ const JOBS = [
   },
 ];
 
-// First 5 jobs for the carousel — cloned with buffer clones for seamless infinite loop
-const BASE_CAROUSEL = JOBS.slice(0, 5);
-// Layout: [clone of last] + originals + [clone of first]
-// So real items are at indices 1..5, we start scrolled to index 1
-const CAROUSEL_JOBS = [BASE_CAROUSEL[BASE_CAROUSEL.length - 1], ...BASE_CAROUSEL, BASE_CAROUSEL[0]];
-const CAROUSEL_START_INDEX = 1; // index of the first real item
-const GRID_JOBS = JOBS.slice(1);
+const BASE_CAROUSEL    = JOBS.slice(0, 5);
+const CAROUSEL_JOBS    = [BASE_CAROUSEL[BASE_CAROUSEL.length - 1], ...BASE_CAROUSEL, BASE_CAROUSEL[0]];
+const CAROUSEL_START_INDEX = 1;
+const GRID_JOBS        = JOBS.slice(1);
 
 type Job = typeof JOBS[number];
 
@@ -137,51 +121,41 @@ function TagPill({ label, variant }: { label: string; variant: TagVariant }) {
 }
 
 // ─── Hero Carousel Card ───────────────────────────────────────────────────────
-function HeroCarouselCard({ job }: { job: Job }) {
+function HeroCarouselCard({ job, onPress }: { job: Job; onPress: (job: Job) => void }) {
+  const T = useTheme();
   return (
-    <TouchableOpacity activeOpacity={0.9} style={{ width: HERO_CARD_WIDTH, marginRight: 12 }}>
-      <ImageBackground
-        source={job.image}
-        style={s.heroCard}
-        imageStyle={s.heroCardImg}
-      >
-        {/* Dark scrim */}
+    <TouchableOpacity activeOpacity={0.9} style={{ width: HERO_CARD_WIDTH, marginRight: 12 }} onPress={() => onPress(job)}>
+      <ImageBackground source={job.image} style={[s.heroCard, { borderColor: T.border }]} imageStyle={s.heroCardImg}>
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,5,30,0.75)', borderRadius: 24 }]} />
 
-        {/* Top row — logo only */}
         <View style={s.heroTop}>
           <View style={[s.heroLogo, { backgroundColor: job.accentColor }]}>
             <Text style={s.heroLogoText}>{job.abbr}</Text>
           </View>
         </View>
 
-        {/* Middle content — grows to fill available space */}
         <View style={{ flex: 1 }}>
-          <Text style={s.heroCompany}>{job.company} · {job.location}</Text>
+          <Text style={[s.heroCompany, { color: 'rgba(255,255,255,0.6)' }]}>{job.company} · {job.location}</Text>
           <Text style={s.heroRole} numberOfLines={2}>{job.role}</Text>
           <Text style={[s.heroSalary, { color: '#c084fc' }]}>{job.salary}</Text>
 
-          {/* Distance */}
           <View style={s.heroDistanceRow}>
-            <MaterialCommunityIcons name="map-marker-distance" size={12} color={T.textHint} />
-            <Text style={s.heroDistanceText}>{job.distanceKm.toFixed(1)} km away</Text>
+            <MaterialCommunityIcons name="map-marker-distance" size={12} color="rgba(255,255,255,0.35)" />
+            <Text style={[s.heroDistanceText, { color: 'rgba(255,255,255,0.35)' }]}>{job.distanceKm.toFixed(1)} km away</Text>
           </View>
 
           <View style={s.tagRow}>
-            {job.tags.map(t => (
-              <TagPill key={t.label} label={t.label} variant={t.variant} />
-            ))}
+            {job.tags.map(t => <TagPill key={t.label} label={t.label} variant={t.variant} />)}
           </View>
         </View>
 
-        {/* Footer — always pinned at bottom */}
         <View style={s.heroFooter}>
           <View style={s.metaRow}>
-            <MaterialCommunityIcons name="account-group-outline" size={12} color={T.textHint} />
-            <Text style={s.metaText}>{job.applicants} applied · {job.posted}</Text>
+            <MaterialCommunityIcons name="account-group-outline" size={12} color="rgba(255,255,255,0.35)" />
+            <Text style={[s.metaText, { color: 'rgba(255,255,255,0.35)' }]}>{job.applicants} applied · {job.posted}</Text>
           </View>
-          <TouchableOpacity activeOpacity={0.85} style={[s.applyBtn, { backgroundColor: job.accentColor }]}>
-            <Text style={s.applyBtnText}>Quick Apply</Text>
+          <TouchableOpacity activeOpacity={0.85} style={[s.applyBtn, { backgroundColor: job.accentColor }]} onPress={() => onPress(job)}>
+            <Text style={s.applyBtnText}>View Details</Text>
             <MaterialCommunityIcons name="arrow-right" size={14} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -191,63 +165,62 @@ function HeroCarouselCard({ job }: { job: Job }) {
 }
 
 // ─── Grid card ────────────────────────────────────────────────────────────────
-function GridCard({ job, saved, onSave }: { job: Job; saved: boolean; onSave: () => void }) {
+function GridCard({ job, saved, onSave, onPress }: { job: Job; saved: boolean; onSave: () => void; onPress: (job: Job) => void }) {
   return (
-    <ImageBackground source={job.image} style={s.gridCard} imageStyle={s.gridCardImg}>
-      {/* Plain dark overlay — no gradient */}
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,5,30,0.78)', borderRadius: 20 }]} />
+    <TouchableOpacity activeOpacity={0.88} onPress={() => onPress(job)} style={{ width: CARD_WIDTH }}>
+      <ImageBackground source={job.image} style={[s.gridCard, { width: '100%' }]} imageStyle={s.gridCardImg}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,5,30,0.78)', borderRadius: 20 }]} />
 
-      {/* Top row */}
-      <View style={s.gridTop}>
-        <View style={[s.gridLogo, { backgroundColor: job.accentColor }]}>
-          <Text style={s.gridLogoText}>{job.abbr}</Text>
+        <View style={s.gridTop}>
+          <View style={[s.gridLogo, { backgroundColor: job.accentColor }]}>
+            <Text style={s.gridLogoText}>{job.abbr}</Text>
+          </View>
+          <View style={s.gridBadge}>
+            <MaterialCommunityIcons name="account-group-outline" size={9} color="rgba(255,255,255,0.65)" />
+            <Text style={s.gridBadgeText}>{job.applicants}</Text>
+          </View>
         </View>
-        <View style={s.gridBadge}>
-          <MaterialCommunityIcons name="account-group-outline" size={9} color="rgba(255,255,255,0.65)" />
-          <Text style={s.gridBadgeText}>{job.applicants}</Text>
+
+        {/* Bottom content */}
+        <View>
+          <Text style={s.gridRole} numberOfLines={2}>{job.role}</Text>
+          <Text style={s.gridCompany} numberOfLines={1}>{job.company}</Text>
+          <View style={s.tagRowSingle}>
+            <TagPill label={job.tags[0].label} variant={job.tags[0].variant} />
+          </View>
         </View>
-      </View>
-
-      {/* Bottom content */}
-      <View>
-        <Text style={s.gridRole} numberOfLines={2}>{job.role}</Text>
-        <Text style={s.gridCompany} numberOfLines={1}>{job.company}</Text>
-        <View style={s.tagRowSingle}>
-          <TagPill label={job.tags[0].label} variant={job.tags[0].variant} />
-        </View>
-      </View>
-
-
-    </ImageBackground>
+      </ImageBackground>
+    </TouchableOpacity>
   );
 }
 
 // ─── ExploreTab ───────────────────────────────────────────────────────────────
 export default function ExploreTab() {
+  const T            = useTheme();                     // ← live theme tokens
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
+  const router = useRouter();
   const [search, setSearch]             = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [savedIds, setSavedIds]         = useState<number[]>([2, 5]);
-  // dotIndex tracks position within BASE_CAROUSEL (0-based), for the dot indicators
-  const [dotIndex, setDotIndex] = useState(0);
-  const carouselRef       = useRef<ScrollView>(null);
-  const isPausedRef       = useRef(false);
-  const timerRef          = useRef<ReturnType<typeof setInterval> | null>(null);
-  // rawIndex tracks position within the full CAROUSEL_JOBS array (includes buffer clones)
-  const rawIndexRef       = useRef(CAROUSEL_START_INDEX);
-  const isJumpingRef      = useRef(false); // true while silently snapping clone->real
-  const isAutoScrollingRef = useRef(false); // true during programmatic animated scroll
+  const [dotIndex, setDotIndex]         = useState(0);
+  const carouselRef        = useRef<ScrollView>(null);
+  const isPausedRef        = useRef(false);
+  const timerRef           = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rawIndexRef        = useRef(CAROUSEL_START_INDEX);
+  const isJumpingRef       = useRef(false);
+  const isAutoScrollingRef = useRef(false);
 
   const toggleSave = (id: number) =>
     setSavedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
-  // Jump without animation (used to silently reset from clone to real item)
+  const handleViewDetails = (job: Job) =>
+    router.push({ pathname: '/jobs/[id]', params: { id: String(job.id) } });
+
   const jumpTo = (rawIdx: number) => {
     isJumpingRef.current = true;
     carouselRef.current?.scrollTo({ x: rawIdx * (HERO_CARD_WIDTH + 12), animated: false });
     rawIndexRef.current = rawIdx;
-    // Give the layout a tick before re-enabling scroll events
     setTimeout(() => { isJumpingRef.current = false; }, 50);
   };
 
@@ -256,8 +229,6 @@ export default function ExploreTab() {
     const x = e.nativeEvent.contentOffset.x;
     const rawIdx = Math.round(x / (HERO_CARD_WIDTH + 12));
     rawIndexRef.current = rawIdx;
-    // Don't update the dot while scrolling to/from either clone endpoint —
-    // those positions are transient and cause the indicator to flicker
     if (rawIdx === 0 || rawIdx === CAROUSEL_JOBS.length - 1) return;
     setDotIndex(rawIdx - 1);
   };
@@ -265,13 +236,8 @@ export default function ExploreTab() {
   const handleScrollEndDrag = () => {
     isPausedRef.current = false;
     const raw = rawIndexRef.current;
-    if (raw === 0) {
-      jumpTo(BASE_CAROUSEL.length);
-      setDotIndex(BASE_CAROUSEL.length - 1);
-    } else if (raw === CAROUSEL_JOBS.length - 1) {
-      jumpTo(1);
-      setDotIndex(0);
-    }
+    if (raw === 0) { jumpTo(BASE_CAROUSEL.length); setDotIndex(BASE_CAROUSEL.length - 1); }
+    else if (raw === CAROUSEL_JOBS.length - 1) { jumpTo(1); setDotIndex(0); }
     startAutoScroll();
   };
 
@@ -279,13 +245,8 @@ export default function ExploreTab() {
     const x = e.nativeEvent.contentOffset.x;
     const raw = Math.round(x / (HERO_CARD_WIDTH + 12));
     rawIndexRef.current = raw;
-    if (raw === 0) {
-      jumpTo(BASE_CAROUSEL.length);
-      setDotIndex(BASE_CAROUSEL.length - 1);
-    } else if (raw === CAROUSEL_JOBS.length - 1) {
-      jumpTo(1);
-      setDotIndex(0);
-    }
+    if (raw === 0) { jumpTo(BASE_CAROUSEL.length); setDotIndex(BASE_CAROUSEL.length - 1); }
+    else if (raw === CAROUSEL_JOBS.length - 1) { jumpTo(1); setDotIndex(0); }
   };
 
   const startAutoScroll = useCallback(() => {
@@ -293,18 +254,11 @@ export default function ExploreTab() {
     timerRef.current = setInterval(() => {
       if (isPausedRef.current) return;
       const nextRaw = rawIndexRef.current + 1;
-      // Block onScroll dot updates for the duration of the animation (~300ms)
       isAutoScrollingRef.current = true;
       carouselRef.current?.scrollTo({ x: nextRaw * (HERO_CARD_WIDTH + 12), animated: true });
       rawIndexRef.current = nextRaw;
       if (nextRaw === CAROUSEL_JOBS.length - 1) {
-        // Scrolling to trailing clone — wait for animation then jump silently,
-        // only update the dot AFTER the jump so it never flickers back to 0 mid-scroll
-        setTimeout(() => {
-          jumpTo(1);
-          setDotIndex(0);
-          isAutoScrollingRef.current = false;
-        }, 420);
+        setTimeout(() => { jumpTo(1); setDotIndex(0); isAutoScrollingRef.current = false; }, 420);
       } else {
         setDotIndex(nextRaw - 1);
         setTimeout(() => { isAutoScrollingRef.current = false; }, 350);
@@ -313,7 +267,6 @@ export default function ExploreTab() {
   }, []);
 
   useEffect(() => {
-    // Start scrolled to first real item (index 1 in CAROUSEL_JOBS)
     carouselRef.current?.scrollTo({ x: CAROUSEL_START_INDEX * (HERO_CARD_WIDTH + 12), animated: false });
     startAutoScroll();
     return () => { if (timerRef.current) clearInterval(timerRef.current); };
@@ -332,31 +285,31 @@ export default function ExploreTab() {
     return matchesFilter && matchesSearch;
   });
 
-  // Build explicit rows of 2 — no FlatList inside ScrollView
   const rows: [Job, Job | null][] = [];
   for (let i = 0; i < filteredGrid.length; i += 2) {
     rows.push([filteredGrid[i], filteredGrid[i + 1] ?? null]);
   }
 
   return (
-    <View style={[s.screen, { paddingTop: topInset }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[s.screen, { backgroundColor: T.bg, paddingTop: topInset }]}>
+      <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
 
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerRow}>
-          <View>
-            <Text style={s.pageTitle}>Discover Jobs</Text>
-          </View>
+          <Text style={[s.pageTitle, { color: T.textPrimary }]}>Discover Jobs</Text>
+          <TouchableOpacity style={[s.filterBtn, { backgroundColor: T.primary }]}>
+            <MaterialCommunityIcons name="tune-variant" size={20} color="#fff" />
+          </TouchableOpacity>
         </View>
       </View>
 
       {/* Search */}
       <View style={s.searchWrap}>
-        <View style={s.searchBar}>
+        <View style={[s.searchBar, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
           <MaterialCommunityIcons name="magnify" size={18} color={T.textHint} />
           <TextInput
-            style={s.searchInput}
+            style={[s.searchInput, { color: T.textPrimary }]}
             value={search}
             onChangeText={setSearch}
             placeholder="Search roles, companies…"
@@ -370,34 +323,24 @@ export default function ExploreTab() {
         </View>
       </View>
 
-      {/* Filter chips — sits outside the main ScrollView so it is never clipped */}
+      {/* Filter chips */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={s.filterRow}
         style={s.filterScrollView}
       >
-        {FILTERS.map(f =>
-          f === activeFilter ? (
-            <TouchableOpacity
-              key={f}
-              onPress={() => setActiveFilter(f)}
-              activeOpacity={0.8}
-              style={[s.chip, s.chipActive]}
-            >
-              <Text style={s.chipActiveText}>{f}</Text>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              key={f}
-              onPress={() => setActiveFilter(f)}
-              activeOpacity={0.75}
-              style={[s.chip, s.chipInactive]}
-            >
-              <Text style={s.chipInactiveText}>{f}</Text>
-            </TouchableOpacity>
-          ),
-        )}
+        {FILTERS.map(f => f === activeFilter ? (
+          <TouchableOpacity key={f} onPress={() => setActiveFilter(f)} activeOpacity={0.8}
+            style={[s.chip, s.chipActive, { backgroundColor: T.primary }]}>
+            <Text style={[s.chipActiveText, { color: '#fff' }]}>{f}</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity key={f} onPress={() => setActiveFilter(f)} activeOpacity={0.75}
+            style={[s.chip, s.chipInactive, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
+            <Text style={[s.chipInactiveText, { color: T.textSub }]}>{f}</Text>
+          </TouchableOpacity>
+        ))}
       </ScrollView>
 
       {/* Main scroll */}
@@ -405,13 +348,12 @@ export default function ExploreTab() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: tabBarHeight + 24 }]}
       >
-        {/* Section label */}
         <View style={s.sectionRow}>
-          <Text style={s.sectionTitle}>Top match for you</Text>
-          <TouchableOpacity><Text style={s.viewAll}>View all</Text></TouchableOpacity>
+          <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Top match for you</Text>
+          <TouchableOpacity><Text style={[s.viewAll, { color: T.primary }]}>View all</Text></TouchableOpacity>
         </View>
 
-        {/* ── Carousel ─────────────────────────────────────────────────────── */}
+        {/* Carousel */}
         <ScrollView
           ref={carouselRef}
           horizontal
@@ -428,49 +370,42 @@ export default function ExploreTab() {
           contentContainerStyle={s.carouselContainer}
         >
           {CAROUSEL_JOBS.map((job, i) => (
-            <HeroCarouselCard key={`carousel-${i}`} job={job} />
+            <HeroCarouselCard key={`carousel-${i}`} job={job} onPress={handleViewDetails} />
           ))}
         </ScrollView>
 
-        {/* Dot indicators */}
+        {/* Dots */}
         <View style={s.dotsRow}>
           {BASE_CAROUSEL.map((_, i) => (
             <View
               key={i}
-              style={[s.dot, i === dotIndex ? s.dotActive : s.dotInactive]}
+              style={[s.dot, i === dotIndex
+                ? [s.dotActive,   { backgroundColor: T.primary }]
+                : [s.dotInactive, { backgroundColor: T.borderFaint }]
+              ]}
             />
           ))}
         </View>
 
-        {/* Grid section label */}
+        {/* Grid */}
         <View style={[s.sectionRow, { marginTop: 24 }]}>
-          <Text style={s.sectionTitle}>Explore categories</Text>
-          <TouchableOpacity><Text style={s.viewAll}>View all</Text></TouchableOpacity>
+          <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Explore categories</Text>
+          <TouchableOpacity><Text style={[s.viewAll, { color: T.primary }]}>View all</Text></TouchableOpacity>
         </View>
 
-        {/* 2-column grid */}
         {filteredGrid.length === 0 ? (
           <View style={s.empty}>
-            <MaterialCommunityIcons name="magnify-close" size={36} color="rgba(255,255,255,0.2)" />
-            <Text style={s.emptyText}>No results for "{search}"</Text>
+            <MaterialCommunityIcons name="magnify-close" size={36} color={T.borderFaint} />
+            <Text style={[s.emptyText, { color: T.textSub }]}>No results for "{search}"</Text>
           </View>
         ) : (
           rows.map(([left, right], ri) => (
             <View key={ri} style={s.gridRow}>
-              <GridCard
-                job={left}
-                saved={savedIds.includes(left.id)}
-                onSave={() => toggleSave(left.id)}
-              />
-              {right ? (
-                <GridCard
-                  job={right}
-                  saved={savedIds.includes(right.id)}
-                  onSave={() => toggleSave(right.id)}
-                />
-              ) : (
-                <View style={[s.gridCard, { opacity: 0 }]} />
-              )}
+              <GridCard job={left} saved={savedIds.includes(left.id)} onSave={() => toggleSave(left.id)} onPress={handleViewDetails} />
+              {right
+                ? <GridCard job={right} saved={savedIds.includes(right.id)} onSave={() => toggleSave(right.id)} onPress={handleViewDetails} />
+                : <View style={[s.gridCard, { opacity: 0 }]} />
+              }
             </View>
           ))
         )}
@@ -479,169 +414,74 @@ export default function ExploreTab() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ─── Structural styles (no colours) ──────────────────────────────────────────
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: T.bg },
+  screen: { flex: 1 },
 
   header:    { paddingHorizontal: 20, paddingBottom: 16 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: T.textPrimary, letterSpacing: -0.5 },
-  filterBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: T.primary,
-    alignItems: 'center', justifyContent: 'center',
-  },
+  pageTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
+  filterBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 
   searchWrap: { paddingHorizontal: 20, paddingBottom: 12 },
-  searchBar: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: T.surface, borderRadius: 16,
-    borderWidth: 1, borderColor: T.borderFaint,
-    paddingHorizontal: 14, height: 48,
-  },
-  searchInput: { flex: 1, fontSize: 14, color: T.textPrimary },
+  searchBar:  { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, height: 48 },
+  searchInput:{ flex: 1, fontSize: 14 },
 
-  // Filter strip — give it explicit height so it is never clipped
-  filterScrollView: {
-    flexGrow: 0,
-    flexShrink: 0,
-    height: 52,
-  },
-  filterRow: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    gap: 8,
-    alignItems: 'center',
-  },
-  chip: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
-  chipActive:   { backgroundColor: T.primary },
-  chipInactive: { backgroundColor: T.surface, borderWidth: 1, borderColor: T.borderFaint },
-  chipActiveText:   { fontSize: 13, fontWeight: '700', color: '#fff' },
-  chipInactiveText: { fontSize: 13, fontWeight: '600', color: T.textSub },
+  filterScrollView: { flexGrow: 0, flexShrink: 0, height: 52 },
+  filterRow:  { paddingHorizontal: 20, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  chip:       { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  chipActive:      {},
+  chipInactive:    { borderWidth: 1 },
+  chipActiveText:  { fontSize: 13, fontWeight: '700' },
+  chipInactiveText:{ fontSize: 13, fontWeight: '600' },
 
-  scroll: { paddingHorizontal: 20, paddingTop: 4 },
+  scroll:     { paddingHorizontal: 20, paddingTop: 4 },
 
-  sectionRow: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', marginBottom: 12,
-  },
-  sectionTitle: { fontSize: 17, fontWeight: '700', color: T.textPrimary },
-  viewAll:      { fontSize: 13, fontWeight: '600', color: T.primary },
+  sectionRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionTitle: { fontSize: 17, fontWeight: '700' },
+  viewAll:      { fontSize: 13, fontWeight: '600' },
 
-  // Carousel
-  carouselContainer: {
-    paddingRight: 20,  // so the last card peek is visible
-  },
+  carouselContainer: { paddingRight: 20 },
 
-  // Dots
-  dotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 12,
-  },
-  dot: { borderRadius: 4 },
-  dotActive:   { width: 20, height: 6, backgroundColor: T.primary },
-  dotInactive: { width: 6,  height: 6, backgroundColor: 'rgba(255,255,255,0.2)' },
+  dotsRow:    { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 12 },
+  dot:        { borderRadius: 4 },
+  dotActive:  { width: 20, height: 6 },
+  dotInactive:{ width: 6,  height: 6 },
 
-  // Hero
-  heroCard: {
-    borderRadius: 24,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: T.border,
-    padding: 20,
-    height: 280,
-    flexDirection: 'column',
-  },
-  heroCardImg: { borderRadius: 24 },
-  heroTop: {
-    flexDirection: 'row', alignItems: 'flex-start',
-    justifyContent: 'space-between', marginBottom: 14,
-  },
-  heroLogo:     { width: 50, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  heroLogoText: { fontSize: 15, fontWeight: '800', color: '#fff' },
-  heroSaveBtn: {
-    width: 38, height: 38, borderRadius: 19,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center', justifyContent: 'center',
-  },
-  heroCompany: { fontSize: 12, color: T.textSub, marginBottom: 4 },
-  heroRole:    { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.4, marginBottom: 4 },
-  heroSalary:  { fontSize: 14, fontWeight: '700', color: '#c084fc', marginBottom: 6 },
-  heroDistanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
-  heroDistanceText: { fontSize: 11, color: T.textHint },
-  heroFooter: {
-    flexDirection: 'row', alignItems: 'center',
-    justifyContent: 'space-between', paddingTop: 8,
-  },
+  heroCard:      { borderRadius: 24, overflow: 'hidden', borderWidth: 1, padding: 20, height: 280, flexDirection: 'column' },
+  heroCardImg:   { borderRadius: 24 },
+  heroTop:       { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
+  heroLogo:      { width: 50, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  heroLogoText:  { fontSize: 15, fontWeight: '800', color: '#fff' },
+  heroCompany:   { fontSize: 12, marginBottom: 4 },
+  heroRole:      { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.4, marginBottom: 4 },
+  heroSalary:    { fontSize: 14, fontWeight: '700', marginBottom: 6 },
+  heroDistanceRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  heroDistanceText: { fontSize: 11 },
+  heroFooter:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
 
-  // Tags
-  tagRow: { flexDirection: 'row', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
-  tagRowSingle: { flexDirection: 'row', marginTop: 6 },
-  tag: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10, paddingVertical: 5,
-    borderRadius: 8, borderWidth: 1,
-  },
-  tagText: { fontSize: 11, fontWeight: '700' },
+  tagRow:      { flexDirection: 'row', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
+  tagRowSingle:{ flexDirection: 'row', marginTop: 6 },
+  tag:         { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
+  tagText:     { fontSize: 11, fontWeight: '700' },
 
   metaRow:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaText: { fontSize: 11, color: T.textHint },
+  metaText: { fontSize: 11 },
 
-  applyBtn: {
-    flexDirection: 'row', alignItems: 'center', gap: 6,
-    borderRadius: 22, paddingHorizontal: 16, paddingVertical: 9,
-  },
+  applyBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 9 },
   applyBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
-  // Grid
-  gridRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  gridCard: {
-    width: CARD_WIDTH,
-    height: 200,
-    borderRadius: 20,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.07)',
-    padding: 12,
-    justifyContent: 'space-between',
-  },
+  gridRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  gridCard:    { height: 200, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 12, justifyContent: 'space-between' },
   gridCardImg: { borderRadius: 20 },
-  gridTop: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-  },
-  gridLogo: {
-    width: 36, height: 36, borderRadius: 10,
-    alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)',
-  },
-  gridLogoText: { fontSize: 11, fontWeight: '800', color: '#fff' },
-  gridBadge: {
-    flexDirection: 'row', alignItems: 'center', gap: 3,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    borderRadius: 10, paddingHorizontal: 7, paddingVertical: 3,
-  },
-  gridBadgeText: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
-
+  gridTop:     { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  gridLogo:    { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  gridLogoText:{ fontSize: 11, fontWeight: '800', color: '#fff' },
+  gridBadge:   { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 3 },
+  gridBadgeText:{ fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
   gridRole:    { fontSize: 13, fontWeight: '800', color: '#fff', lineHeight: 17, marginBottom: 3 },
-  gridCompany: { fontSize: 11, color: T.textSub, marginBottom: 4 },
-
-  gridSaveBtn: {
-    position: 'absolute', top: 10, right: 10,
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    alignItems: 'center', justifyContent: 'center',
-  },
+  gridCompany: { fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
 
   empty:     { alignItems: 'center', paddingTop: 60, gap: 12 },
-  emptyText: { fontSize: 15, color: T.textSub },
+  emptyText: { fontSize: 15 },
 });
