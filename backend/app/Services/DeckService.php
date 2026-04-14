@@ -80,7 +80,16 @@ class DeckService
             $nextCursor = $this->encodeCursor($jobs->last());
         }
 
-        $totalUnseen = (clone $baseUnseenQuery)->count();
+        // Cache total unseen count for 30 seconds to avoid expensive COUNT(*) queries
+        $cacheKey = $this->totalUnseenCacheKey($userId);
+        $totalUnseen = Redis::get($cacheKey);
+
+        if ($totalUnseen === null) {
+            $totalUnseen = (clone $baseUnseenQuery)->count();
+            Redis::setex($cacheKey, 30, $totalUnseen);
+        } else {
+            $totalUnseen = (int) $totalUnseen;
+        }
 
         return [
             'jobs' => $sortedJobs,
@@ -219,6 +228,20 @@ class DeckService
     private function seenJobsSyncKey(string $userId): string
     {
         return "swipe:deck:seen:pgsync:{$userId}";
+    }
+
+    private function totalUnseenCacheKey(string $userId): string
+    {
+        return "deck:total_unseen:{$userId}";
+    }
+
+    /**
+     * Invalidate the total unseen count cache for a user
+     * Called when a user swipes on a job to ensure fresh count
+     */
+    public function invalidateTotalUnseenCache(string $userId): void
+    {
+        Redis::del($this->totalUnseenCacheKey($userId));
     }
 
     private function applyCursor(Builder $query, Carbon $publishedAt, string $jobId): void
