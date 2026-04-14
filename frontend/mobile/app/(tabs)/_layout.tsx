@@ -22,7 +22,7 @@ type IconName =
 const TABS: { name: string; label: string; icon: IconName; activeIcon: IconName }[] = [
   { name: 'index',   label: 'Home',    icon: 'home-outline',           activeIcon: 'home-outline'           },
   { name: 'jobs',    label: 'Explore', icon: 'compass-outline',        activeIcon: 'compass-outline'        },
-  { name: 'matches', label: 'Likes',   icon: 'heart-outline',          activeIcon: 'heart-outline'          },
+  { name: 'matches', label: 'Messages', icon: 'chat-outline',           activeIcon: 'chat-outline'           },
   { name: 'profile', label: 'Profile', icon: 'account-circle-outline', activeIcon: 'account-circle-outline' },
 ];
 
@@ -80,7 +80,7 @@ export default function TabLayout() {
     >
       <Tabs.Screen name="index"   options={{ title: 'Home'    }} />
       <Tabs.Screen name="jobs"    options={{ title: 'Explore' }} />
-      <Tabs.Screen name="matches" options={{ title: 'Likes'   }} />
+      <Tabs.Screen name="matches" options={{ title: 'Messages' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
     </Tabs>
   );

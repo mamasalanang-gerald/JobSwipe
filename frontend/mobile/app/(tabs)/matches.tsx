@@ -520,7 +520,7 @@ function SegmentTabs({
 // ─── MatchesTab ───────────────────────────────────────────────────────────────
 export default function MatchesTab() {
   const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('matches');
+  const [activeTab, setActiveTab] = useState('messages');
 
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
@@ -568,9 +568,8 @@ export default function MatchesTab() {
   };
 
   const tabs = [
-    { key: 'matches',  label: 'Matches',  badge: NEW_MATCHES.length },
     { key: 'messages', label: 'Messages', badge: totalUnread },
-    { key: 'reviews',  label: 'Reviews',  badge: 0 },
+    { key: 'closed',   label: 'Closed Conversations', badge: 0 },
   ];
 
   // ── Conversation detail (full-screen swap) ─────────────────────────────────
@@ -588,15 +587,8 @@ export default function MatchesTab() {
     <View style={[s.screen, { paddingTop: topInset }]}>
       <StatusBar barStyle="light-content" />
 
-      {/* ── Header ── */}
-      <View style={s.header}>
-        <View style={s.headerRow}>
-          <Text style={s.pageTitle}>Matches</Text>
-          <TouchableOpacity style={s.filterBtn} activeOpacity={0.85}>
-            <MaterialCommunityIcons name="filter-variant" size={20} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* ── Top spacing — safe on all screen sizes ── */}
+      <View style={s.topSpacing} />
 
       {/* ── Segment tabs ── */}
       <SegmentTabs tabs={tabs} active={activeTab} onSelect={setActiveTab} />
@@ -605,76 +597,6 @@ export default function MatchesTab() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: tabBarHeight + 24 }]}
       >
-        {/* ── MATCHES TAB ── */}
-        {activeTab === 'matches' && (
-          hasMatches ? (
-            <>
-              {/* New matches */}
-              <View style={s.sectionRow}>
-                <Text style={s.sectionTitle}>New matches</Text>
-                <TouchableOpacity><Text style={s.viewAll}>View all</Text></TouchableOpacity>
-              </View>
-              <View style={s.card}>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                  <View style={s.newMatchRow}>
-                    {NEW_MATCHES.map(m => (
-                      <TouchableOpacity key={m.id} style={s.newMatchItem} activeOpacity={0.8}>
-                        <View style={{ position: 'relative' }}>
-                          <View style={[s.avatarCircle, { backgroundColor: m.color }]}>
-                            <Text style={s.avatarText}>{m.abbr}</Text>
-                          </View>
-                          {m.isNew && (
-                            <View style={s.newDot}>
-                              <MaterialCommunityIcons name="lightning-bolt" size={9} color="#fff" />
-                            </View>
-                          )}
-                        </View>
-                        <Text style={s.newMatchCompany} numberOfLines={1}>{m.company}</Text>
-                        <Text style={s.newMatchRole} numberOfLines={1}>{m.role}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                </ScrollView>
-              </View>
-
-              {/* Pipeline */}
-              <View style={[s.sectionRow, { marginTop: 8 }]}>
-                <Text style={s.sectionTitle}>Your pipeline</Text>
-              </View>
-              <View style={s.card}>
-                {PIPELINE_STAGES.map((stage, si) => {
-                  const stageJobs = PIPELINE.filter(p => p.status === stage.key);
-                  if (!stageJobs.length) return null;
-                  return (
-                    <View key={stage.key}>
-                      {si > 0 && <View style={s.divider} />}
-                      <View style={s.stageHeader}>
-                        <View style={[s.stagePill, { backgroundColor: stage.bg }]}>
-                          <MaterialCommunityIcons name={stage.icon as any} size={12} color={stage.text} />
-                          <Text style={[s.stagePillText, { color: stage.text }]}>{stage.label}</Text>
-                        </View>
-                        <Text style={s.stageCount}>{stageJobs.length}</Text>
-                      </View>
-                      {stageJobs.map(job => (
-                        <TouchableOpacity key={job.id} style={s.pipelineRow} activeOpacity={0.8}>
-                          <CompanyLogo abbr={job.abbr} color={job.color} size="sm" />
-                          <View style={s.pipelineInfo}>
-                            <Text style={s.pipelineCompany}>{job.company}</Text>
-                            <Text style={s.pipelineRole}>{job.role}</Text>
-                          </View>
-                          <MaterialCommunityIcons name="chevron-right" size={18} color={T.textHint} />
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  );
-                })}
-              </View>
-            </>
-          ) : (
-            <EmptyMatchesState />
-          )
-        )}
-
         {/* ── MESSAGES TAB ── */}
         {activeTab === 'messages' && (
           <>
@@ -724,7 +646,7 @@ export default function MatchesTab() {
                             activeOpacity={0.8}
                             onPress={() => {
                               openCompany(msg.id);
-                              setActiveTab('reviews');
+                              setActiveTab('closed');
                             }}
                           >
                             <MaterialCommunityIcons name="star-outline" size={11} color={T.primary} />
@@ -742,8 +664,8 @@ export default function MatchesTab() {
           </>
         )}
 
-        {/* ── REVIEWS TAB ── */}
-        {activeTab === 'reviews' && (
+        {/* ── CLOSED CONVERSATIONS TAB ── */}
+        {activeTab === 'closed' && (
           <>
             {selectedCompany ? (
               <>
@@ -961,7 +883,10 @@ export default function MatchesTab() {
 const s = StyleSheet.create({
   screen: { flex: 1, backgroundColor: T.bg },
 
-  // ── Header ────────────────────────────────────────────────────────────────
+  // ── Top spacing (safe across all screen sizes) ────────────────────────────
+  topSpacing: { height: 50
+   },
+
   header:    { paddingHorizontal: 20, paddingBottom: 12 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pageTitle: { fontSize: 28, fontWeight: '800', color: T.textPrimary, letterSpacing: -0.5 },

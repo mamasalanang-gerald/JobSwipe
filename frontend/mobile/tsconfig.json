@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "strict": true,
     "jsx": "react-jsx",
     "jsxImportSource": "nativewind",
@@ -28,9 +29,9 @@
     }
   },
   "include": [
-  "**/*.ts",
-  "**/*.tsx"
-],
+    "**/*.ts",
+    "**/*.tsx"
+  ],
   "exclude": [
     "node_modules"
   ],
