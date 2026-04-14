@@ -4,11 +4,12 @@ import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, Dimensions, Image, TextInput,
-  Modal, Switch, Animated,
+  Modal, Switch, Animated, KeyboardEventListener
 } from 'react-native';
+import { useTheme, setThemeMode, getThemeMode } from '../../theme'; // ← centralized theme
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import { useTheme, setThemeMode, getThemeMode } from '../../theme'; // ← centralized theme
+import { Link, router } from 'expo-router';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -535,7 +536,10 @@ export default function ProfileTab() {
         </View>
 
         {/* ── Sign out ─────────────────────────────────────────────────────── */}
-        <TouchableOpacity style={[s.signOut, { backgroundColor: T.dangerBg, borderColor: T.danger + '26' }]} activeOpacity={0.8}>
+        <TouchableOpacity 
+          style={[s.signOut, { backgroundColor: T.dangerBg, borderColor: T.danger + '26' }]}
+          onPress={handleSignOut} 
+          activeOpacity={0.8}>
           <MaterialCommunityIcons name="logout" size={14} color={T.danger} />
           <Text style={[s.signOutText, { color: T.danger }]}>Sign out</Text>
         </TouchableOpacity>
@@ -545,7 +549,31 @@ export default function ProfileTab() {
   );
 }
 
-// ─── Structural styles (no colours) ──────────────────────────────────────────
+const handleSignOut = async () => {
+  await new Promise((r) => setTimeout(r, 600));
+  router.replace('/(auth)/login');
+  alert('Signed out!');
+}
+
+// ─── Plan card styles ─────────────────────────────────────────────────────────
+const ps = StyleSheet.create({
+  card:         { borderRadius: 20, borderWidth: 1.5, padding: 18 },
+  top:          { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  iconWrap:     { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  name:         { fontSize: 15, fontWeight: '800', letterSpacing: -0.2 },
+  price:        { fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 },
+  badge:        { borderWidth: 1, borderRadius: 20, paddingHorizontal: 8, paddingVertical: 3 },
+  badgeText:    { fontSize: 9, fontWeight: '800', letterSpacing: 0.6 },
+  sep:          { height: 1, backgroundColor: 'rgba(255,255,255,0.06)', marginBottom: 14 },
+  row:          { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  rowText:      { fontSize: 12, color: 'rgba(255,255,255,0.6)', flex: 1 },
+  cta:          { marginTop: 16, borderRadius: 22, paddingVertical: 13, alignItems: 'center' },
+  ctaText:      { fontSize: 13, fontWeight: '800' },
+  activePill:   { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 14, justifyContent: 'center' },
+  activePillText: { fontSize: 11, fontWeight: '600', color: 'rgba(168,85,247,0.6)' },
+});
+
+// ─── Main styles ──────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
   screen: { flex: 1 },
 

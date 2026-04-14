@@ -117,7 +117,7 @@ const JOBS = [
       { label: 'Full-time',  variant: 'success' as const },
       { label: 'Enterprise', variant: 'neutral' as const },
     ],
-    description: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur id pharetra magna. Donec imperdiet est sed enim faucibus lobortis. Nullam nec semper ante. Maecenas condimentum, enim et imperdiet laoreet, velit neque molestie mi, non pretium ante tortor a leo. Donec id enim at felis lobortis sollicitudin quis in arcu. Praesent massa libero, tincidunt vel orci in, pulvinar vehicula risus. Pellentesque id lorem tincidunt, interdum erat id, pretium augue. Cras blandit enim nisi. Suspendisse rutrum, massa vel tempor laoreet, eros mauris accumsan magna, ac finibus massa urna ut leo.\nDuis ornare enim felis, nec pulvinar mi suscipit scelerisque. Etiam sit amet lorem aliquam, commodo elit in, interdum nulla. Aenean quis elit et sem suscipit vulputate eu et ligula. In pharetra consequat ligula, sed molestie ex sollicitudin in. Duis a tellus in nulla posuere lacinia ut eget arcu. Vivamus mi mi, convallis non magna ac, blandit gravida elit. Vivamus volutpat sapien ac turpis luctus, a mollis erat accumsan. Pellentesque eros est, faucibus vel justo a, porta varius diam. Vivamus commodo, sem ac tincidunt vulputate, neque purus interdum enim, id feugiat ante magna sit amet nisl. Aliquam erat volutpat. Duis ut justo efficitur, convallis metus sollicitudin, elementum nibh. Donec pellentesque tempus dui, in tristique dui cursus et. Donec ultricies vehicula risus, nec sollicitudin nulla suscipit a. Vestibulum tincidunt diam at dui sollicitudin, vel facilisis nisl laoreet.\nAliquam vehicula ultricies nulla, sollicitudin interdum purus luctus quis. Integer imperdiet, est convallis auctor scelerisque, velit lectus ullamcorper nulla, non pretium dui turpis quis ipsum. Donec faucibus vulputate tortor, vitae porta ex condimentum et. Etiam malesuada sem ac elementum vestibulum. Proin tincidunt nisi quam, a rhoncus leo elementum id. Fusce gravida iaculis velit. In lobortis a justo ac maximus. Nam vel euismod metus. Cras lacus tellus, pretium consequat placerat quis, vehicula hendrerit justo.\nInteger auctor tortor sit amet dolor interdum, sit amet cursus mi auctor. Nam eget vestibulum erat. Aenean vehicula magna eget enim tempus pretium. Aliquam nec ante dolor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse dignissim orci eu massa mattis, eu finibus lorem laoreet. In et tincidunt erat.\nVestibulum non tempor neque, eget vulputate tortor. Nunc imperdiet dui vitae porta mattis. Curabitur nisl purus, consequat convallis sapien id, consequat dignissim tellus. Nam tincidunt magna a tellus placerat ultricies. Nunc vestibulum pulvinar mauris quis rutrum. Nullam tristique nisi eu diam imperdiet pretium. Duis vulputate tempus vehicula. Sed congue nunc erat, nec posuere tellus dignissim at. Nulla nLorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur id pharetra magna. Donec imperdiet est sed enim faucibus lobortis. Nullam nec semper ante. Maecenas condimentum, enim et imperdiet laoreet, velit neque molestie mi, non pretium ante tortor a leo. Donec id enim at felis lobortis sollicitudin quis in arcu. Praesent massa libero, tincidunt vel orci in, pulvinar vehicula risus. Pellentesque id lorem tincidunt, interdum erat id, pretium augue. Cras blandit enim nisi. Suspendisse rutrum, massa vel tempor laoreet, eros mauris accumsan magna, ac finibus massa urna ut leo.\nDuis ornare enim felis, nec pulvinar mi suscipit scelerisque. Etiam sit amet lorem aliquam, commodo elit in, interdum nulla. Aenean quis elit et sem suscipit vulputate eu et ligula. In pharetra consequat ligula, sed molestie ex sollicitudin in. Duis a tellus in nulla posuere lacinia ut eget arcu. Vivamus mi mi, convallis non magna ac, blandit gravida elit. Vivamus volutpat sapien ac turpis luctus, a mollis erat accumsan. Pellentesque eros est, faucibus vel justo a, porta varius diam. Vivamus commodo, sem ac tincidunt vulputate, neque purus interdum enim, id feugiat ante magna sit amet nisl. Aliquam erat volutpat. Duis ut justo efficitur, convallis metus sollicitudin, elementum nibh. Donec pellentesque tempus dui, in tristique dui cursus et. Donec ultricies vehicula risus, nec sollicitudin nulla suscipit a. Vestibulum tincidunt diam at dui sollicitudin, vel facilisis nisl laoreet.\nAliquam vehicula ultricies nulla, sollicitudin interdum purus luctus quis. Integer imperdiet, est convallis auctor scelerisque, velit lectus ullamcorper nulla, non pretium dui turpis quis ipsum. Donec faucibus vulputate tortor, vitae porta ex condimentum et. Etiam malesuada sem ac elementum vestibulum. Proin tincidunt nisi quam, a rhoncus leo elementum id. Fusce gravida iaculis velit. In lobortis a justo ac maximus. Nam vel euismod metus. Cras lacus tellus, pretium consequat placerat quis, vehicula hendrerit justo.\nInteger auctor tortor sit amet dolor interdum, sit amet cursus mi auctor. Nam eget vestibulum erat. Aenean vehicula magna eget enim tempus pretium. Aliquam nec ante dolor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse dignissim orci eu massa mattis, eu finibus lorem laoreet. In et tincidunt erat.\nVestibulum non tempor neque, eget vulputate tortor. Nunc imperdiet dui vitae porta mattis. Curabitur nisl purus, consequat convallis sapien id, consequat dignissim tellus. Nam tincidunt magna a tellus placerat ultricies. Nunc vestibulum pulvinar mauris quis rutrum. Nullam tristique nisi eu diam imperdiet pretium. Duis vulputate tempus vehicula. Sed congue nunc erat, nec posuere tellus dignissim at. Nulla non ante ante. Donec cursus nisl eget nunc porttitor, vel efficitur ipsum aliquam. Aliquam nec viverra lacus.on ante ante. Donec cursus nisl eget nunc porttitor, vel efficitur ipsum aliquam. Aliquam nec viverra lacus.Lorem ipsum dolor sit amet, consectetur adipiscing elit. Curabitur id pharetra magna. Donec imperdiet est sed enim faucibus lobortis. Nullam nec semper ante. Maecenas condimentum, enim et imperdiet laoreet, velit neque molestie mi, non pretium ante tortor a leo. Donec id enim at felis lobortis sollicitudin quis in arcu. Praesent massa libero, tincidunt vel orci in, pulvinar vehicula risus. Pellentesque id lorem tincidunt, interdum erat id, pretium augue. Cras blandit enim nisi. Suspendisse rutrum, massa vel tempor laoreet, eros mauris accumsan magna, ac finibus massa urna ut leo.\nDuis ornare enim felis, nec pulvinar mi suscipit scelerisque. Etiam sit amet lorem aliquam, commodo elit in, interdum nulla. Aenean quis elit et sem suscipit vulputate eu et ligula. In pharetra consequat ligula, sed molestie ex sollicitudin in. Duis a tellus in nulla posuere lacinia ut eget arcu. Vivamus mi mi, convallis non magna ac, blandit gravida elit. Vivamus volutpat sapien ac turpis luctus, a mollis erat accumsan. Pellentesque eros est, faucibus vel justo a, porta varius diam. Vivamus commodo, sem ac tincidunt vulputate, neque purus interdum enim, id feugiat ante magna sit amet nisl. Aliquam erat volutpat. Duis ut justo efficitur, convallis metus sollicitudin, elementum nibh. Donec pellentesque tempus dui, in tristique dui cursus et. Donec ultricies vehicula risus, nec sollicitudin nulla suscipit a. Vestibulum tincidunt diam at dui sollicitudin, vel facilisis nisl laoreet.\nAliquam vehicula ultricies nulla, sollicitudin interdum purus luctus quis. Integer imperdiet, est convallis auctor scelerisque, velit lectus ullamcorper nulla, non pretium dui turpis quis ipsum. Donec faucibus vulputate tortor, vitae porta ex condimentum et. Etiam malesuada sem ac elementum vestibulum. Proin tincidunt nisi quam, a rhoncus leo elementum id. Fusce gravida iaculis velit. In lobortis a justo ac maximus. Nam vel euismod metus. Cras lacus tellus, pretium consequat placerat quis, vehicula hendrerit justo.\nInteger auctor tortor sit amet dolor interdum, sit amet cursus mi auctor. Nam eget vestibulum erat. Aenean vehicula magna eget enim tempus pretium. Aliquam nec ante dolor. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse dignissim orci eu massa mattis, eu finibus lorem laoreet. In et tincidunt erat.\nVestibulum non tempor neque, eget vulputate tortor. Nunc imperdiet dui vitae porta mattis. Curabitur nisl purus, consequat convallis sapien id, consequat dignissim tellus. Nam tincidunt magna a tellus placerat ultricies. Nunc vestibulum pulvinar mauris quis rutrum. Nullam tristique nisi eu diam imperdiet pretium. Duis vulputate tempus vehicula. Sed congue nunc erat, nec posuere tellus dignissim at. Nulla non ante ante. Donec cursus nisl eget nunc porttitor, vel efficitur ipsum aliquam. Aliquam nec viverra lacus.",
+    description: "Vivamus commodo, sem ac tincidunt vulputate, neque purus interdum enim, id feugiat ante magna sit amet nisl. Aliquam erat volutpat. Duis ut justo efficitur, convallis metus sollicitudin, elementum nibh. Donec pellentesque tempus dui, in tristique dui cursus et. Donec ultricies vehicula risus, nec sollicitudin nulla suscipit a. Vestibulum tincidunt diam at dui sollicitudin, vel facilisis nisl laoreet.",
     matchPercent: 85,
     photos: [
       require('../assets/images/socia.png'),
@@ -610,10 +610,10 @@ export default function HomeTab() {
   const nopeOverlayOpacity = position.x.interpolate({ inputRange: [-SWIPE_THRESHOLD, 0],outputRange: [0.45, 0],    extrapolate: 'clamp' });
   // Used for the post-swipe settle animation on the next card
   // Back card starts small and dim, grows to full size as it becomes the new front card
-  const nextCardSettleScale        = nextCardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
-  const nextCardSettleOverlay      = nextCardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.70, 0] });
-  const nextCardSettleImageOpacity = nextCardAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.7, 1] });
-  const panelTranslateY    = expandAnim.interpolate({ inputRange: [0, 1],                 outputRange: [PANEL_HEIGHT, 0] });
+  const nextCardSettleScale         = nextCardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
+  const nextCardSettleOverlay       = nextCardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.70, 0] });
+  const nextCardSettleImageOpacity  = nextCardAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.7, 1] });
+  const panelTranslateY    = expandAnim.interpolate({ inputRange: [0, 1],               outputRange: [PANEL_HEIGHT, 0] });
 
   const settingsOpenRef = useRef(false);
   const expandedRef     = useRef(false);
@@ -623,8 +623,7 @@ export default function HomeTab() {
       onStartShouldSetPanResponder: (_e, { dx, dy }) => !expandedRef.current && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy),
       onMoveShouldSetPanResponder:  (_e, { dx, dy }) => !expandedRef.current && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5,
       onPanResponderGrant: () => {
-        isDraggingRef.current = true;
-      },
+        isDraggingRef.current = true;},
       onPanResponderMove: (_e, { dx, dy }) => {
         isDraggingRef.current = true;
         position.setValue({ x: dx * 1.08, y: dy * 0.45 });
@@ -708,16 +707,16 @@ export default function HomeTab() {
     setExpanded(true);
     Animated.spring(expandAnim, { toValue: 1, bounciness: 3, useNativeDriver: false }).start();
   };
-  const undo = () => {
-    if (!history.length) return;
-    const last = history[history.length - 1];
-    setHistory(h => h.slice(0, -1));
-    setLiked(l => l.filter(id => id !== last.id));
-    setPhotoIndex(0);
-    pausedElapsedRef.current = 0;
-    collapsePanel();
-    setIndex(i => { const n = Math.max(0, i - 1); indexRef.current = n; return n; });
-  };
+  // const undo = () => {
+  //   if (!history.length) return;
+  //   const last = history[history.length - 1];
+  //   setHistory(h => h.slice(0, -1));
+  //   setLiked(l => l.filter(id => id !== last.id));
+  //   setPhotoIndex(0);
+  //   pausedElapsedRef.current = 0;
+  //   collapsePanel();
+  //   setIndex(i => { const n = Math.max(0, i - 1); indexRef.current = n; return n; });
+  // };
   const handleImageTap = (evt: any) => {
     if (expanded) return;
     const x     = evt.nativeEvent.locationX;
@@ -870,7 +869,6 @@ export default function HomeTab() {
   const job     = filteredJobs[index];
   // During the grow animation use the snapshot; otherwise show the real next card
   const nextJob = growingJobRef.current ?? filteredJobs[index + 1];
-  const photo   = job.photos[photoIndex];
 
   // ── Main render ─────────────────────────────────────────────────────────────
   return (

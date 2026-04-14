@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, Dimensions, TextInput, Image,
-  Keyboard, KeyboardEvent,
+  Keyboard, KeyboardEvent, BackHandler
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -203,6 +203,10 @@ function ConversationScreen({
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const replyIndexRef = useRef(0);
+
+  useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { 
+    onBack(); return true; }); 
+    return () => sub.remove(); }, [onBack]);
 
   useEffect(() => {
     const SCREEN_H = Dimensions.get('screen').height;

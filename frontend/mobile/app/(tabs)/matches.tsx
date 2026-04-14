@@ -3,7 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, StyleSheet, BackHandler,
   StatusBar, Dimensions, TextInput, Image, Keyboard, KeyboardEvent, Platform,
 } from 'react-native';
 import {
@@ -94,6 +94,31 @@ function ConversationScreen({ conversation, onBack, tabBarHeight }: { conversati
   const [messages, setMessages] = useState<ChatMessage[]>(SEED_MESSAGES[conversation.id] ?? []);
   const [draft, setDraft]       = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  
+useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { 
+  onBack(); return true; }); 
+  return () => sub.remove(); }, [onBack]);
+  
+useEffect(() => {
+  const show = Keyboard.addListener(
+    Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+    (e: KeyboardEvent) => {
+      if (Platform.OS === 'android') {
+        // On Android, use windowHeight (excludes nav bar) not screenHeight
+        const windowHeight = Dimensions.get('window').height;
+        const keyboardTop = e.endCoordinates.screenY;
+        setKeyboardHeight(Math.max(0, windowHeight - keyboardTop));
+      } else {
+        setKeyboardHeight(e.endCoordinates.height);
+      }
+    },
+  );
+  const hide = Keyboard.addListener(
+    Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+    () => setKeyboardHeight(0),
+  );
+  return () => { show.remove(); hide.remove(); };
+}, []);
   const [isTyping, setIsTyping] = useState(false);
   const scrollRef    = useRef<ScrollView>(null);
   const replyIndexRef = useRef(0);
@@ -538,7 +563,7 @@ export default function MatchesTab() {
                   </>
                 );
               })()
-            )}
+            )}/////////
           </>
         )}
 
