@@ -2,12 +2,20 @@
 
 namespace App\Models\PostgreSQL;
 
+use Database\Factories\MatchMessageFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Support\Str;
 
 class MatchMessage extends Model
 {
+    use HasFactory;
+
+    protected static function newFactory(): MatchMessageFactory
+    {
+        return MatchMessageFactory::new();
+    }
     protected $connection = 'pgsql';
 
     protected $table = 'match_messages';

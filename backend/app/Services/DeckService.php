@@ -16,6 +16,7 @@ class DeckService
     public function __construct(
         private SwipeCacheRepository $cache,
         private SwipeHistoryRepository $swipeHistory,
+        private TrustScoreService $trustScore,
     ) {}
 
     /**
@@ -61,7 +62,10 @@ class DeckService
             $locationBonus = $this->calculateLocationBonus($job, $applicantCity);
             $remoteBonus = $job->work_type === 'remote' ? 0.05 : 0;
 
-            $job->relevance_score = ($skillScore * 0.7) + ($recencyScore * 0.3) + $locationBonus + $remoteBonus;
+            // Apply trust-based visibility multiplier
+            $visibilityMultiplier = $this->trustScore->getVisibilityMultiplier($job->company_id);
+            $baseScore = ($skillScore * 0.7) + ($recencyScore * 0.3) + $locationBonus + $remoteBonus;
+            $job->relevance_score = $baseScore * $visibilityMultiplier;
 
             return $job;
         });

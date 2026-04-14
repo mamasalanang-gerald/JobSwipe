@@ -3,6 +3,9 @@
 namespace App\Models\PostgreSQL;
 
 use App\Services\UserDataCleanupService;
+use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Support\Str;
@@ -11,7 +14,12 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
-    use Billable, HasApiTokens;
+    use Billable, HasApiTokens, HasFactory;
+
+    protected static function newFactory(): UserFactory
+    {
+        return UserFactory::new();
+    }
 
     protected $connection = 'pgsql';
 
@@ -72,6 +80,11 @@ class User extends Authenticatable
     public function companyProfile(): HasOne
     {
         return $this->hasOne(CompanyProfile::class, 'user_id');
+    }
+
+    public function companyMemberships(): HasMany
+    {
+        return $this->hasMany(CompanyMembership::class, 'user_id');
     }
 
     public function isApplicant(): bool

@@ -34,6 +34,21 @@ class ProfileService
         };
     }
 
+    public function setCompanyEmailDomain(string $userId, string $email): void
+    {
+        $companyProfile = $this->companyProfiles->findByUserId($userId);
+        if (! $companyProfile) {
+            return;
+        }
+
+        $validation = app(CompanyEmailValidator::class)->validate($email);
+
+        $this->companyProfiles->update($companyProfile, [
+            'company_domain' => $validation['domain'],
+            'is_free_email_domain' => $validation['is_free'],
+        ]);
+    }
+
     public function getApplicantProfile(string $userId): array
     {
         $profile = $this->ensureApplicantDocument($userId);
@@ -359,9 +374,12 @@ class ProfileService
             'user_id' => $user->id,
             'company_name' => '',
             'is_verified' => false,
-            'verification_status' => 'pending',
-            'subscription_tier' => 'none',
-            'subscription_status' => 'inactive',
+            'verification_status' => 'unverified',
+            'subscription_tier' => 'free',
+            'subscription_status' => 'active',
+            'trust_score' => 0,
+            'trust_level' => 'untrusted',
+            'listing_cap' => 0,
             'active_listings_count' => 0,
         ]);
 

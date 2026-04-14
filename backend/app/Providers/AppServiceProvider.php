@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Models\PostgreSQL\CompanyProfile;
+use App\Observers\CompanyProfileObserver;
 use App\Repositories\MongoDB\ApplicantProfileDocumentRepository;
 use App\Repositories\MongoDB\CompanyProfileDocumentRepository;
 use App\Repositories\MongoDB\SwipeHistoryRepository;
@@ -17,6 +19,8 @@ use App\Repositories\PostgreSQL\UserRepository;
 use App\Repositories\Redis\OTPCacheRepository;
 use App\Repositories\Redis\SwipeCacheRepository;
 use App\Services\AuthService;
+use App\Services\CompanyInvitationService;
+use App\Services\CompanyMembershipService;
 use App\Services\DeckService;
 use App\Services\FileUploadService;
 use App\Services\MatchService;
@@ -31,6 +35,7 @@ use App\Services\ProfileSocialLinksValidator;
 use App\Services\SubscriptionService;
 use App\Services\SwipeService;
 use App\Services\TokenService;
+use App\Services\TrustScoreService;
 use App\Services\UserDataCleanupService;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -102,6 +107,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(ProfileSocialLinksValidator::class);
         $this->app->singleton(ProfileOnboardingService::class);
         $this->app->singleton(ProfileService::class);
+        $this->app->singleton(TrustScoreService::class);
+        $this->app->singleton(CompanyMembershipService::class);
+        $this->app->singleton(CompanyInvitationService::class);
         $this->app->singleton(FileUploadService::class);
         $this->app->singleton(SubscriptionService::class);
         $this->app->singleton(TokenService::class);
@@ -114,6 +122,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        CompanyProfile::observe(CompanyProfileObserver::class);
+
         RateLimiter::for('api-tiered', function (Request $request) {
             if ($request->user()) {
                 return Limit::perMinute(60)->by((string) $request->user()->id);

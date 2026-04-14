@@ -14,7 +14,7 @@ class ProfileOnboardingService
 {
     public const APPLICANT_ONBOARDING_STEPS = 6;
 
-    public const COMPANY_ONBOARDING_STEPS = 4;
+    public const COMPANY_ONBOARDING_STEPS = 3;
 
     public const MAX_OFFICE_IMAGES = 6;
 
@@ -231,9 +231,8 @@ class ProfileOnboardingService
     {
         match ($step) {
             1 => $this->completeCompanyStepDetails($userId, $data),
-            2 => $this->completeCompanyStepPayment($userId),
+            2 => $this->completeCompanyStepVerification($userId, $data),
             3 => $this->completeCompanyStepMedia($userId, $data),
-            4 => $this->completeCompanyStepVerification($userId, $data),
             default => throw new InvalidArgumentException('INVALID_ONBOARDING_STEP'),
         };
     }
@@ -341,15 +340,6 @@ class ProfileOnboardingService
         ]);
     }
 
-    private function completeCompanyStepPayment(string $userId): void
-    {
-        $companyProfile = $this->findCompanyProfileByUserId($userId);
-
-        if ($companyProfile->subscription_status !== 'active') {
-            throw new InvalidArgumentException('SUBSCRIPTION_REQUIRED');
-        }
-    }
-
     private function completeCompanyStepMedia(string $userId, array $data): void
     {
         if (! $this->filled($data['logo_url'] ?? null)) {
@@ -373,8 +363,9 @@ class ProfileOnboardingService
 
     private function completeCompanyStepVerification(string $userId, array $data): void
     {
-        if (! isset($data['verification_documents']) || ! is_array($data['verification_documents'])) {
-            return;
+        // Verification documents are now required during onboarding
+        if (! isset($data['verification_documents']) || ! is_array($data['verification_documents']) || count($data['verification_documents']) < 1) {
+            throw new InvalidArgumentException('STEP_DATA_INVALID');
         }
 
         $companyProfile = $this->findCompanyProfileByUserId($userId);
@@ -402,9 +393,8 @@ class ProfileOnboardingService
     {
         return [
             ['step' => 1, 'key' => 'company_details', 'required' => true],
-            ['step' => 2, 'key' => 'payment', 'required' => true],
+            ['step' => 2, 'key' => 'verification_documents', 'required' => true],
             ['step' => 3, 'key' => 'media', 'required' => true],
-            ['step' => 4, 'key' => 'verification_documents', 'required' => false],
         ];
     }
 
