@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -43,9 +43,10 @@ export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const { top: topInset }               = useSafeAreaInsets();
   const setToken                        = useAuthStore((s) => s.setToken);
+  const passwordInputRef                = useRef<TextInput>(null);
 
   const handleLogin = async () => {
-    if (!email || !password) { setError('Please fill in all fields.'); return; }
+    if (email == '' || password == '') { setError('Please fill in all fields.'); return; }
     setError('');
     setLoading(true);
 
@@ -172,6 +173,8 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()}
               />
             </View>
           </View>
@@ -188,6 +191,7 @@ export default function LoginScreen() {
             <View style={s.inputRow}>
               <MaterialCommunityIcons name="lock-outline" size={16} color={Colors.gray400} />
               <TextInput
+                ref={passwordInputRef}
                 style={[s.input, { flex: 1 }]}
                 placeholder="••••••••"
                 placeholderTextColor={Colors.gray300}
@@ -195,6 +199,8 @@ export default function LoginScreen() {
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
+                returnKeyType="done"
+                onSubmitEditing={handleLogin}
               />
               <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: Spacing['1'] }}>
                 <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.gray400} />

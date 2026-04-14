@@ -201,6 +201,8 @@ export default function CompanyHomeTab() {
   const overlayBottom = actionsBottom + ACTIONS_HEIGHT + 8;
 
   const [index, setIndex]           = useState(0);
+  const indexRef = useRef(0);
+  const growingApplicantRef = useRef<(typeof filteredApplicants)[number] | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [timerKey, setTimerKey]     = useState(0);
   const [liked, setLiked]           = useState<number[]>([]);
@@ -267,7 +269,7 @@ export default function CompanyHomeTab() {
   const applySettings = () => {
     setMaxDistanceKm(draftDistance);
     setUseKm(draftUseKm);
-    setIndex(0);
+    setIndex(0); indexRef.current = 0;
     setPhotoIndex(0);
     closeSettings();
   };
@@ -277,17 +279,21 @@ export default function CompanyHomeTab() {
 
   const draftLabel         = draftUseKm ? `${draftDistance} km` : `${(draftDistance * 0.621371).toFixed(0)} mi`;
   const draftFilteredCount = APPLICANTS.filter(a => a.distanceKm <= draftDistance).length;
-  const filteredApplicants = APPLICANTS.filter(
-    a => a.distanceKm <= maxDistanceKm && !blockedIds.includes(a.id)
-  );
+  const filteredApplicants = APPLICANTS.filter(a => a.distanceKm <= maxDistanceKm && !blockedIds.includes(a.id));
+  const filteredApplicantRef = useRef(filteredApplicants);
+  filteredApplicantRef.current = filteredApplicants;
 
   const position       = useRef(new Animated.ValueXY()).current;
+  const cardOpacity    = useRef(new Animated.Value(1)).current;
   const expandAnim     = useRef(new Animated.Value(0)).current;
+  const nextCardAnim    = useRef(new Animated.Value(0)).current;
   const progressAnim   = useRef(new Animated.Value(0)).current;
   const photoScrollRef = useRef<ScrollView>(null);
 
   const TIMER_DURATION   = 5000;
+  const expandedRef      = useRef(false);
   const isDraggingRef    = useRef(false);
+  const isHoldingRef     = useRef(false);
   const pausedElapsedRef = useRef(0);
 
   useEffect(() => {
@@ -335,22 +341,24 @@ export default function CompanyHomeTab() {
   const rotate             = position.x.interpolate({ inputRange: [-SW, 0, SW],          outputRange: ['-18deg', '0deg', '18deg'] });
   const likeOverlayOpacity = position.x.interpolate({ inputRange: [0, SWIPE_THRESHOLD],  outputRange: [0, 0.45],    extrapolate: 'clamp' });
   const nopeOverlayOpacity = position.x.interpolate({ inputRange: [-SWIPE_THRESHOLD, 0], outputRange: [0.45, 0],    extrapolate: 'clamp' });
-  const nextCardScale      = position.x.interpolate({ inputRange: [-SW, 0, SW],          outputRange: [1, 0.93, 1], extrapolate: 'clamp' });
+  const nextCardSettleScale         = nextCardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.82, 1] });
+  const nextCardSettleOverlay       = nextCardAnim.interpolate({ inputRange: [0, 1], outputRange: [0.70, 0] });
+  const nextCardSettleImageOpacity  = nextCardAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.7, 1] });
   const panelTranslateY    = expandAnim.interpolate({ inputRange: [0, 1],                outputRange: [PANEL_HEIGHT, 0] });
 
   const panResponder = useRef(
     PanResponder.create({
-      onStartShouldSetPanResponder: (_e, { dx, dy }) =>
-        !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy),
-      onMoveShouldSetPanResponder: (_e, { dx, dy }) =>
-        !expanded && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5,
-      onPanResponderGrant: () => { isDraggingRef.current = true; },
+      onStartShouldSetPanResponder: (_e, { dx, dy }) => !expandedRef.current && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy),
+      onMoveShouldSetPanResponder:  (_e, { dx, dy }) => !expandedRef.current && !settingsOpenRef.current && Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 5,
+      onPanResponderGrant: () => { 
+        isDraggingRef.current = true; },
       onPanResponderMove: (_e, { dx, dy }) => {
         isDraggingRef.current = true;
         position.setValue({ x: dx, y: dy * 0.25 });
       },
       onPanResponderRelease: (_e, { dx, vx }) => {
         isDraggingRef.current = false;
+        isHoldingRef.current = false;
         if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.6) {
           pausedElapsedRef.current = 0;
           commitSwipe(dx > 0 ? 1 : -1);
@@ -363,28 +371,56 @@ export default function CompanyHomeTab() {
 
   const commitSwipe = (dir: number) => {
     collapsePanel();
+    const upcomingApplicant = filteredApplicantRef.current[indexRef.current + 1] ?? null;
     Animated.timing(position, {
       toValue: { x: dir * SW * 1.5, y: 0 },
       duration: 280,
       useNativeDriver: false,
     }).start(() => {
+      cardOpacity.setValue(0);
       position.setValue({ x: 0, y: 0 });
-      if (dir > 0) setLiked(prev => [...prev, filteredApplicants[index].id]);
-      setHistory(prev => [...prev, { id: filteredApplicants[index].id, dir }]);
+      const currentApplicant = filteredApplicantRef.current[indexRef.current];
+      if (currentApplicant && dir > 0) setLiked(prev => [...prev, currentApplicant.id]);
+      if (currentApplicant) setHistory(prev => [...prev, { id: currentApplicant.id, dir }]);
       setPhotoIndex(0);
-      setIndex(i => i + 1);
+      photoScrollRef.current?.scrollTo({ x: 0, animated: false });
+      setIndex(i => { indexRef.current = i + 1; return i + 1; });
+      growingApplicantRef.current = upcomingApplicant;
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() =>
+          requestAnimationFrame(() => {
+            nextCardAnim.stopAnimation();
+            nextCardAnim.setValue(0);
+            cardOpacity.setValue(0);
+            Animated.timing(nextCardAnim, {
+              toValue: 1,
+              duration: 420,
+              useNativeDriver: false,
+            }).start(() => {
+              Animated.timing(cardOpacity, {
+                toValue: 1,
+                duration: 180,
+                useNativeDriver: false,
+              }).start(() => {
+                growingApplicantRef.current = null;
+                nextCardAnim.setValue(0);
+              });
+            });
+          })
+        )
+      );
     });
   };
 
-  const resetCard = () =>
-    Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
-
+  const resetCard = () => Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false, bounciness: 10, speed: 8 }).start();
   const collapsePanel = () => {
+    expandedRef.current = false;
     setExpanded(false);
     Animated.timing(expandAnim, { toValue: 0, duration: 250, useNativeDriver: false }).start();
   };
 
   const openPanel = () => {
+    expandedRef.current = true;
     setExpanded(true);
     Animated.spring(expandAnim, { toValue: 1, bounciness: 3, useNativeDriver: false }).start();
   };
@@ -524,7 +560,7 @@ export default function CompanyHomeTab() {
         <Text style={s.emptySub}>New candidates apply daily — check back soon.</Text>
         <TouchableOpacity
           style={s.refreshBtn}
-          onPress={() => { setIndex(0); setLiked([]); setHistory([]); setPhotoIndex(0); }}
+          onPress={() => { setIndex(0); indexRef.current = 0; setLiked([]); setHistory([]); setPhotoIndex(0); nextCardAnim.setValue(0); cardOpacity.setValue(1); }}
         >
           <Text style={s.refreshBtnText}>Refresh deck</Text>
         </TouchableOpacity>
@@ -533,45 +569,41 @@ export default function CompanyHomeTab() {
   }
 
   const applicant     = filteredApplicants[index];
-  const nextApplicant = filteredApplicants[index + 1];
+  const nextApplicant = growingApplicantRef.current ?? filteredApplicants[index + 1];
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
     <View style={s.screen} onLayout={onRootLayout}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      {/* ── Layer 0: next card ── */}
-      {nextApplicant ? (
-        <Animated.View
-          style={[StyleSheet.absoluteFill, { transform: [{ scale: nextCardScale }] }]}
-          pointerEvents="none"
-        >
-          <Image
-            source={nextApplicant.photos[0]}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-            fadeDuration={0}
-          />
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.45)' }]} />
+      {/* Layer 0= solid background */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#0f0a1e' }]} pointerEvents="none" />
+
+      {/* Layer 0b: next card visibility */}
+      {nextApplicant && (
+        <Animated.View style={[StyleSheet.absoluteFill, { transform: [{ scale: nextCardSettleScale }], opacity: nextCardSettleImageOpacity }]} pointerEvents="none">
+          <Animated.Image source={nextApplicant.photos[0]} style={{ width: cardSize.width, height: cardSize.height }} resizeMode="cover" fadeDuration={0} />
+          <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#000', opacity: nextCardSettleOverlay }]} />
         </Animated.View>
-      ) : (
-        <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000' }]} pointerEvents="none" />
       )}
 
       {/* ── Layer 1: swipeable card ── */}
       <Animated.View
-        style={[
-          StyleSheet.absoluteFill,
-          { transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }] },
-        ]}
+        style={[StyleSheet.absoluteFill, { opacity: cardOpacity, transform: [{ translateX: position.x }, { translateY: position.y }, { rotate }] }]}
         {...panResponder.panHandlers}
       >
         <TouchableOpacity
           activeOpacity={1}
           style={StyleSheet.absoluteFill}
           onPress={handleImageTap}
-          onPressIn={() => { isDraggingRef.current = true; }}
-          onPressOut={() => { isDraggingRef.current = false; }}
+          onPressIn={() => { 
+            isHoldingRef.current = true;
+            isDraggingRef.current = true; 
+          }}
+          onPressOut={() => { 
+            isHoldingRef.current = true;
+            isDraggingRef.current = false; 
+          }}
         >
           <ScrollView
             ref={photoScrollRef}
