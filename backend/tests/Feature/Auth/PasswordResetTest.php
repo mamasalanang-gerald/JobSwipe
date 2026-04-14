@@ -63,13 +63,13 @@ class PasswordResetTest extends TestCase
 
         $user = User::factory()->create([
             'email' => 'user@example.com',
-            'password_hash' => Hash::make('0ldR3s3tT3st2024'),
+            'password_hash' => Hash::make('TW0@t3st!erOldReset'),
         ]);
 
         $response = $this->postJson('/api/v1/auth/reset-password', [
             'email' => 'user@example.com',
             'code' => '123456',
-            'password' => 'N3wR3s3tT3st!2024',
+            'password' => 'TW0@t3st!erNewReset',
         ]);
 
         $response->assertOk()
@@ -80,7 +80,7 @@ class PasswordResetTest extends TestCase
 
         // Verify password was actually changed
         $user->refresh();
-        $this->assertTrue(Hash::check('N3wR3s3tT3st!2024', $user->password_hash));
+        $this->assertTrue(Hash::check('TW0@t3st!erNewReset', $user->password_hash));
     }
 
     public function test_reset_revokes_all_tokens(): void
@@ -92,7 +92,7 @@ class PasswordResetTest extends TestCase
 
         $user = User::factory()->create([
             'email' => 'tokentest@example.com',
-            'password_hash' => Hash::make('T0k3nT3st0ld2024'),
+            'password_hash' => Hash::make('TW0@t3st!erTokenOld'),
         ]);
 
         // Create a token
@@ -102,7 +102,7 @@ class PasswordResetTest extends TestCase
         $this->postJson('/api/v1/auth/reset-password', [
             'email' => 'tokentest@example.com',
             'code' => '123456',
-            'password' => 'T0k3nT3stN3w!2024',
+            'password' => 'TW0@t3st!erTokenNew',
         ]);
 
         // All tokens should be revoked
@@ -121,7 +121,7 @@ class PasswordResetTest extends TestCase
         $response = $this->postJson('/api/v1/auth/reset-password', [
             'email' => 'user@example.com',
             'code' => '000000',
-            'password' => 'Inv@l!dC0d3T3st2024',
+            'password' => 'TW0@t3st!erInvalidCode',
         ]);
 
         $response->assertStatus(422)
@@ -139,7 +139,7 @@ class PasswordResetTest extends TestCase
         $response = $this->postJson('/api/v1/auth/reset-password', [
             'email' => 'user@example.com',
             'code' => '111111',
-            'password' => 'Exp!r3dC0d3T3st2024',
+            'password' => 'TW0@t3st!erExpired',
         ]);
 
         $response->assertStatus(422)

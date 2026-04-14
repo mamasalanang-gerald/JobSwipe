@@ -242,7 +242,7 @@ Content-Type: application/json
 
 {
   "email": "applicant@gmail.com",
-  "password": "T3st!ngAppl!c@nt2024",
+  "password": "TW0@t3st!erApplicant",
   "role": "applicant"
 }
 ```
@@ -271,7 +271,7 @@ POST /v1/auth/register
 
 {
   "email": "hr@acme-corp.com",
-  "password": "T3st!ngC0mp@ny2024",
+  "password": "TW0@t3st!erCompany",
   "role": "company_admin"
 }
 ```
@@ -330,7 +330,7 @@ POST /v1/auth/login
 
 {
   "email": "applicant@gmail.com",
-  "password": "T3st!ngL0g!n2024"
+  "password": "TW0@t3st!erLogin"
 }
 ```
 
@@ -354,7 +354,7 @@ POST /v1/auth/reset-password
 {
   "email": "applicant@gmail.com",
   "code": "123456",
-  "password": "N3wR3s3tT3st!2024"
+  "password": "TW0@t3st!erNewReset"
 }
 ```
 
