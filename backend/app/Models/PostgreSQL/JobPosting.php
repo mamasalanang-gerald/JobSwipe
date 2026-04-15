@@ -2,14 +2,33 @@
 
 namespace App\Models\PostgreSQL;
 
+use Database\Factories\JobPostingFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 
 class JobPosting extends Model
 {
-    use Searchable;  // Meilisearch via Laravel Scout
+    use HasFactory, Searchable;  // Meilisearch via Laravel Scout
+
+    protected static function newFactory(): JobPostingFactory
+    {
+        return JobPostingFactory::new();
+    }
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($model) {
+            if (empty($model->id)) {
+                $model->id = (string) Str::uuid();
+            }
+        });
+    }
 
     protected $connection = 'pgsql';
 

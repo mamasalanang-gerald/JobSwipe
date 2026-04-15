@@ -42,6 +42,45 @@ class ProfileControllerTest extends TestCase
         $this->assertSame(60, $payload['data']['profile_completion_percentage']);
     }
 
+    public function test_get_applicant_profile_signs_resume_and_profile_photo_urls(): void
+    {
+        /** @var ProfileService&MockObject $profileService */
+        $profileService = $this->createMock(ProfileService::class);
+        /** @var FileUploadService&MockObject $fileUploadService */
+        $fileUploadService = $this->createMock(FileUploadService::class);
+
+        $profileService->expects($this->once())
+            ->method('getApplicantProfile')
+            ->with('user-1')
+            ->willReturn([
+                'profile' => [
+                    'resume_url' => 'https://cdn.jobswipe.test/document/user-1/resume.pdf',
+                    'profile_photo_url' => 'https://cdn.jobswipe.test/image/user-1/photo.jpg',
+                ],
+                'profile_completion_percentage' => 80,
+            ]);
+
+        $fileUploadService->expects($this->exactly(2))
+            ->method('generatePresignedReadUrl')
+            ->willReturnOnConsecutiveCalls(
+                ['read_url' => 'https://signed.example.test/resume'],
+                ['read_url' => 'https://signed.example.test/photo'],
+            );
+
+        $controller = new ProfileController($profileService, $fileUploadService);
+
+        $request = Request::create('/api/v1/profile/applicant', 'GET');
+        $request->setUserResolver(static fn () => (object) ['id' => 'user-1', 'role' => 'applicant']);
+
+        $response = $controller->getApplicantProfile($request);
+        $payload = json_decode($response->getContent(), true);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($payload['success']);
+        $this->assertSame('https://signed.example.test/resume', $payload['data']['profile']['resume_url']);
+        $this->assertSame('https://signed.example.test/photo', $payload['data']['profile']['profile_photo_url']);
+    }
+
     public function test_update_social_links_returns_invalid_url_error(): void
     {
         /** @var ProfileService&MockObject $profileService */

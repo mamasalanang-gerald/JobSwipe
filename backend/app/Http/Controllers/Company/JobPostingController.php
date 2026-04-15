@@ -52,10 +52,6 @@ class JobPostingController extends Controller
             return $this->error('NO_COMPANY_PROFILE', 'No company profile found for this user', 403);
         }
 
-        if ($company->subscription_status !== 'active') {
-            return $this->error('SUBSCRIPTION_REQUIRED', 'An active subscription is required to post jobs.', 402);
-        }
-
         $job = null;
 
         try {
@@ -64,7 +60,17 @@ class JobPostingController extends Controller
                 // both passing the limit check before either increments
                 $locked = CompanyProfile::lockForUpdate()->find($company->id);
 
-                if ($locked->subscription_tier === 'basic' && $locked->active_listings_count >= 5) {
+                if (! $locked) {
+                    throw new \RuntimeException('COMPANY_NOT_FOUND');
+                }
+
+                // Verification gate: company must be admin-approved
+                if ($locked->verification_status !== 'approved') {
+                    throw new \RuntimeException('VERIFICATION_REQUIRED');
+                }
+
+                // Trust-based listing cap
+                if ($locked->active_listings_count >= $locked->listing_cap) {
                     throw new ListingLimitReachedException;
                 }
 
@@ -95,8 +101,17 @@ class JobPostingController extends Controller
 
                 $locked->increment('active_listings_count');
             });
+        } catch (\RuntimeException $e) {
+            if ($e->getMessage() === 'VERIFICATION_REQUIRED') {
+                return $this->error('VERIFICATION_REQUIRED', 'Your company must be verified to post jobs.', 403);
+            }
+            if ($e->getMessage() === 'COMPANY_NOT_FOUND') {
+                return $this->error('NO_COMPANY_PROFILE', 'No company profile found.', 403);
+            }
+
+            throw $e;
         } catch (ListingLimitReachedException) {
-            return $this->error('LISTING_LIMIT_REACHED', 'Active listing limit reached for your subscription tier', 403);
+            return $this->error('LISTING_LIMIT_REACHED', 'Active listing limit reached for your current trust level.', 403);
         }
 
         // Load skills so the response includes them

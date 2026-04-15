@@ -93,4 +93,32 @@ class FileUploadServiceUnitTest extends TestCase
 
         $service->validateFileUrl('https://evil.example.com/file.pdf');
     }
+
+    public function test_generate_presigned_read_url_returns_expected_payload(): void
+    {
+        $service = new FileUploadService;
+
+        $result = $service->generatePresignedReadUrl(
+            'https://cdn.jobswipe.test/document/user-123/resume.pdf'
+        );
+
+        $this->assertArrayHasKey('read_url', $result);
+        $this->assertArrayHasKey('file_key', $result);
+        $this->assertArrayHasKey('expires_in', $result);
+
+        $this->assertSame('document/user-123/resume.pdf', $result['file_key']);
+        $this->assertSame(FileUploadService::PRESIGNED_EXPIRATION_SECONDS, $result['expires_in']);
+        $this->assertStringContainsString('X-Amz-Signature', $result['read_url']);
+    }
+
+    public function test_generate_presigned_read_url_accepts_endpoint_style_url_with_bucket_prefix(): void
+    {
+        $service = new FileUploadService;
+
+        $result = $service->generatePresignedReadUrl(
+            'https://example-r2-endpoint.r2.cloudflarestorage.com/jobswipe-test-bucket/document/user-123/resume.pdf'
+        );
+
+        $this->assertSame('document/user-123/resume.pdf', $result['file_key']);
+    }
 }

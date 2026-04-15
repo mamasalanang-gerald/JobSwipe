@@ -12,6 +12,11 @@ class ApplicationRepository
         return Application::find($id);
     }
 
+    public function findByIdOrFail(string $id): Application
+    {
+        return Application::findOrFail($id);
+    }
+
     public function create(string $applicantId, string $jobPostingId): Application
     {
         return Application::create([
@@ -21,9 +26,9 @@ class ApplicationRepository
         ]);
     }
 
-    public function markInvited(string $applicantId, string $jobPostingId, string $message): void
+    public function markInvited(string $applicantId, string $jobPostingId, string $message): int
     {
-        Application::where('applicant_id', $applicantId)
+        return Application::where('applicant_id', $applicantId)
             ->where('job_posting_id', $jobPostingId)
             ->update([
                 'status' => 'invited',
@@ -112,5 +117,16 @@ class ApplicationRepository
         return Application::where('job_posting_id', $jobPostingId)
             ->where('status', $status)
             ->count();
+    }
+
+    /**
+     * Check if an applicant has applied to at least one job at a company
+     */
+    public function hasAppliedToCompany(string $applicantId, string $companyId): bool
+    {
+        return Application::where('applications.applicant_id', $applicantId)
+            ->join('job_postings', 'applications.job_posting_id', '=', 'job_postings.id')
+            ->where('job_postings.company_id', $companyId)
+            ->exists();
     }
 }

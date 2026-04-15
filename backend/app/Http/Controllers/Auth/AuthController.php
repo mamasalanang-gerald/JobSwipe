@@ -37,12 +37,37 @@ class AuthController extends Controller
                 email: $request->input('email'),
                 password: $request->input('password'),
                 role: $request->input('role'),
+                companyInviteToken: $request->input('company_invite_token'),
             );
 
             if ($result === 'email_taken') {
                 \Log::warning('AuthController: Email already taken', ['email' => $request->input('email')]);
 
                 return $this->error('EMAIL_TAKEN', 'An account already existed with this email', 409);
+            }
+
+            if ($result === 'company_invite_required') {
+                return $this->error(
+                    'COMPANY_INVITE_REQUIRED',
+                    'A company with your email domain already exists. You need an invite to join.',
+                    403
+                );
+            }
+
+            if ($result === 'company_invite_invalid') {
+                return $this->error(
+                    'COMPANY_INVITE_INVALID',
+                    'Invalid or expired company invite token.',
+                    400
+                );
+            }
+
+            if ($result === 'company_invite_role_mismatch') {
+                return $this->error(
+                    'COMPANY_INVITE_ROLE_MISMATCH',
+                    'The invite role does not match your registration role.',
+                    400
+                );
             }
 
             \Log::info('AuthController: Registration successful, verification sent', [

@@ -33,6 +33,7 @@ class RegisterRequest extends FormRequest
                     ->symbols()
                     ->uncompromised(),
             ],
+            'company_invite_token' => ['nullable', 'string', 'max:255'],
         ];
     }
 

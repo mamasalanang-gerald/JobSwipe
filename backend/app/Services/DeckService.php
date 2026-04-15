@@ -13,13 +13,10 @@ use Illuminate\Support\Facades\Redis;
 
 class DeckService
 {
-    private const CANDIDATE_POOL_MULTIPLIER = 5;
-
-    private const MAX_CANDIDATE_POOL = 250;
-
     public function __construct(
         private SwipeCacheRepository $cache,
         private SwipeHistoryRepository $swipeHistory,
+        private TrustScoreService $trustScore,
     ) {}
 
     /**
@@ -37,14 +34,10 @@ class DeckService
         $applicantSkills = $applicantProfile?->skills ?? [];
         $applicantCity = $applicantProfile?->location_city;
 
-        $candidateLimit = min(
-            max($perPage * self::CANDIDATE_POOL_MULTIPLIER, $perPage),
-            self::MAX_CANDIDATE_POOL
-        );
-
         $baseUnseenQuery = $this->unseenJobsQuery($userId);
 
-        // 3. Query a bounded candidate pool using cursor-based pagination
+        // 3. Query exactly one page worth of unseen jobs using cursor pagination.
+        // This avoids skipping jobs when relevance sorting is applied in-memory.
         $query = (clone $baseUnseenQuery)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
@@ -56,11 +49,11 @@ class DeckService
         }
 
         $candidatePool = $query
-            ->limit($candidateLimit + 1)
+            ->limit($perPage + 1)
             ->get();
 
-        $hasMore = $candidatePool->count() > $candidateLimit;
-        $jobs = $candidatePool->take($candidateLimit)->values();
+        $hasMore = $candidatePool->count() > $perPage;
+        $jobs = $candidatePool->take($perPage)->values();
 
         // 4. Calculate relevance score for each job
         $scoredJobs = $jobs->map(function ($job) use ($applicantSkills, $applicantCity) {
@@ -69,20 +62,34 @@ class DeckService
             $locationBonus = $this->calculateLocationBonus($job, $applicantCity);
             $remoteBonus = $job->work_type === 'remote' ? 0.05 : 0;
 
-            $job->relevance_score = ($skillScore * 0.7) + ($recencyScore * 0.3) + $locationBonus + $remoteBonus;
+            // Apply trust-based visibility multiplier
+            $visibilityMultiplier = $this->trustScore->getVisibilityMultiplier($job->company_id);
+            $baseScore = ($skillScore * 0.7) + ($recencyScore * 0.3) + $locationBonus + $remoteBonus;
+            $job->relevance_score = $baseScore * $visibilityMultiplier;
 
             return $job;
         });
 
-        // 5. Sort by relevance score and paginate
-        $sortedJobs = $scoredJobs->sortByDesc('relevance_score')->take($perPage)->values();
+        // 5. Sort this page by relevance for presentation
+        $sortedJobs = $scoredJobs
+            ->sortByDesc('relevance_score')
+            ->values();
 
         $nextCursor = null;
         if ($hasMore && $jobs->isNotEmpty()) {
             $nextCursor = $this->encodeCursor($jobs->last());
         }
 
-        $totalUnseen = (clone $baseUnseenQuery)->count();
+        // Cache total unseen count for 30 seconds to avoid expensive COUNT(*) queries
+        $cacheKey = $this->totalUnseenCacheKey($userId);
+        $totalUnseen = Redis::get($cacheKey);
+
+        if ($totalUnseen === null) {
+            $totalUnseen = (clone $baseUnseenQuery)->count();
+            Redis::setex($cacheKey, 30, $totalUnseen);
+        } else {
+            $totalUnseen = (int) $totalUnseen;
+        }
 
         return [
             'jobs' => $sortedJobs,
@@ -221,6 +228,20 @@ class DeckService
     private function seenJobsSyncKey(string $userId): string
     {
         return "swipe:deck:seen:pgsync:{$userId}";
+    }
+
+    private function totalUnseenCacheKey(string $userId): string
+    {
+        return "deck:total_unseen:{$userId}";
+    }
+
+    /**
+     * Invalidate the total unseen count cache for a user
+     * Called when a user swipes on a job to ensure fresh count
+     */
+    public function invalidateTotalUnseenCache(string $userId): void
+    {
+        Redis::del($this->totalUnseenCacheKey($userId));
     }
 
     private function applyCursor(Builder $query, Carbon $publishedAt, string $jobId): void
