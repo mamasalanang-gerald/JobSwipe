@@ -17,6 +17,7 @@ class SwipeService
         private SwipeHistoryRepository $swipeHistory,
         private ApplicationRepository $applications,
         private MatchService $matchService,
+        private DeckService $deckService,
     ) {}
 
     // ── Applicant swipes right on a job ────────────────────────────────────
@@ -86,6 +87,9 @@ class SwipeService
         $this->cache->markJobSeen($userId, $jobId);
         $this->cache->incrementCounter($userId);
 
+        // Invalidate total unseen count cache since user just swiped
+        $this->deckService->invalidateTotalUnseenCache($userId);
+
         return ['status' => 'applied'];
     }
 
@@ -141,6 +145,9 @@ class SwipeService
         // 5. Update Redis cache
         $this->cache->markJobSeen($userId, $jobId);
         $this->cache->incrementCounter($userId);
+
+        // Invalidate total unseen count cache since user just swiped
+        $this->deckService->invalidateTotalUnseenCache($userId);
 
         return ['status' => 'dismissed'];
     }

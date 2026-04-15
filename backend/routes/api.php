@@ -35,8 +35,8 @@ Route::middleware('throttle:api-tiered')->group(function () {
 
     Route::prefix('v1')->group(function () {
         Route::post('auth/register', [AuthController::class, 'register']);
-        Route::post('auth/login', [AuthController::class, 'login']);
-        Route::post('auth/verify-email', [AuthController::class, 'verifyEmail']);
+        Route::post('auth/login', [AuthController::class, 'login'])->middleware('throttle:5,1');
+        Route::post('auth/verify-email', [AuthController::class, 'verifyEmail'])->middleware('throttle:3,1');
         Route::post('auth/resend-verification', [AuthController::class, 'resendVerification']);
 
         Route::post('auth/forgot-password', [AuthController::class, 'forgotPassword']);
@@ -44,6 +44,9 @@ Route::middleware('throttle:api-tiered')->group(function () {
 
         Route::get('auth/google/redirect', [OAuthController::class, 'redirectToGoogle']);
         Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback']);
+
+        // Public company invite validation (for registration flow)
+        Route::post('company/invites/validate', [\App\Http\Controllers\Company\CompanyInviteController::class, 'validate']);
 
         Route::post('webhooks/stripe', [SubscriptionController::class, 'handleWebhook']);
         Route::post('webhooks/apple-iap', [AppleWebhookController::class, 'handleNotification']);
@@ -127,6 +130,13 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::get('{applicantId}', [ApplicantReviewController::class, 'getApplicantDetail']);
                     Route::post('{applicantId}/right', [ApplicantReviewController::class, 'swipeRight']);
                     Route::post('{applicantId}/left', [ApplicantReviewController::class, 'swipeLeft']);
+                });
+
+                // Company invites (admin only)
+                Route::middleware('role:company_admin')->prefix('invites')->group(function () {
+                    Route::post('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'store']);
+                    Route::get('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'index']);
+                    Route::delete('{inviteId}', [\App\Http\Controllers\Company\CompanyInviteController::class, 'destroy']);
                 });
             });
 

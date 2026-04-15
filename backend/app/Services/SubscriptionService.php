@@ -21,9 +21,14 @@ class SubscriptionService
 
     private const CHECKOUT_IDEMPOTENCY_PENDING_TIMEOUT_SECONDS = 30;
 
+    protected TrustScoreService $trustScoreService;
+
     public function __construct(
         private CompanyProfileRepository $companyProfiles,
-    ) {}
+        TrustScoreService $trustScoreService
+    ) {
+        $this->trustScoreService = $trustScoreService;
+    }
 
     public function createCheckoutSession(
         User $user,
@@ -149,6 +154,8 @@ class SubscriptionService
             'subscription_status' => 'active',
         ]);
 
+        $this->trustScoreService->recalculate($companyProfile->id);
+
         $subscription = Subscription::query()
             ->where('user_id', $user->id)
             ->where('payment_provider', 'stripe')
@@ -213,6 +220,7 @@ class SubscriptionService
 
         DB::transaction(function () use ($companyProfile, $user): void {
             $this->companyProfiles->update($companyProfile, [
+                'subscription_tier' => 'free',
                 'subscription_status' => 'cancelled',
             ]);
 
@@ -226,6 +234,8 @@ class SubscriptionService
                     'stripe_status' => 'canceled',
                 ]);
         });
+
+        $this->trustScoreService->recalculate($companyProfile->id);
     }
 
     public function handleSubscriptionUpdated(array $event): void
@@ -316,8 +326,10 @@ class SubscriptionService
 
                 $this->companyProfiles->update($companyProfile, [
                     'subscription_status' => $companySubscriptionStatus,
-                    'subscription_tier' => $companySubscriptionStatus === 'active' ? 'basic' : $companyProfile->subscription_tier,
+                    'subscription_tier' => $companySubscriptionStatus === 'active' ? 'basic' : 'free',
                 ]);
+
+                $this->trustScoreService->recalculate($companyProfile->id);
             }
 
             $this->markWebhookEventCompleted($eventRecordId);
@@ -332,7 +344,7 @@ class SubscriptionService
     {
         $companyProfile = $this->companyProfiles->findByUserId($user->id);
 
-        return $companyProfile?->subscription_status === 'active';
+        return $companyProfile !== null && $companyProfile->canPostJobs();
     }
 
     public function getSubscriptionStatus(User $user): array
@@ -346,7 +358,10 @@ class SubscriptionService
         return [
             'tier' => $companyProfile->subscription_tier,
             'status' => $companyProfile->subscription_status,
-            'can_post_jobs' => $companyProfile->subscription_status === 'active',
+            'can_post_jobs' => $companyProfile->canPostJobs(),
+            'verification_status' => $companyProfile->verification_status,
+            'listing_cap' => $companyProfile->listing_cap,
+            'active_listings_count' => $companyProfile->active_listings_count,
         ];
     }
 

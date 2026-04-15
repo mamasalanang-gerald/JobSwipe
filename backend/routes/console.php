@@ -44,3 +44,17 @@ Schedule::job(new MatchReminderJob)
     ->everyFifteenMinutes()
     ->name('match-reminders')
     ->withoutOverlapping();
+
+// ── Trust Score System Scheduled Commands ─────────────────────────────
+// Recalculate all company trust scores monthly (1st of month at 2am)
+Schedule::command('trust:refresh')
+    ->monthlyOn(1, '02:00')
+    ->timezone(config('app.timezone'))
+    ->name('refresh-trust-scores')
+    ->withoutOverlapping();
+// Award clean month bonus to companies with no incidents (1st of month at 3am)
+Schedule::command('trust:clean-month')
+    ->monthlyOn(1, '03:00')
+    ->timezone(config('app.timezone'))
+    ->name('award-clean-month-bonus')
+    ->withoutOverlapping();

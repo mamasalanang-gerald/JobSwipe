@@ -10,9 +10,10 @@
 2. [Prerequisites](#2-prerequisites)
 3. [Local Development Setup](#3-local-development-setup)
 4. [Production Setup (AWS EC2)](#4-production-setup-aws-ec2)
-5. [Verifying the Environment](#5-verifying-the-environment)
-6. [Testing Tool Configurations](#6-testing-tool-configurations)
-7. [Troubleshooting](#7-troubleshooting)
+5. [Laravel Reverb (WebSocket Server)](#5-laravel-reverb-websocket-server)
+6. [Verifying the Environment](#6-verifying-the-environment)
+7. [Testing Tool Configurations](#7-testing-tool-configurations)
+8. [Troubleshooting](#8-troubleshooting)
 
 ---
 
@@ -43,6 +44,7 @@
 | **Frontend** | `http://localhost:3000` | `https://jobswipe.site` |
 | **Services** | Docker Compose | Docker Compose + Nginx + SSL |
 | **Queue** | `sync` (inline) | `redis` (Horizon worker) |
+| **WebSocket** | `reverb` on `:8001` (manual) | `reverb` on `:6001` (supervisord) |
 | **Mail** | `log` (storage/logs) | SMTP / SendGrid |
 | **Debug** | `APP_DEBUG=true` | `APP_DEBUG=false` |
 
@@ -179,6 +181,22 @@ GOOGLE_REDIRECT_URI=http://localhost:8000/api/v1/auth/google/callback
 FRONTEND_WEB_URL=http://localhost:3000
 FRONTEND_MOBILE_URL=http://localhost:8080
 
+# ── Laravel Reverb (WebSocket) ───────────────
+# Set BROADCAST_CONNECTION=reverb to enable WebSocket broadcasting
+# Default is 'null' (disabled). Change when you need real-time messaging.
+BROADCAST_CONNECTION=reverb
+
+REVERB_APP_ID=jobswipe-local
+REVERB_APP_KEY=local-reverb-key
+REVERB_APP_SECRET=local-reverb-secret
+REVERB_HOST=localhost
+REVERB_PORT=8001
+REVERB_SCHEME=http
+
+# Reverb server bind settings (inside the container)
+REVERB_SERVER_HOST=0.0.0.0
+REVERB_SERVER_PORT=8001
+
 # ── Logging ──────────────────────────────────
 LOG_CHANNEL=stderr
 LOG_LEVEL=debug
@@ -199,6 +217,7 @@ This starts:
 | MongoDB 7 | `jobapp_mongodb` | `27017:27017` | Document store |
 | Redis 7 | `jobapp_redis` | `6379:6379` | Cache + sessions |
 | Laravel | `jobapp_laravel` | `8000:8000` | Backend API |
+| Reverb | *(manual, see §3.9)* | `8001:8001` | WebSocket server |
 | Redis Commander | `jobapp_redis_commander` | `8081:8081` | Redis GUI |
 | Mongo Express | `jobapp_mongo_express` | `8082:8081` | MongoDB GUI |
 
@@ -258,6 +277,34 @@ docker exec jobapp_laravel php artisan optimize:clear
 |----|-----|---------|
 | Redis Commander | [http://localhost:8081](http://localhost:8081) | Browse Redis keys, swipe caches, sessions |
 | Mongo Express | [http://localhost:8082](http://localhost:8082) | Browse MongoDB collections, swipe history, profiles |
+
+### 3.9 Starting Laravel Reverb (WebSocket) — Dev
+
+> [!NOTE]
+> Reverb is **not started automatically** by the dev Docker Compose. It must be run as a separate process. `BROADCAST_CONNECTION` defaults to `null` — you must change it to `reverb` in `.env` first, then restart the Laravel container before starting Reverb.
+
+```bash
+# Step 1: Ensure BROADCAST_CONNECTION=reverb is set in your .env, then:
+docker compose restart laravel
+
+# Step 2: Start the Reverb WebSocket server inside the container
+docker exec jobapp_laravel php artisan reverb:start \
+  --host=0.0.0.0 \
+  --port=8001 \
+  --debug
+
+# The server listens on ws://localhost:8001
+# Clients connect using REVERB_APP_KEY, REVERB_HOST=localhost, REVERB_PORT=8001
+```
+
+**To keep Reverb running in the background during dev**, open a dedicated terminal tab for it. It will stream connection logs there.
+
+**Quick test** — once running, send a test message and watch it broadcast:
+```bash
+# In a second terminal, trigger a broadcast via tinker
+docker exec -it jobapp_laravel php artisan tinker
+# >>> broadcast(new \App\Events\MatchMessageSent(...));
+```
 
 ---
 
@@ -425,6 +472,20 @@ SESSION_DOMAIN=.jobswipe.site
 # ── Horizon ──────────────────────────────────
 HORIZON_PREFIX=horizon:
 
+# ── Laravel Reverb (WebSocket) ───────────────
+BROADCAST_CONNECTION=reverb
+
+REVERB_APP_ID=jobswipe-prod
+REVERB_APP_KEY=GENERATE_RANDOM_32_CHAR_STRING
+REVERB_APP_SECRET=GENERATE_RANDOM_32_CHAR_STRING
+REVERB_HOST=api.jobswipe.site
+REVERB_PORT=443
+REVERB_SCHEME=https
+
+# Reverb server binds internally on 6001; Nginx proxies 443 → 6001
+REVERB_SERVER_HOST=0.0.0.0
+REVERB_SERVER_PORT=6001
+
 # ── Logging ──────────────────────────────────
 LOG_CHANNEL=stderr
 LOG_LEVEL=info
@@ -488,6 +549,7 @@ This starts:
 | Redis 7 | `jobapp_redis` | `6379` | Cache + queue |
 | Backend (PHP-FPM + Nginx) | `jobapp_backend` | `8080` | API server |
 | Horizon Worker | `jobapp_horizon` | — | Async queue processing |
+| **Reverb Worker** | `jobapp_reverb` | `6001` | WebSocket server |
 | Frontend (Next.js) | `jobapp_frontend` | `3000` | Web app |
 
 ### 4.9 Run Migrations (First Deploy Only)
@@ -500,7 +562,141 @@ docker exec jobapp_backend php artisan mongo:setup
 
 ---
 
-## 5. Verifying the Environment
+## 5. Laravel Reverb (WebSocket Server)
+
+### 5.1 Current State
+
+> [!WARNING]
+> Reverb is **installed but not running** anywhere in the current setup. `BROADCAST_CONNECTION` defaults to `null`, which means all WebSocket events (`MatchMessageSent`, `MatchTypingIndicator`, `MatchReadReceipt`) are silently dropped. You must explicitly enable and start it.
+
+### 5.2 Enabling Reverb
+
+Set the following in your `.env` (both dev and prod):
+
+```env
+BROADCAST_CONNECTION=reverb   # Was 'null' — this is the critical switch
+```
+
+Then generate credentials:
+
+```bash
+# Generate REVERB_APP_KEY and REVERB_APP_SECRET (32-char random strings)
+openssl rand -hex 16   # Use output for REVERB_APP_KEY
+openssl rand -hex 16   # Use output for REVERB_APP_SECRET
+# REVERB_APP_ID can be any string, e.g. "jobswipe-prod"
+```
+
+### 5.3 Starting Reverb — Local Dev
+
+```bash
+# Inside the running container
+docker exec jobapp_laravel php artisan reverb:start \
+  --host=0.0.0.0 \
+  --port=8001 \
+  --debug
+
+# WebSocket clients connect to: ws://localhost:8001/app/{REVERB_APP_KEY}
+```
+
+### 5.4 Adding Reverb to Production Docker Compose
+
+Add this service to `docker-compose.prod.yml`:
+
+```yaml
+  reverb:
+    image: ${BACKEND_IMAGE:-gm1026/jobapp-backend}:${BACKEND_TAG:-latest}
+    container_name: jobapp_reverb
+    restart: unless-stopped
+    command: php artisan reverb:start --host=0.0.0.0 --port=6001
+    environment:
+      APP_NAME: ${APP_NAME:-JobSwipe}
+      APP_ENV: production
+      APP_KEY: ${APP_KEY}
+      APP_DEBUG: false
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${DB_DATABASE:-jobapp}
+      DB_USERNAME: ${DB_USERNAME:-jobapp}
+      DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      REDIS_PORT: 6379
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID}
+      REVERB_APP_KEY: ${REVERB_APP_KEY}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET}
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 6001
+    ports:
+      - "6001:6001"
+    networks:
+      - jobapp_network
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_healthy
+```
+
+Then start it:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d reverb
+docker logs jobapp_reverb --tail=20  # Verify it started
+```
+
+### 5.5 Nginx WebSocket Proxy (Production)
+
+Add a WebSocket location block to `/etc/nginx/sites-available/jobapp` inside the `api.jobswipe.site` server block:
+
+```nginx
+# Inside the api.jobswipe.site server block
+# WebSocket endpoint for Reverb
+location /app {
+    proxy_pass http://localhost:6001;  # Reverb container port
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 3600s;  # Keep WS connections alive
+    proxy_send_timeout 3600s;
+}
+```
+
+After editing, reload nginx:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Clients then connect to: `wss://api.jobswipe.site/app/{REVERB_APP_KEY}`
+
+### 5.6 Verify Reverb is Working
+
+```bash
+# Dev — check the Reverb process output for connection logs
+# You should see: "Server running on 0.0.0.0:8001"
+
+# Prod — check logs
+docker logs jobapp_reverb --tail=50 -f
+
+# Quick WS connectivity test (install wscat: npm i -g wscat)
+wscat -c "ws://localhost:8001/app/local-reverb-key?protocol=7&client=js&version=8.0.0&flash=false"
+# Prod:
+wscat -c "wss://api.jobswipe.site/app/YOUR_REVERB_APP_KEY?protocol=7&client=js&version=8.0.0&flash=false"
+
+# Trigger a real broadcast via tinker
+docker exec -it jobapp_laravel php artisan tinker
+# >>> \Illuminate\Support\Facades\Broadcast::channel('test', fn() => true);
+```
+
+---
+
+## 6. Verifying the Environment
 
 ### Local
 
@@ -537,7 +733,7 @@ docker logs jobapp_horizon --tail=50
 
 ---
 
-## 6. Testing Tool Configurations
+## 7. Testing Tool Configurations
 
 ### Postman / Insomnia Setup
 
@@ -570,7 +766,7 @@ curl -s "${BASE_URL}/auth/me" \
 
 ---
 
-## 7. Troubleshooting
+## 8. Troubleshooting
 
 ### Common Issues
 
@@ -586,6 +782,9 @@ curl -s "${BASE_URL}/auth/me" \
 | `500` on webhook | Missing `STRIPE_WEBHOOK_SECRET` | Set it from `stripe listen` output (dev) or Stripe Dashboard (prod) |
 | Horizon not processing jobs | `QUEUE_CONNECTION=sync` | Set to `redis` in prod; dev uses `sync` intentionally |
 | SSL cert errors | DNS not propagated | Wait for DNS, verify with `dig api.jobswipe.site` |
+| WebSocket events not received | `BROADCAST_CONNECTION=null` | Set to `reverb` in `.env` and start the Reverb process |
+| Reverb `401 Forbidden` on WS connect | Wrong `REVERB_APP_KEY` | Ensure client key matches `REVERB_APP_KEY` in `.env` |
+| WS connection drops immediately | `proxy_read_timeout` too short in nginx | Set `proxy_read_timeout 3600s` in the `/app` location block |
 
 ### Useful Debug Commands
 

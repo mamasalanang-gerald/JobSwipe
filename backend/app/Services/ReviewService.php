@@ -45,18 +45,22 @@ class ReviewService
 
         // Generate UUID
         $reviewId = Str::uuid()->toString();
-
-        // Create PostgreSQL record
-        $pgReview = $this->pgReviewRepository->create([
-            'id' => $reviewId,
-            'applicant_id' => $applicantId,
-            'company_id' => $data['company_id'],
-            'job_posting_id' => $data['job_posting_id'],
-            'is_flagged' => false,
-            'is_visible' => true,
-        ]);
+        $mongoReview = null;
 
         try {
+            // Use PostgreSQL transaction for atomicity
+            \DB::beginTransaction();
+
+            // Create PostgreSQL record
+            $pgReview = $this->pgReviewRepository->create([
+                'id' => $reviewId,
+                'applicant_id' => $applicantId,
+                'company_id' => $data['company_id'],
+                'job_posting_id' => $data['job_posting_id'],
+                'is_flagged' => false,
+                'is_visible' => true,
+            ]);
+
             // Create MongoDB document
             $mongoReview = $this->mongoReviewRepository->create([
                 'review_id' => $reviewId,
@@ -71,14 +75,50 @@ class ReviewService
             // Link PostgreSQL to MongoDB
             $this->pgReviewRepository->updateMongoReviewId($reviewId, (string) $mongoReview->_id);
 
+            // Commit PostgreSQL transaction
+            \DB::commit();
+
         } catch (Exception $e) {
-            // Rollback PostgreSQL if MongoDB fails
-            $this->pgReviewRepository->delete($pgReview);
+            // Rollback PostgreSQL transaction
+            \DB::rollBack();
+
+            // Clean up MongoDB if it was created
+            if ($mongoReview !== null) {
+                try {
+                    $this->mongoReviewRepository->deleteByReviewId($reviewId);
+                } catch (Exception $cleanupException) {
+                    // Log cleanup failure but don't mask original exception
+                    \Log::error('Failed to cleanup MongoDB review after transaction rollback', [
+                        'review_id' => $reviewId,
+                        'error' => $cleanupException->getMessage(),
+                    ]);
+                }
+            }
+
             throw $e;
         }
 
-        // Notify company
-        $this->notificationService->notifyCompanyOfReview($data['company_id'], $reviewId);
+        // Notify company (outside transaction - non-critical)
+        try {
+            $this->notificationService->notifyCompanyOfReview($data['company_id'], $reviewId);
+        } catch (Exception $e) {
+            \Log::error('Failed to notify company of review', [
+                'review_id' => $reviewId,
+                'company_id' => $data['company_id'],
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        // Recalculate trust score (outside transaction - can be async)
+        try {
+            app(\App\Services\TrustScoreService::class)->recalculate($data['company_id']);
+        } catch (Exception $e) {
+            \Log::error('Failed to recalculate trust score after review', [
+                'review_id' => $reviewId,
+                'company_id' => $data['company_id'],
+                'error' => $e->getMessage(),
+            ]);
+        }
 
         // Return merged data
         return [

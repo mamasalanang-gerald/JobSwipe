@@ -2,12 +2,21 @@
 
 namespace App\Models\PostgreSQL;
 
+use Database\Factories\ApplicantProfileFactory;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ApplicantProfile extends Model
 {
+    use HasFactory;
+
+    protected static function newFactory(): ApplicantProfileFactory
+    {
+        return ApplicantProfileFactory::new();
+    }
+
     protected $connection = 'pgsql';
 
     protected $table = 'applicant_profiles';

@@ -18,13 +18,17 @@ class AuthService
         private ProfileService $profiles,
         private TokenService $tokens,
         private PasswordResetService $passwordResetService,
+        private CompanyEmailValidator $emailValidator,
+        private CompanyInvitationService $invitations,
+        private CompanyMembershipService $memberships,
     ) {}
 
-    public function initiateRegistration(string $email, string $password, string $role): string
+    public function initiateRegistration(string $email, string $password, string $role, ?string $companyInviteToken = null): string
     {
         Log::info('AuthService: Starting registration', [
             'email' => $email,
             'role' => $role,
+            'has_invite_token' => $companyInviteToken !== null,
         ]);
 
         if ($this->users->emailExists($email)) {
@@ -33,10 +37,50 @@ class AuthService
             return 'email_taken';
         }
 
+        // For HR/company_admin roles, check if invite is required
+        if (in_array($role, ['hr', 'company_admin'], true)) {
+            $domain = $this->emailValidator->extractDomain($email);
+            $existingCompany = app(\App\Repositories\PostgreSQL\CompanyProfileRepository::class)
+                ->findByDomain($domain);
+
+            if ($existingCompany) {
+                // Domain already has a company - invite is required
+                if (! $companyInviteToken) {
+                    Log::warning('AuthService: Company invite required', [
+                        'email' => $email,
+                        'domain' => $domain,
+                    ]);
+
+                    return 'company_invite_required';
+                }
+
+                // Validate the invite token
+                $invite = $this->invitations->resolvePendingInvite($email, $companyInviteToken);
+
+                if (! $invite) {
+                    Log::warning('AuthService: Invalid company invite', [
+                        'email' => $email,
+                    ]);
+
+                    return 'company_invite_invalid';
+                }
+
+                if ($invite->invite_role !== $role) {
+                    Log::warning('AuthService: Company invite role mismatch', [
+                        'email' => $email,
+                        'expected_role' => $role,
+                        'invite_role' => $invite->invite_role,
+                    ]);
+
+                    return 'company_invite_role_mismatch';
+                }
+            }
+        }
+
         $passwordHash = Hash::make($password, ['rounds' => config('hashing.bcrypt.rounds', 10)]);
 
         try {
-            $this->otp->sendOtp($email, $passwordHash, $role);
+            $this->otp->sendOtp($email, $passwordHash, $role, $companyInviteToken);
             Log::info('AuthService: OTP sent successfully', ['email' => $email]);
         } catch (Exception $e) {
             Log::error('AuthService: Failed to send OTP', [
@@ -64,8 +108,10 @@ class AuthService
             return ['status' => 'expired'];
         }
 
+        $companyInviteToken = $storedData['company_invite_token'] ?? null;
+
         // Use transaction to ensure atomicity
-        DB::transaction(function () use ($email, $storedData, &$user, &$token) {
+        DB::transaction(function () use ($email, $storedData, $companyInviteToken, &$user, &$token) {
             // Create user with stored password hash
             $user = $this->users->create([
                 'email' => strtolower(trim($email)),
@@ -74,8 +120,37 @@ class AuthService
                 'email_verified_at' => now(),
             ]);
 
-            // Create profile
-            $this->profiles->createProfileForUser($user);
+            // Handle company invite acceptance if present
+            if ($companyInviteToken && in_array($user->role, ['hr', 'company_admin'], true)) {
+                try {
+                    $this->invitations->acceptInviteForUser(
+                        $email,
+                        $companyInviteToken,
+                        $user->id,
+                        $user->role
+                    );
+
+                    // Don't create a new profile - user is joining existing company
+                    Log::info('AuthService: User joined company via invite', [
+                        'user_id' => $user->id,
+                        'email' => $email,
+                    ]);
+                } catch (\InvalidArgumentException $e) {
+                    Log::error('AuthService: Failed to accept invite', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    throw $e;
+                }
+            } else {
+                // Create profile for new user (no invite)
+                $this->profiles->createProfileForUser($user);
+
+                // Extract and store company email domain for trust scoring
+                if (in_array($user->role, ['hr', 'company_admin'], true)) {
+                    $this->profiles->setCompanyEmailDomain($user->id, $email);
+                }
+            }
 
             // Generate token
             $token = $this->tokens->generateToken($user);

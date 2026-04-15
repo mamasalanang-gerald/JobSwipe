@@ -27,7 +27,9 @@ class MatchRepository
     {
         return MatchRecord::where('id', $id)
             ->lockForUpdate()
+            ->with(['applicant'])
             ->firstOrFail();
+
     }
 
     public function findByApplicationId(string $applicationId): ?MatchRecord
