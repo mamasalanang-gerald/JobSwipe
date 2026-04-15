@@ -3,6 +3,7 @@
 namespace App\Repositories\PostgreSQL;
 
 use App\Models\PostgreSQL\CompanyProfile;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
 
 class CompanyProfileRepository
@@ -90,5 +91,27 @@ class CompanyProfileRepository
         CompanyProfile::where('id', $companyId)
             ->where('active_listings_count', '>', 0)
             ->decrement('active_listings_count');
+    }
+
+    public function paginateByVerificationStatus(string $status, int $perPage = 20): LengthAwarePaginator
+    {
+        return CompanyProfile::where('verification_status', $status)
+            ->orderBy('updated_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    public function countByVerificationStatus(string $status): int
+    {
+        return CompanyProfile::where('verification_status', $status)->count();
+    }
+
+    public function countVerified(): int
+    {
+        return CompanyProfile::where('is_verified', true)->count();
+    }
+
+    public function countTotal(): int
+    {
+        return CompanyProfile::count();
     }
 }
