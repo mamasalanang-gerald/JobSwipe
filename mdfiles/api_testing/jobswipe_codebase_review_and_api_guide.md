@@ -76,6 +76,7 @@ The codebase is **well above average** for a startup project. There is a clear a
 > - ~~Hidden dependencies via `app()` container calls~~ → **Fixed.** `TrustScoreService` registered as singleton and injected via constructor DI everywhere; `app()` container calls removed.
 > - ~~Eager loading during locked queries~~ → **Fixed.** `findByIdOrFailForUpdate()` now chains `->with(['applicant'])` on the same locked query, co-fetching the relationship atomically before the lock is held by the caller.
 > - ~~No rate limiting on auth endpoints~~ → **Fixed.** `POST auth/login` is decorated with `throttle:5,1` (5 req/min) and `POST auth/verify-email` with `throttle:3,1` (3 req/min) in `api.php`, stacking on top of the global tiered limiter.
+> - ~~Missing Soft Deletes on JobPosting~~ → **Fixed.** `JobPosting` model now uses the `SoftDeletes` trait, `deleted_at` field, and explicitly excludes soft-deleted jobs in active queries, ensuring referential integrity for applications and match history.
 
 ---
 
@@ -113,9 +114,6 @@ enum MatchStatus: string {
 
 ---
 
-#### 🟡 Medium — Missing Soft Deletes
-
-`JobPosting::destroy()` uses hard-delete. For a production app handling legal/audit concerns (completed applications, match history referencing deleted jobs), you should soft-delete and cascade visibility checks.
 
 ---
 
@@ -242,7 +240,7 @@ Content-Type: application/json
 
 {
   "email": "applicant@gmail.com",
-  "password": "TW0@t3st!erApplicant",
+  "password": "StrongP@ss123",
   "role": "applicant"
 }
 ```
@@ -271,7 +269,7 @@ POST /v1/auth/register
 
 {
   "email": "hr@acme-corp.com",
-  "password": "TW0@t3st!erCompany",
+  "password": "StrongP@ss123",
   "role": "company_admin"
 }
 ```
@@ -330,7 +328,7 @@ POST /v1/auth/login
 
 {
   "email": "applicant@gmail.com",
-  "password": "TW0@t3st!erLogin"
+  "password": "StrongP@ss123"
 }
 ```
 
@@ -354,7 +352,7 @@ POST /v1/auth/reset-password
 {
   "email": "applicant@gmail.com",
   "code": "123456",
-  "password": "TW0@t3st!erNewReset"
+  "password": "NewP@ss456"
 }
 ```
 

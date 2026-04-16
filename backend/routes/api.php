@@ -127,6 +127,7 @@ Route::middleware('throttle:api-tiered')->group(function () {
             Route::middleware('role:hr,company_admin')->prefix('company')->group(function () {
                 Route::apiResource('jobs', JobPostingController::class);
                 Route::post('jobs/{id}/close', [JobPostingController::class, 'close']);
+                Route::post('jobs/{id}/restore', [JobPostingController::class, 'restore']);
 
                 Route::prefix('jobs/{jobId}/applicants')->group(function () {
                     Route::get('/', [ApplicantReviewController::class, 'getApplicants']);
@@ -196,6 +197,9 @@ Route::middleware('throttle:api-tiered')->group(function () {
                 Route::delete('{id}', [AdminReviewController::class, 'remove']);
             });
 
+            // ── Admin Job Posting Management ──────────────────────────────────
+            Route::middleware('role:moderator,super_admin')->prefix('admin/jobs')->group(function () {
+                Route::delete('{id}/force', [JobPostingController::class, 'forceDestroy']);
             // ── Admin: Verification, User lookup, Dashboard (moderator + super_admin) ──
             Route::middleware('role:moderator,super_admin')->prefix('admin')->group(function () {
                 Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
