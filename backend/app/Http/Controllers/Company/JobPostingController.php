@@ -209,9 +209,9 @@ class JobPostingController extends Controller
     /**
      * DELETE /api/v1/company/jobs/{id}
      *
-     * Permanently remove a closed or expired posting.
+     * Soft delete a closed or expired posting with audit trail.
      * Active postings must be closed first to keep counters consistent.
-     * Skills cascade-delete via the foreign key constraint in the migration.
+     * Soft-deleted jobs remain in the database for audit/compliance purposes.
      */
     public function destroy(Request $request, string $id): JsonResponse
     {
@@ -225,9 +225,66 @@ class JobPostingController extends Controller
             return $this->error('INVALID_STATUS', 'Cannot delete an active job posting. Close it first.', 422);
         }
 
-        $job->delete();
+        // Soft delete with audit information
+        $job->deleted_by = $request->user()->id;
+        $job->deletion_reason = $request->input('reason'); // Optional reason
+        $job->save();
+        $job->delete(); // Soft delete
 
-        return $this->success(message: 'Job posting deleted');
+        return $this->success(message: 'Job posting deleted successfully');
+    }
+
+    /**
+     * POST /api/v1/company/jobs/{id}/restore
+     *
+     * Restore a soft-deleted job posting.
+     * Only the owning company can restore their deleted jobs.
+     * Restored jobs return to their previous status (closed/expired).
+     */
+    public function restore(Request $request, string $id): JsonResponse
+    {
+        $job = JobPosting::onlyTrashed()->findOrFail($id);
+
+        if (! $this->ownsJob($request, $job)) {
+            return $this->error('UNAUTHORIZED', 'Not authorized to restore this job posting', 403);
+        }
+
+        $job->restore();
+
+        // Clear audit fields
+        $job->update([
+            'deleted_by' => null,
+            'deletion_reason' => null,
+        ]);
+
+        $job->load('skills');
+
+        return $this->success(data: $job, message: 'Job posting restored successfully');
+    }
+
+    /**
+     * DELETE /api/v1/company/jobs/{id}/force
+     *
+     * Permanently delete a job posting (hard delete).
+     * This is irreversible and should only be used by admins for compliance reasons.
+     * Requires super_admin or moderator role.
+     */
+    public function forceDestroy(Request $request, string $id): JsonResponse
+    {
+        // Only admins can force delete
+        if (! in_array($request->user()->role, ['super_admin', 'moderator'])) {
+            return $this->error('UNAUTHORIZED', 'Only administrators can permanently delete job postings', 403);
+        }
+
+        $job = JobPosting::withTrashed()->findOrFail($id);
+
+        // Remove from search index if it was indexed
+        $job->unsearchable();
+
+        // Permanently delete
+        $job->forceDelete();
+
+        return $this->success(message: 'Job posting permanently deleted');
     }
 
     /**

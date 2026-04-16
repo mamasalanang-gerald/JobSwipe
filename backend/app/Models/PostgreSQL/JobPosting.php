@@ -7,12 +7,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 use Laravel\Scout\Searchable;
 
 class JobPosting extends Model
 {
-    use HasFactory, Searchable;  // Meilisearch via Laravel Scout
+    use HasFactory, Searchable, SoftDeletes;  // Added SoftDeletes
+    protected $dates = ['deleted_at'];
 
     protected static function newFactory(): JobPostingFactory
     {
@@ -43,12 +45,14 @@ class JobPosting extends Model
         'salary_is_hidden', 'work_type', 'location', 'location_city',
         'location_region', 'lat', 'lng', 'interview_template',
         'status', 'expires_at', 'published_at',
+        'deleted_by', 'deletion_reason',
     ];
 
     protected $casts = [
         'salary_is_hidden' => 'boolean',
         'expires_at' => 'datetime',
         'published_at' => 'datetime',
+        'deleted_at' => 'datetime',
     ];
 
     public function company(): BelongsTo
@@ -64,6 +68,11 @@ class JobPosting extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class, 'job_posting_id');
+    }
+
+    public function deletedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'deleted_by');
     }
 
     // Meilisearch: define what gets indexed
@@ -85,6 +94,15 @@ class JobPosting extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active')
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()));
+            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
+            ->whereNull('deleted_at'); // Explicitly exclude soft-deleted jobs
+    }
+
+    /**
+     * Scope to include soft-deleted jobs for admin views
+     */
+    public function scopeWithDeleted($query)
+    {
+        return $query->withTrashed();
     }
 }
