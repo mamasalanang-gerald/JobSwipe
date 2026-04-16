@@ -14,6 +14,7 @@ use Laravel\Scout\Searchable;
 class JobPosting extends Model
 {
     use HasFactory, Searchable, SoftDeletes;  // Added SoftDeletes
+
     protected $dates = ['deleted_at'];
 
     protected static function newFactory(): JobPostingFactory

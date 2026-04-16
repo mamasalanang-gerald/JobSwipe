@@ -14,7 +14,7 @@ return new class extends Migration
             $table->softDeletes(); // Adds deleted_at timestamp
             $table->uuid('deleted_by')->nullable(); // Track who deleted it
             $table->text('deletion_reason')->nullable(); // Optional reason for deletion
-            
+
             $table->foreign('deleted_by')->references('id')->on('users')->onDelete('set null');
         });
 
