@@ -81,4 +81,14 @@ class JobPostingRepository
 
         return $query->get();
     }
+
+    public function countTotal(): int
+    {
+        return JobPosting::count();
+    }
+
+    public function countActive(): int
+    {
+        return JobPosting::active()->count();
+    }
 }

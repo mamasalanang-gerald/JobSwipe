@@ -65,4 +65,14 @@ class CompanyReviewRepository
         CompanyReview::where('id', $reviewId)
             ->update(['mongo_review_id' => $mongoReviewId]);
     }
+
+    public function countTotal(): int
+    {
+        return CompanyReview::count();
+    }
+
+    public function countFlagged(): int
+    {
+        return CompanyReview::where('is_flagged', true)->count();
+    }
 }
