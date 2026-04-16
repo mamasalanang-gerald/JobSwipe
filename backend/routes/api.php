@@ -1,6 +1,9 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminCompanyVerificationController;
+use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminReviewController;
+use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Applicant\ApplicationController;
 use App\Http\Controllers\Applicant\MatchController as ApplicantMatchController;
 use App\Http\Controllers\Applicant\SwipeController;
@@ -197,6 +200,25 @@ Route::middleware('throttle:api-tiered')->group(function () {
             // ── Admin Job Posting Management ──────────────────────────────────
             Route::middleware('role:moderator,super_admin')->prefix('admin/jobs')->group(function () {
                 Route::delete('{id}/force', [JobPostingController::class, 'forceDestroy']);
+            // ── Admin: Verification, User lookup, Dashboard (moderator + super_admin) ──
+            Route::middleware('role:moderator,super_admin')->prefix('admin')->group(function () {
+                Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
+
+                Route::prefix('companies/verifications')->group(function () {
+                    Route::get('/', [AdminCompanyVerificationController::class, 'index']);
+                    Route::get('{companyId}', [AdminCompanyVerificationController::class, 'show']);
+                    Route::post('{companyId}/approve', [AdminCompanyVerificationController::class, 'approve']);
+                    Route::post('{companyId}/reject', [AdminCompanyVerificationController::class, 'reject']);
+                });
+
+                Route::get('users', [AdminUserController::class, 'index']);
+                Route::get('users/{id}', [AdminUserController::class, 'show']);
+            });
+
+            // ── Admin: Destructive user actions (super_admin only) ────────────
+            Route::middleware('role:super_admin')->prefix('admin')->group(function () {
+                Route::post('users/{id}/ban', [AdminUserController::class, 'ban']);
+                Route::post('users/{id}/unban', [AdminUserController::class, 'unban']);
             });
         });
     });

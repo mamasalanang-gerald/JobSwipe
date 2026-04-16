@@ -18,6 +18,7 @@ use App\Repositories\PostgreSQL\PointEventRepository;
 use App\Repositories\PostgreSQL\UserRepository;
 use App\Repositories\Redis\OTPCacheRepository;
 use App\Repositories\Redis\SwipeCacheRepository;
+use App\Services\AdminService;
 use App\Services\AuthService;
 use App\Services\CompanyInvitationService;
 use App\Services\CompanyMembershipService;
@@ -115,6 +116,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TokenService::class);
         $this->app->singleton(AuthService::class);
         $this->app->singleton(UserDataCleanupService::class);
+        $this->app->singleton(AdminService::class);
     }
 
     /**
