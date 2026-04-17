@@ -22,10 +22,13 @@ class CompanyMembership extends Model
         'status',
         'invited_by_user_id',
         'joined_at',
+        'revoked_by_user_id',
+        'revoked_at',
     ];
 
     protected $casts = [
         'joined_at' => 'datetime',
+        'revoked_at' => 'datetime',
     ];
 
     public function company(): BelongsTo
@@ -41,5 +44,10 @@ class CompanyMembership extends Model
     public function invitedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by_user_id');
+    }
+
+    public function revokedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'revoked_by_user_id');
     }
 }

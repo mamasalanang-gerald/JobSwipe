@@ -15,7 +15,11 @@ class TokenService
 
     public function revokeCurrentToken(User $user): void
     {
-        $user->currentAccessToken()->delete();
+        // In normal requests, currentAccessToken() is set by Sanctum middleware
+        // In tests, it might be null, so we handle that gracefully
+        if ($token = $user->currentAccessToken()) {
+            $token->delete();
+        }
     }
 
     public function revokeAllTokens(User $user): void

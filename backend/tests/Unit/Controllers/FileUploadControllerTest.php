@@ -3,12 +3,12 @@
 namespace Tests\Unit\Controllers;
 
 use App\Http\Controllers\File\FileUploadController;
+use App\Http\Requests\File\ConfirmUploadRequest;
 use App\Http\Requests\File\GenerateReadUrlRequest;
 use App\Http\Requests\File\GenerateUploadUrlRequest;
 use App\Services\FileUploadService;
-use Illuminate\Http\Request;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class FileUploadControllerTest extends TestCase
 {
@@ -63,7 +63,8 @@ class FileUploadControllerTest extends TestCase
 
         $controller = new FileUploadController($service);
 
-        $request = Request::create('/api/v1/files/confirm-upload', 'POST', [
+        $request = $this->createMock(ConfirmUploadRequest::class);
+        $request->expects($this->once())->method('validated')->willReturn([
             'file_url' => 'https://cdn.example.test/document/user-1/resume.pdf',
         ]);
 

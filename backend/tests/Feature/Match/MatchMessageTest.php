@@ -33,7 +33,7 @@ class MatchMessageTest extends TestCase
 
         // Stub notifications
         $notifMock = Mockery::mock(NotificationService::class);
-        $notifMock->shouldReceive('create')->andReturnNull();
+        $notifMock->shouldReceive('create')->andReturn(new \App\Models\PostgreSQL\Notification());
         $notifMock->shouldReceive('sendPush')->andReturnNull();
         $this->app->instance(NotificationService::class, $notifMock);
 
@@ -95,18 +95,20 @@ class MatchMessageTest extends TestCase
 
     public function test_duplicate_client_message_id_returns_existing_message(): void
     {
+        $clientId = '550e8400-e29b-41d4-a716-446655440000'; // Valid UUID
+        
         // First message
         $this->actingAs($this->applicantUser)
             ->postJson("/api/v1/matches/{$this->acceptedMatch->id}/messages", [
                 'body' => 'Hello!',
-                'client_message_id' => 'unique-client-id-123',
+                'client_message_id' => $clientId,
             ]);
 
         // Duplicate with same client_message_id
         $response = $this->actingAs($this->applicantUser)
             ->postJson("/api/v1/matches/{$this->acceptedMatch->id}/messages", [
                 'body' => 'Hello!',
-                'client_message_id' => 'unique-client-id-123',
+                'client_message_id' => $clientId,
             ]);
 
         // Should return 200 (not 201) for idempotent replay
@@ -115,7 +117,7 @@ class MatchMessageTest extends TestCase
 
         // Should only have one message in DB
         $count = MatchMessage::where('match_id', $this->acceptedMatch->id)
-            ->where('client_message_id', 'unique-client-id-123')
+            ->where('client_message_id', $clientId)
             ->count();
         $this->assertEquals(1, $count);
     }
@@ -167,16 +169,23 @@ class MatchMessageTest extends TestCase
 
     public function test_applicant_first_message_auto_accepts_pending_match(): void
     {
+        // Create a different HR user and company to avoid unique constraint violation
+        $newHrUser = User::factory()->hr()->create();
+        $newCompany = CompanyProfile::factory()->verified()->create([
+            'user_id' => $newHrUser->id,
+        ]);
+        $newJob = JobPosting::factory()->create(['company_id' => $newCompany->id]);
+        
         // Create a pending match (not accepted yet)
         $app = Application::factory()->matched()->create([
             'applicant_id' => $this->applicantProfile->id,
-            'job_posting_id' => $this->acceptedMatch->job_posting_id,
+            'job_posting_id' => $newJob->id,
         ]);
         $pendingMatch = MatchRecord::factory()->create([
             'application_id' => $app->id,
             'applicant_id' => $this->applicantProfile->id,
-            'job_posting_id' => $this->acceptedMatch->job_posting_id,
-            'hr_user_id' => $this->hrUser->id,
+            'job_posting_id' => $newJob->id,
+            'hr_user_id' => $newHrUser->id,
             'status' => 'pending',
             'response_deadline' => now()->addHours(23),
         ]);

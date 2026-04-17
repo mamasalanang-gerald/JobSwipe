@@ -87,6 +87,11 @@ class User extends Authenticatable
         return $this->hasMany(CompanyMembership::class, 'user_id');
     }
 
+    public function hrProfile(): HasOne
+    {
+        return $this->hasOne(HRProfile::class, 'user_id');
+    }
+
     public function isApplicant(): bool
     {
         return $this->role === 'applicant';

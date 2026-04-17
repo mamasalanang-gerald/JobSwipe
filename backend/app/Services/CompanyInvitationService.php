@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Mail\HRInvitationMail;
 use App\Models\PostgreSQL\CompanyInvite;
 use App\Models\PostgreSQL\CompanyMembership;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use InvalidArgumentException;
 
 class CompanyInvitationService
@@ -15,6 +18,10 @@ class CompanyInvitationService
         private CompanyEmailValidator $emailValidator,
     ) {}
 
+    /**
+     * Create a single invite and dispatch the magic-link email.
+     * The raw token is NOT returned — it is embedded only in the email.
+     */
     public function createInvite(
         string $companyId,
         string $inviterUserId,
@@ -36,6 +43,7 @@ class CompanyInvitationService
             throw new InvalidArgumentException('INVITE_EMAIL_INVALID');
         }
 
+        // Revoke any prior pending invites for this email + company
         CompanyInvite::query()
             ->where('company_id', $companyId)
             ->where('email', $normalizedEmail)
@@ -55,12 +63,97 @@ class CompanyInvitationService
             'expires_at' => now()->addDays(7),
         ]);
 
-        return [
-            'invite' => $invite->fresh(),
-            'token' => $token,
-        ];
+        // Dispatch email — record timestamp even if queued
+        $invite->refresh();
+        $this->dispatchInviteEmail($invite, $token);
+
+        return ['invite' => $invite->refresh()];
+        // NOTE: Raw token intentionally NOT returned to caller.
     }
 
+    /**
+     * Re-send invite email for a pending, non-expired invite.
+     */
+    public function resendInvite(
+        string $companyId,
+        string $requesterUserId,
+        string $inviteId
+    ): CompanyInvite {
+        if (! $this->memberships->isAdmin($companyId, $requesterUserId)) {
+            throw new InvalidArgumentException('INVITE_FORBIDDEN');
+        }
+
+        $invite = CompanyInvite::query()
+            ->where('id', $inviteId)
+            ->where('company_id', $companyId)
+            ->first();
+
+        if (! $invite) {
+            throw new InvalidArgumentException('INVITE_NOT_FOUND');
+        }
+
+        if ($invite->accepted_at !== null) {
+            throw new InvalidArgumentException('INVITE_ALREADY_ACCEPTED');
+        }
+
+        if ($invite->expires_at < now() || $invite->revoked_at !== null) {
+            throw new InvalidArgumentException('INVITE_EXPIRED');
+        }
+
+        // We cannot recover the raw token (it's hashed), so we generate a
+        // fresh token and update the hash so the existing link is invalidated.
+        $newToken = bin2hex(random_bytes(32));
+
+        $invite->update([
+            'token_hash' => $this->hashToken($newToken),
+            'expires_at' => now()->addDays(7),
+        ]);
+
+        $this->dispatchInviteEmail($invite->fresh(), $newToken);
+
+        return $invite->fresh();
+    }
+
+    /**
+     * Create multiple invites in one request (max 20 emails).
+     *
+     * @param  array<string>  $emails
+     * @return array{succeeded: array, failed: array}
+     */
+    public function createBulkInvites(
+        string $companyId,
+        string $inviterUserId,
+        array $emails,
+        string $inviteRole
+    ): array {
+        if (! $this->memberships->isAdmin($companyId, $inviterUserId)) {
+            throw new InvalidArgumentException('INVITE_FORBIDDEN');
+        }
+
+        $succeeded = [];
+        $failed = [];
+
+        foreach (array_unique($emails) as $email) {
+            try {
+                $result = $this->createInvite($companyId, $inviterUserId, $email, $inviteRole);
+                $succeeded[] = [
+                    'email' => $email,
+                    'invite' => $result['invite'],
+                ];
+            } catch (InvalidArgumentException $e) {
+                $failed[] = [
+                    'email' => $email,
+                    'reason' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return compact('succeeded', 'failed');
+    }
+
+    /**
+     * List all invites for a company.
+     */
     public function listInvites(string $companyId, string $requesterUserId): Collection
     {
         if (! $this->memberships->isAdmin($companyId, $requesterUserId)) {
@@ -69,10 +162,14 @@ class CompanyInvitationService
 
         return CompanyInvite::query()
             ->where('company_id', $companyId)
+            ->with('invitedBy:id,email', 'company:id,company_name')
             ->orderByDesc('created_at')
             ->get();
     }
 
+    /**
+     * Revoke (cancel) a pending invite.
+     */
     public function revokeInvite(string $companyId, string $requesterUserId, string $inviteId): CompanyInvite
     {
         if (! $this->memberships->isAdmin($companyId, $requesterUserId)) {
@@ -97,19 +194,84 @@ class CompanyInvitationService
         return $invite->fresh();
     }
 
+    /**
+     * Resolve a valid pending invite by email + raw token (for registration flow).
+     * Uses constant-time comparison and records magic_link_clicked_at.
+     */
     public function resolvePendingInvite(string $email, string $token): ?CompanyInvite
     {
         $normalizedEmail = $this->normalizeEmail($email);
+        $tokenHash = $this->hashToken($token);
 
-        return CompanyInvite::query()
+        // Find by email first (avoid hashing on every row); narrow by expiry
+        $candidates = CompanyInvite::query()
             ->where('email', $normalizedEmail)
-            ->where('token_hash', $this->hashToken($token))
             ->whereNull('accepted_at')
             ->whereNull('revoked_at')
             ->where('expires_at', '>', now())
-            ->first();
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            // Constant-time comparison to prevent timing attacks (Req 11 AC 3)
+            if (hash_equals($candidate->token_hash, $tokenHash)) {
+                // Record first click timestamp (don't overwrite)
+                if ($candidate->magic_link_clicked_at === null) {
+                    $candidate->update(['magic_link_clicked_at' => now()]);
+                    $candidate->refresh();
+                }
+
+                return $candidate;
+            }
+        }
+
+        return null;
     }
 
+    /**
+     * Validate a token during registration — richer error differentiation.
+     * Returns the invite or throws with a specific error code.
+     */
+    public function validateInviteToken(string $email, string $token): CompanyInvite
+    {
+        $normalizedEmail = $this->normalizeEmail($email);
+        $tokenHash = $this->hashToken($token);
+
+        // Check accepted first (regardless of expiry)
+        $accepted = CompanyInvite::query()
+            ->where('email', $normalizedEmail)
+            ->where('token_hash', $tokenHash)
+            ->whereNotNull('accepted_at')
+            ->first();
+
+        if ($accepted) {
+            throw new InvalidArgumentException('INVITE_ALREADY_ACCEPTED');
+        }
+
+        // Check expired
+        $expired = CompanyInvite::query()
+            ->where('email', $normalizedEmail)
+            ->where('token_hash', $tokenHash)
+            ->where('expires_at', '<=', now())
+            ->whereNull('accepted_at')
+            ->first();
+
+        if ($expired) {
+            throw new InvalidArgumentException('INVITE_EXPIRED');
+        }
+
+        // Resolve valid pending invite
+        $invite = $this->resolvePendingInvite($email, $token);
+
+        if (! $invite) {
+            throw new InvalidArgumentException('INVITE_INVALID');
+        }
+
+        return $invite;
+    }
+
+    /**
+     * Accept an invite for a newly registered user (atomic, FOR UPDATE).
+     */
     public function acceptInviteForUser(string $email, string $token, string $userId, string $userRole): CompanyInvite
     {
         return DB::transaction(function () use ($email, $token, $userId, $userRole) {
@@ -151,6 +313,26 @@ class CompanyInvitationService
 
             return $invite->fresh();
         });
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // Private helpers
+    // ──────────────────────────────────────────────────────────────────────────
+
+    private function dispatchInviteEmail(CompanyInvite $invite, string $rawToken): void
+    {
+        try {
+            $inviter = $invite->invitedBy;
+            Mail::to($invite->email)->queue(new HRInvitationMail($invite, $inviter, $rawToken));
+            $invite->update(['invite_email_sent_at' => now()]);
+        } catch (\Throwable $e) {
+            Log::error('CompanyInvitationService: Failed to dispatch invite email', [
+                'invite_id' => $invite->id,
+                'email' => $invite->email,
+                'error' => $e->getMessage(),
+            ]);
+            throw new \RuntimeException('INVITE_EMAIL_FAILED');
+        }
     }
 
     private function normalizeEmail(string $email): string
