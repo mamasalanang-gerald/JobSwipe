@@ -1,4 +1,5 @@
-import React from 'react';
+'use client';
+import React, { useState } from 'react';
 
 const footerLinks = [
   {
@@ -35,26 +36,37 @@ const socialLinks = [
 ];
 
 function AppStoreButton({ type }: { type: 'apple' | 'google' }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <a
       href="#"
-      className="flex items-center gap-3 border border-white/15 rounded-xl px-3 py-2 hover:bg-white/10 transition w-fit"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: '12px',
+        border: hovered ? '1px solid rgba(255,255,255,0.35)' : '1px solid rgba(255,255,255,0.12)',
+        borderRadius: '14px', padding: '10px 16px',
+        background: hovered ? 'rgba(255,255,255,0.09)' : 'rgba(255,255,255,0.04)',
+        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
+        boxShadow: hovered ? '0 8px 24px rgba(0,0,0,0.25)' : 'none',
+        transition: 'all 0.22s cubic-bezier(0.22,1,0.36,1)',
+        textDecoration: 'none', width: 'fit-content',
+      }}
     >
       {type === 'apple' ? (
-        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white shrink-0">
+        <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: 'white', flexShrink: 0 }}>
           <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z" />
         </svg>
       ) : (
-        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-white shrink-0">
-          <path d="M3.18 23.76c.3.17.64.22.99.15l13.23-7.62-2.84-2.84-11.38 10.31z" />
+        <svg viewBox="0 0 24 24" style={{ width: '20px', height: '20px', fill: 'white', flexShrink: 0 }}>
+          <path d="M3.18 23.76c.3.17.64.22.99.15l13.23-7.62-2.84-2.84-11.38 10.31zM20.7 10.26L17.6 8.46l-3.13 3.13 3.13 3.13 3.13-1.82a1.56 1.56 0 000-2.64zM2.01.36a1.56 1.56 0 00-.51 1.18v20.92c0 .47.19.9.51 1.18l.07.06 11.7-11.7v-.28L2.08.3l-.07.06zM14.45 11.41l3.14-3.14-11.4-6.58L14.45 11.41z" />
         </svg>
       )}
-
       <div>
-        <p className="text-white/50 text-[10px] leading-none">
+        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '10px', lineHeight: 1, marginBottom: '3px' }}>
           {type === 'apple' ? 'Download on the' : 'Get it on'}
         </p>
-        <p className="text-white text-sm font-medium">
+        <p style={{ color: 'white', fontSize: '13px', fontWeight: 600, lineHeight: 1 }}>
           {type === 'apple' ? 'App Store' : 'Google Play'}
         </p>
       </div>
@@ -62,68 +74,171 @@ function AppStoreButton({ type }: { type: 'apple' | 'google' }) {
   );
 }
 
+function SocialButton({ label, path }: { label: string; path: string }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <a
+      href="#"
+      aria-label={label}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        width: '36px', height: '36px', borderRadius: '10px',
+        background: hovered ? 'rgba(255,78,106,0.15)' : 'rgba(255,255,255,0.05)',
+        border: hovered ? '1px solid rgba(255,78,106,0.35)' : '1px solid rgba(255,255,255,0.09)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        transform: hovered ? 'translateY(-3px) scale(1.1)' : 'translateY(0) scale(1)',
+        boxShadow: hovered ? '0 8px 20px rgba(255,78,106,0.2)' : 'none',
+        transition: 'all 0.22s cubic-bezier(0.22,1,0.36,1)',
+        textDecoration: 'none',
+      }}
+    >
+      <svg viewBox="0 0 24 24" style={{ width: '14px', height: '14px', fill: hovered ? '#FF4E6A' : 'rgba(255,255,255,0.5)', transition: 'fill 0.22s' }}>
+        <path d={path} />
+      </svg>
+    </a>
+  );
+}
+
+function FooterLink({ label }: { label: string }) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <li>
+      <a
+        href="#"
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={{
+          color: hovered ? 'white' : 'rgba(255,255,255,0.35)',
+          fontSize: '13px',
+          textDecoration: 'none',
+          display: 'inline-flex', alignItems: 'center', gap: '5px',
+          transition: 'color 0.2s',
+          paddingLeft: hovered ? '6px' : '0px',
+          transition2: 'padding-left 0.2s',
+        } as any}
+      >
+        <span style={{
+          display: 'inline-block', width: '4px', height: '4px',
+          borderRadius: '50%', background: '#FF4E6A',
+          opacity: hovered ? 1 : 0, flexShrink: 0,
+          transition: 'opacity 0.2s',
+        }} />
+        {label}
+      </a>
+    </li>
+  );
+}
+
 export default function Footer() {
   return (
-    <footer className="bg-black relative border-t border-white/10 py-14">
-      <div className="max-w-7xl mx-auto px-8">
+    <>
+      <style>{`
+        @keyframes footerFadeUp {
+          from { opacity: 0; transform: translateY(16px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+      `}</style>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-10 mb-10">
+      <footer style={{
+        background: '#08080f',
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        paddingTop: '64px', paddingBottom: '32px',
+        position: 'relative', overflow: 'hidden',
+      }}>
+        {/* Subtle top glow */}
+        <div style={{
+          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+          width: '600px', height: '1px',
+          background: 'linear-gradient(90deg, transparent, rgba(255,78,106,0.4), transparent)',
+        }} />
+        <div style={{
+          position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)',
+          width: '300px', height: '60px',
+          background: 'radial-gradient(ellipse, rgba(255,78,106,0.06) 0%, transparent 70%)',
+          pointerEvents: 'none',
+        }} />
 
-          {/* Brand */}
-          <div>
-            <div className="text-white text-xl font-semibold mb-2">
-              <span className="text-[#FF4E6A]">●</span> JobSwipe
+        <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '0 32px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1.4fr 1fr 1fr 1fr',
+            gap: '40px',
+            marginBottom: '48px',
+            animationName: 'footerFadeUp',
+            animationDuration: '0.6s',
+            animationTimingFunction: 'cubic-bezier(0.22,1,0.36,1)',
+            animationFillMode: 'both',
+          }}>
+
+            {/* Brand column */}
+            <div>
+              <div style={{ marginBottom: '10px' }}>
+                <span style={{ color: 'white', fontSize: '20px', fontWeight: 700, letterSpacing: '-0.02em' }}>
+                  <span style={{ color: '#FF4E6A' }}>●</span> Job<span style={{ color: '#FF4E6A' }}>Swipe</span>
+                </span>
+              </div>
+              <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '13px', lineHeight: 1.65, marginBottom: '24px', maxWidth: '220px' }}>
+                Swipe your way to your dream job. The modern career platform for modern professionals.
+              </p>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '24px' }}>
+                <AppStoreButton type="apple" />
+                <AppStoreButton type="google" />
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {socialLinks.map((s) => (
+                  <SocialButton key={s.label} label={s.label} path={s.path} />
+                ))}
+              </div>
             </div>
 
-            <p className="text-white/40 text-sm mb-5">
-              Swipe your way to your dream job
+            {/* Link columns */}
+            {footerLinks.map((section, colIdx) => (
+              <div key={section.title} style={{
+                animationName: 'footerFadeUp',
+                animationDuration: '0.6s',
+                animationDelay: `${(colIdx + 1) * 80}ms`,
+                animationTimingFunction: 'cubic-bezier(0.22,1,0.36,1)',
+                animationFillMode: 'both',
+              }}>
+                <h4 style={{
+                  color: 'rgba(255,255,255,0.55)', fontSize: '10px', fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase', marginBottom: '18px',
+                }}>
+                  {section.title}
+                </h4>
+                <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {section.links.map((l) => (
+                    <FooterLink key={l} label={l} />
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          {/* Bottom bar */}
+          <div style={{
+            borderTop: '1px solid rgba(255,255,255,0.06)',
+            paddingTop: '24px',
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            flexWrap: 'wrap', gap: '12px',
+          }}>
+            <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', margin: 0 }}>
+              © {new Date().getFullYear()} JobSwipe. All rights reserved.
             </p>
-
-            <div className="flex flex-col gap-3 mb-6">
-              <AppStoreButton type="apple" />
-              <AppStoreButton type="google" />
-            </div>
-
-            <div className="flex gap-2">
-              {socialLinks.map((s) => (
-                <a
-                  key={s.label}
-                  href="#"
-                  aria-label={s.label}
-                  className="w-9 h-9 rounded-full bg-white/5 border border-white/10 flex items-center justify-center hover:bg-white/10 transition"
-                >
-                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white/60 hover:fill-white">
-                    <path d={s.path} />
-                  </svg>
-                </a>
+            <div style={{ display: 'flex', gap: '20px' }}>
+              {['Privacy Policy', 'Terms of Service', 'Cookie Settings'].map((l) => (
+                <a key={l} href="#" style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', textDecoration: 'none', transition: 'color 0.2s' }}
+                  onMouseEnter={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.6)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(255,255,255,0.2)')}
+                >{l}</a>
               ))}
             </div>
           </div>
-
-          {/* Links */}
-          {footerLinks.map((section) => (
-            <div key={section.title}>
-              <h4 className="text-white text-sm font-semibold mb-4">
-                {section.title}
-              </h4>
-              <ul className="space-y-2 text-sm">
-                {section.links.map((l) => (
-                  <li key={l}>
-                    <a href="#" className="text-white/40 hover:text-white transition">
-                      {l}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
         </div>
-
-        {/* Bottom */}
-        <div className="border-t border-white/10 pt-6 text-center text-sm text-white/30">
-          © {new Date().getFullYear()} JobSwipe. All rights reserved.
-        </div>
-      </div>
-    </footer>
+      </footer>
+    </>
   );
 }
