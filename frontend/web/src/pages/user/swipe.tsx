@@ -778,4 +778,4 @@ export default function SwipeHomePage() {
       </aside>
     </div>
   );
-}
+}   
