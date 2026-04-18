@@ -35,6 +35,7 @@ export default function HowItWorksSection() {
             title={step.title}
             description={step.description}
             showConnector={i < steps.length - 1}
+            delay={i * 100}
           />
         ))}
       </div>
