@@ -125,10 +125,11 @@ interface SectionCardProps {
   children: React.ReactNode;
   action?: () => void;
   actionLabel?: string;
+  style?: object;
 }
 
-export const SectionCard: React.FC<SectionCardProps> = ({ title, children, action, actionLabel }) => (
-  <View style={ls.sectionCard}>
+export const SectionCard: React.FC<SectionCardProps> = ({ title, children, action, actionLabel, style }) => (
+  <View style={[ls.sectionCard, style]}>
     {title && (
       <View style={ls.sectionCardHeader}>
         <Text style={ls.sectionCardTitle}>{title}</Text>

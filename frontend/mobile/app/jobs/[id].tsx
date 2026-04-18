@@ -4,24 +4,10 @@ import {
   StyleSheet, StatusBar, ImageBackground, Image,
   Dimensions, Platform,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-// ─── Theme ────────────────────────────────────────────────────────────────────
-const T = {
-  bg:          '#0f0a1e',
-  surface:     '#1a1030',
-  surfaceAlt:  '#211540',
-  border:      'rgba(168,85,247,0.18)',
-  borderFaint: 'rgba(255,255,255,0.07)',
-  primary:     '#a855f7',
-  primaryDark: '#7c3aed',
-  textPrimary: '#ffffff',
-  textSub:     'rgba(255,255,255,0.55)',
-  textHint:    'rgba(255,255,255,0.35)',
-  gold:        '#f59e0b',
-};
+import { useTheme } from '../../theme';
 
 type TagVariant = 'remote' | 'full' | 'hybrid' | 'contract' | 'onsite' | 'cloud';
 
@@ -192,7 +178,7 @@ const SCREEN_WIDTH = Dimensions.get('window').width;
 const PHOTO_WIDTH = SCREEN_WIDTH - 40;
 
 // ─── Star rating ──────────────────────────────────────────────────────────────
-function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
+function StarRating({ rating, size = 14, gold }: { rating: number; size?: number; gold: string }) {
   return (
     <View style={{ flexDirection: 'row', gap: 2 }}>
       {[1, 2, 3, 4, 5].map(i => (
@@ -200,7 +186,7 @@ function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
           key={i}
           name={i <= rating ? 'star' : 'star-outline'}
           size={size}
-          color={T.gold}
+          color={gold}
         />
       ))}
     </View>
@@ -217,13 +203,9 @@ function TagPill({ label, variant }: { label: string; variant: string }) {
   );
 }
 
-// ─── Section divider ──────────────────────────────────────────────────────────
-function Divider() {
-  return <View style={s.divider} />;
-}
-
 // ─── JobDetailScreen ──────────────────────────────────────────────────────────
 export default function JobDetailScreen() {
+  const T = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
@@ -233,70 +215,90 @@ export default function JobDetailScreen() {
   const job = JOBS.find(j => j.id === Number(id)) ?? JOBS[0];
 
   return (
-    <View style={[s.screen, { paddingTop: topInset }]}>
+    <View style={[s.screen, { backgroundColor: T.bg, paddingTop: topInset }]}>
+      <Stack.Screen options={{ headerShown: false }} />
       <StatusBar barStyle="light-content" />
 
-      {/* Close / back button */}
+      {/* Header */}
       <View style={s.topBar}>
         <TouchableOpacity
-          style={s.closeBtn}
+          style={s.backBtn}
           onPress={() => router.back()}
           activeOpacity={0.75}
         >
-          <MaterialCommunityIcons name="chevron-down" size={22} color="#fff" />
+          <MaterialCommunityIcons name="chevron-left" size={24} color={T.textPrimary} />
         </TouchableOpacity>
+        <Text style={[s.topBarTitle, { color: T.textPrimary }]}>Job Description</Text>
+        <View style={s.topBarSpacer} />
       </View>
 
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: bottomInset + 100 }]}
       >
-        {/* ── Title block ─────────────────────────────────────────────────── */}
+        {/* ── Cover photo + title block ────────────────────────────────── */}
         <View style={s.titleBlock}>
-          {/* Logo + company */}
-          <View style={s.logoRow}>
-            <View style={[s.logo, { backgroundColor: job.accentColor }]}>
-              <Text style={s.logoText}>{job.abbr}</Text>
+          {/* Cover photo with gradient overlay */}
+          <ImageBackground
+            source={job.image}
+            style={s.coverPhoto}
+            imageStyle={s.coverPhotoImg}
+            resizeMode="cover"
+          >
+            {/* Dark gradient scrim so text is always legible */}
+            <View style={s.coverScrim} />
+
+            {/* Company name floated top-left over the image */}
+            <View style={s.coverTopRow}>
+              <View style={[s.coverBadge, { backgroundColor: 'rgba(0,0,0,0.45)' }]}>
+                <Text style={s.coverBadgeText}>{job.company}</Text>
+              </View>
             </View>
-            <Text style={s.companyName}>{job.company}</Text>
-          </View>
 
-          <Text style={s.roleTitle}>{job.role}</Text>
-          <Text style={s.salary}>{job.salary}</Text>
+            {/* Logo sits on the bottom edge, half-inside the cover */}
+            <View style={s.coverLogoWrap}>
+              <View style={[s.logo, s.coverLogo, { backgroundColor: job.accentColor, borderColor: T.bg }]}>
+                <Text style={s.logoText}>{job.abbr}</Text>
+              </View>
+            </View>
+          </ImageBackground>
 
-          {/* Distance */}
-          <View style={s.distanceRow}>
-            <MaterialCommunityIcons name="map-marker-distance" size={14} color={T.textHint} />
-            <Text style={s.distanceText}>{job.distanceKm.toFixed(1)} km away</Text>
-          </View>
+          {/* Info below the cover */}
+          <View style={s.titleInfo}>
+            <Text style={[s.roleTitle, { color: T.textPrimary }]}>{job.role}</Text>
+            <Text style={s.salary}>{job.salary}</Text>
 
-          {/* Location */}
-          <View style={s.locationRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={14} color={T.textHint} />
-            <Text style={s.locationText}>{job.location}</Text>
-          </View>
+            <View style={s.distanceRow}>
+              <MaterialCommunityIcons name="map-marker-distance" size={14} color={T.textHint} />
+              <Text style={[s.distanceText, { color: T.textSub }]}>{job.distanceKm.toFixed(1)} km away</Text>
+            </View>
 
-          {/* Tags */}
-          <View style={s.tagRow}>
-            {job.tags.map(t => (
-              <TagPill key={t.label} label={t.label} variant={t.variant} />
-            ))}
+            <View style={s.locationRow}>
+              <MaterialCommunityIcons name="map-marker-outline" size={14} color={T.textHint} />
+              <Text style={[s.locationText, { color: T.textSub }]}>{job.location}</Text>
+            </View>
+
+            <View style={s.tagRow}>
+              {job.tags.map(t => (
+                <TagPill key={t.label} label={t.label} variant={t.variant} />
+              ))}
+            </View>
           </View>
         </View>
 
-        <Divider />
+        <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
 
         {/* ── About the Role ──────────────────────────────────────────────── */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>ABOUT THE ROLE</Text>
-          <Text style={s.bodyText}>{job.aboutRole}</Text>
+          <Text style={[s.sectionLabel, { color: T.textHint }]}>ABOUT THE ROLE</Text>
+          <Text style={[s.bodyText, { color: T.textPrimary }]}>{job.aboutRole}</Text>
         </View>
 
-        <Divider />
+        <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
 
         {/* ── Company Photos ──────────────────────────────────────────────── */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>COMPANY PHOTOS</Text>
+          <Text style={[s.sectionLabel, { color: T.textHint }]}>COMPANY PHOTOS</Text>
 
           {/* Main photo */}
           <TouchableOpacity activeOpacity={0.95} style={s.mainPhotoWrap}>
@@ -319,6 +321,7 @@ export default function JobDetailScreen() {
                 activeOpacity={0.85}
                 style={[
                   s.thumbWrap,
+                  { borderColor: 'rgba(255,255,255,0.12)' },
                   i === selectedPhoto && { borderColor: T.primary, borderWidth: 2 },
                 ]}
               >
@@ -328,36 +331,36 @@ export default function JobDetailScreen() {
           </View>
         </View>
 
-        <Divider />
+        <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
 
         {/* ── Requirements ────────────────────────────────────────────────── */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>REQUIREMENTS</Text>
+          <Text style={[s.sectionLabel, { color: T.textHint }]}>REQUIREMENTS</Text>
           <View style={s.requirementsRow}>
             <MaterialCommunityIcons name="briefcase-outline" size={16} color={T.textSub} />
-            <Text style={s.requirementsText}>{job.requirements}</Text>
+            <Text style={[s.requirementsText, { color: T.textPrimary }]}>{job.requirements}</Text>
           </View>
         </View>
 
-        <Divider />
+        <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
 
         {/* ── Company Rating ──────────────────────────────────────────────── */}
         <View style={s.section}>
-          <Text style={s.sectionLabel}>COMPANY RATING</Text>
+          <Text style={[s.sectionLabel, { color: T.textHint }]}>COMPANY RATING</Text>
           <View style={s.ratingRow}>
             <MaterialCommunityIcons name="star" size={18} color={T.gold} />
-            <Text style={s.ratingValue}>{job.glassdoorRating.toFixed(1)}</Text>
-            <Text style={s.ratingSource}>· Glassdoor</Text>
+            <Text style={[s.ratingValue, { color: T.textPrimary }]}>{job.glassdoorRating.toFixed(1)}</Text>
+            <Text style={[s.ratingSource, { color: T.textSub }]}>· Glassdoor</Text>
           </View>
         </View>
 
-        <Divider />
+        <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
 
         {/* ── Employee Reviews ────────────────────────────────────────────── */}
         <View style={s.section}>
           <View style={s.reviewsHeader}>
-            <Text style={s.sectionLabel}>EMPLOYEE REVIEWS</Text>
-            <Text style={s.reviewCount}>{job.reviews.length} reviews</Text>
+            <Text style={[s.sectionLabel, { color: T.textHint }]}>EMPLOYEE REVIEWS</Text>
+            <Text style={[s.reviewCount, { color: T.textSub }]}>{job.reviews.length} reviews</Text>
           </View>
 
           {job.reviews.map((review, i) => (
@@ -365,8 +368,8 @@ export default function JobDetailScreen() {
               key={i}
               style={[
                 s.reviewCard,
+                { backgroundColor: T.surface, borderColor: T.borderFaint },
                 i < job.reviews.length - 1 && { marginBottom: 12 },
-                // Last card fades out (premium gate)
                 i === job.reviews.length - 1 && { opacity: 0.45 },
               ]}
             >
@@ -377,28 +380,31 @@ export default function JobDetailScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={s.reviewNameRow}>
-                    <Text style={s.reviewName}>{review.name}</Text>
+                    <Text style={[s.reviewName, { color: T.textPrimary }]}>{review.name}</Text>
                     <View style={{ alignItems: 'flex-end', gap: 2 }}>
-                      <StarRating rating={review.rating} size={12} />
-                      <Text style={s.reviewDate}>{review.date}</Text>
+                      <StarRating rating={review.rating} size={12} gold={T.gold} />
+                      <Text style={[s.reviewDate, { color: T.textHint }]}>{review.date}</Text>
                     </View>
                   </View>
-                  <Text style={s.reviewRole}>{review.role}</Text>
+                  <Text style={[s.reviewRole, { color: T.textSub }]}>{review.role}</Text>
                 </View>
               </View>
-              <Text style={s.reviewText}>{review.text}</Text>
+              <Text style={[s.reviewText, { color: T.textSub }]}>{review.text}</Text>
             </View>
           ))}
 
           {/* Premium gate */}
-          <TouchableOpacity activeOpacity={0.85} style={s.premiumGate}>
+          <TouchableOpacity
+            activeOpacity={0.85}
+            style={[s.premiumGate, { backgroundColor: T.surfaceHigh }]}
+          >
             <View style={s.premiumLeft}>
               <View style={s.lockCircle}>
                 <MaterialCommunityIcons name="lock" size={16} color={T.gold} />
               </View>
-              <Text style={s.premiumText}>View all reviews</Text>
+              <Text style={[s.premiumText, { color: T.textPrimary }]}>View all reviews</Text>
             </View>
-            <View style={s.premiumBadge}>
+            <View style={[s.premiumBadge, { backgroundColor: T.gold }]}>
               <MaterialCommunityIcons name="lightning-bolt" size={13} color="#000" />
               <Text style={s.premiumBadgeText}>Premium</Text>
             </View>
@@ -408,10 +414,10 @@ export default function JobDetailScreen() {
       </ScrollView>
 
       {/* ── Apply CTA ─────────────────────────────────────────────────────── */}
-      <View style={[s.ctaBar, { paddingBottom: bottomInset + 12 }]}>
+      <View style={[s.ctaBar, { backgroundColor: T.bg, borderTopColor: T.borderFaint, paddingBottom: bottomInset + 12 }]}>
         <TouchableOpacity
           activeOpacity={0.85}
-          style={s.saveBtn}
+          style={[s.saveBtn, { backgroundColor: T.surface, borderColor: T.borderFaint }]}
           onPress={() => setSaved(v => !v)}
         >
           <MaterialCommunityIcons
@@ -434,35 +440,78 @@ export default function JobDetailScreen() {
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: T.bg },
+  screen: { flex: 1 },
 
   topBar: {
-    paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
     paddingBottom: 8,
-    alignItems: 'flex-end',
+    paddingTop: 4,
   },
-  closeBtn: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+  backBtn: {
+    width: 36, height: 36, borderRadius: 18,
     alignItems: 'center', justifyContent: 'center',
+    marginRight: 8,
+  },
+  topBarTitle: {
+    flex: 1,
+    fontSize: 18, fontWeight: '700',
+    textAlign: 'center',
+  },
+  topBarSpacer: {
+    width: 36 + 8, // mirror backBtn + marginRight to keep title truly centred
   },
 
-  scroll: { paddingHorizontal: 20 },
+  scroll: { paddingHorizontal: 0 },
 
   // Title block
-  titleBlock: { paddingBottom: 20 },
-  logoRow:    { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 14 },
+  titleBlock:  { paddingBottom: 20 },
+
+  // Cover photo
+  coverPhoto:  {
+    width: '100%', height: 200,
+    marginBottom: 36,          // extra space for the logo overhang
+    position: 'relative',
+  },
+  coverPhotoImg: { borderRadius: 16 },
+  coverScrim: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.38)',
+  },
+  coverTopRow: {
+    position: 'absolute', top: 12, left: 12,
+  },
+  coverBadge: {
+    paddingHorizontal: 10, paddingVertical: 4,
+    borderRadius: 20,
+  },
+  coverBadgeText: {
+    fontSize: 12, fontWeight: '700', color: '#fff',
+  },
+  coverLogoWrap: {
+    position: 'absolute',
+    bottom: -28,               // half the logo height (56/2)
+    left: 20,
+  },
+  coverLogo: {
+    width: 56, height: 56, borderRadius: 16,
+    borderWidth: 3, borderColor: 'transparent',  // overridden inline with T.bg
+  },
+
+  titleInfo:  { paddingHorizontal: 20, paddingTop: 8 },
+
   logo:       { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   logoText:   { fontSize: 16, fontWeight: '800', color: '#fff' },
-  companyName:{ fontSize: 14, fontWeight: '600', color: T.textSub },
 
-  roleTitle: { fontSize: 26, fontWeight: '800', color: T.textPrimary, letterSpacing: -0.5, marginBottom: 6 },
+  roleTitle: { fontSize: 26, fontWeight: '800', letterSpacing: -0.5, marginBottom: 6 },
   salary:    { fontSize: 18, fontWeight: '700', color: '#c084fc', marginBottom: 12 },
 
   distanceRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 6 },
-  distanceText: { fontSize: 13, color: T.textSub },
+  distanceText: { fontSize: 13 },
   locationRow:  { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 14 },
-  locationText: { fontSize: 13, color: T.textSub },
+  locationText: { fontSize: 13 },
 
   tagRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
   tag: {
@@ -471,19 +520,14 @@ const s = StyleSheet.create({
     borderRadius: 20, borderWidth: 1,
   },
   tagText: { fontSize: 12, fontWeight: '700' },
-
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    marginVertical: 4,
-  },
-
-  section: { paddingVertical: 20 },
+  
+  section: { paddingVertical: 20, paddingHorizontal: 20 },
+  divider:  { height: 1, marginVertical: 4, marginHorizontal: 20 },
   sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: T.textHint,
+    fontSize: 11, fontWeight: '700',
     letterSpacing: 1.2, marginBottom: 12,
   },
-  bodyText: { fontSize: 16, lineHeight: 26, color: T.textPrimary },
+  bodyText: { fontSize: 16, lineHeight: 26 },
 
   // Company photos
   mainPhotoWrap: {
@@ -502,29 +546,28 @@ const s = StyleSheet.create({
   thumbRow: { flexDirection: 'row', gap: 10 },
   thumbWrap: {
     width: 80, height: 68, borderRadius: 12, overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 1,
   },
   thumb: { width: '100%', height: '100%' },
 
   // Requirements
   requirementsRow:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  requirementsText: { fontSize: 15, fontWeight: '600', color: T.textPrimary },
+  requirementsText: { fontSize: 15, fontWeight: '600' },
 
   // Rating
   ratingRow:   { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  ratingValue: { fontSize: 18, fontWeight: '800', color: T.textPrimary },
-  ratingSource:{ fontSize: 15, color: T.textSub },
+  ratingValue: { fontSize: 18, fontWeight: '800' },
+  ratingSource:{ fontSize: 15 },
 
   // Reviews
   reviewsHeader: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', marginBottom: 12,
   },
-  reviewCount: { fontSize: 13, fontWeight: '600', color: T.textSub },
+  reviewCount: { fontSize: 13, fontWeight: '600' },
   reviewCard: {
-    backgroundColor: T.surface,
     borderRadius: 16, padding: 16,
-    borderWidth: 1, borderColor: T.borderFaint,
+    borderWidth: 1,
   },
   reviewTop:    { flexDirection: 'row', gap: 12, marginBottom: 10 },
   reviewAvatar: {
@@ -535,15 +578,14 @@ const s = StyleSheet.create({
   reviewNameRow: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
   },
-  reviewName: { fontSize: 15, fontWeight: '700', color: T.textPrimary },
-  reviewRole: { fontSize: 12, color: T.textSub, marginTop: 1 },
-  reviewDate: { fontSize: 11, color: T.textHint },
-  reviewText: { fontSize: 14, lineHeight: 22, color: T.textSub },
+  reviewName: { fontSize: 15, fontWeight: '700' },
+  reviewRole: { fontSize: 12, marginTop: 1 },
+  reviewDate: { fontSize: 11 },
+  reviewText: { fontSize: 14, lineHeight: 22 },
 
   // Premium gate
   premiumGate: {
     flexDirection: 'row', alignItems: 'center',
-    backgroundColor: T.surfaceAlt,
     borderRadius: 16, padding: 16, marginTop: 4,
     borderWidth: 1, borderColor: 'rgba(245,158,11,0.2)',
     gap: 8,
@@ -554,10 +596,10 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(245,158,11,0.15)',
     alignItems: 'center', justifyContent: 'center',
   },
-  premiumText:  { fontSize: 15, fontWeight: '600', color: T.textPrimary },
+  premiumText:  { fontSize: 15, fontWeight: '600' },
   premiumBadge: {
     flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: T.gold, borderRadius: 20,
+    borderRadius: 20,
     paddingHorizontal: 10, paddingVertical: 5,
   },
   premiumBadgeText: { fontSize: 12, fontWeight: '800', color: '#000' },
@@ -567,13 +609,11 @@ const s = StyleSheet.create({
     position: 'absolute', bottom: 0, left: 0, right: 0,
     flexDirection: 'row', alignItems: 'center', gap: 12,
     paddingHorizontal: 20, paddingTop: 16,
-    backgroundColor: T.bg,
-    borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.07)',
+    borderTopWidth: 1,
   },
   saveBtn: {
     width: 50, height: 50, borderRadius: 25,
-    backgroundColor: T.surface,
-    borderWidth: 1, borderColor: T.borderFaint,
+    borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   applyBtn: {

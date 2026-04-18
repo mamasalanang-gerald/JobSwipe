@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { useAuthStore } from '../../store/authStore';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, Dimensions, Image, TextInput,
@@ -227,6 +228,12 @@ export default function ProfileTab() {
   const pickPhoto = async (i: number) => {
     const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [4, 5], quality: 0.85 });
     if (!r.canceled) { const p = [...photos]; p[i] = r.assets[0].uri; setPhotos(p); }
+  };
+
+  const clearToken = useAuthStore((s) => s.clearToken);
+  const handleSignOut = async () => {
+    await clearToken();
+    router.replace('/(auth)/register');
   };
 
   return (
@@ -549,11 +556,7 @@ export default function ProfileTab() {
   );
 }
 
-const handleSignOut = async () => {
-  await new Promise((r) => setTimeout(r, 600));
-  router.replace('/(auth)/login');
-  alert('Signed out!');
-}
+
 
 // ─── Plan card styles ─────────────────────────────────────────────────────────
 const ps = StyleSheet.create({
