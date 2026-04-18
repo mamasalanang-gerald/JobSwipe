@@ -4,37 +4,31 @@ import SectionContainer from '@/components/ui/SectionContainer';
 
 const features = [
   {
-    icon: '👆',
     title: 'Swipe to Match',
     description:
       'Intuitive swipe interface makes job hunting fun and efficient. Right for yes, left for no.',
   },
   {
-    icon: '🎯',
     title: 'Smart Matching',
     description:
       'Our AI learns your preferences and shows you jobs that truly match your skills and interests.',
   },
   {
-    icon: '⚡',
     title: 'Instant Apply',
     description:
       'Apply to jobs with one tap. Your profile is always ready, no repetitive forms.',
   },
   {
-    icon: '💬',
     title: 'Direct Chat',
     description:
       'Connect directly with hiring managers. No middlemen, no delays.',
   },
   {
-    icon: '📊',
     title: 'Track Progress',
     description:
       'See all your applications in one place. Know exactly where you stand.',
   },
   {
-    icon: '🔒',
     title: 'Privacy First',
     description:
       "Your data is yours. We never share your information without permission.",
