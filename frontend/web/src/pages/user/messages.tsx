@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import RatingModal, { RatingSubmission } from '@/components/ui/RatingModal';
+import LeftSidebar from '@/components/ui/LeftSidebar';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
@@ -25,44 +26,6 @@ interface Thread {
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
-const IconHome = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" />
-  </svg>
-);
-const IconCompass = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-    <circle cx="12" cy="12" r="10" />
-    <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill="currentColor" />
-  </svg>
-);
-const IconBriefcase = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="7" width="20" height="14" rx="2" />
-    <path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2" />
-  </svg>
-);
-const IconChat = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-  </svg>
-);
-const IconUser = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-    <circle cx="12" cy="7" r="4" />
-  </svg>
-);
-const IconChevronLeft = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="15 18 9 12 15 6" />
-  </svg>
-);
-const IconChevronRight = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="9 18 15 12 9 6" />
-  </svg>
-);
 const IconSearch = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8" />
@@ -231,15 +194,6 @@ const STAR_LABELS: Record<number, string> = {
   4: 'Great',
   5: 'Excellent',
 };
-
-// ─── Nav items ────────────────────────────────────────────────────────────────
-const navItems = [
-  { id: 'home',         label: 'Home',        Icon: IconHome },
-  { id: 'explore',      label: 'Explore',      Icon: IconCompass },
-  { id: 'applications', label: 'Applications', Icon: IconBriefcase },
-  { id: 'messages',     label: 'Messages',     Icon: IconChat,  badge: 4 },
-  { id: 'profile',      label: 'Profile',      Icon: IconUser },
-];
 
 // ─── Typing indicator ─────────────────────────────────────────────────────────
 function TypingIndicator() {
@@ -431,6 +385,7 @@ export default function MessagesPage() {
   const [ratedThreads, setRatedThreads] = useState<Set<number>>(new Set());
   const bottomRef                       = useRef<HTMLDivElement>(null);
   const inputRef                        = useRef<HTMLTextAreaElement>(null);
+  const sidebarRef                      = useRef<HTMLElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -519,88 +474,15 @@ export default function MessagesPage() {
         * { scrollbar-width: none; }
       `}</style>
 
-      {/* ─── Left Sidebar ───────────────────────────────────────────────────── */}
-      <aside style={{
-        width: leftOpen ? '220px' : '64px',
-        transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1)',
-        flexShrink: 0,
-        background: '#0d0d1a',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        position: 'relative', zIndex: 20,
-      }}>
-        {/* Logo */}
-        <div style={{
-          padding: '0 16px', height: '64px', display: 'flex',
-          alignItems: 'center', justifyContent: 'space-between', flexShrink: 0,
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-        }}>
-          {leftOpen && (
-            <span style={{ color: 'white', fontSize: '18px', fontWeight: 700, letterSpacing: '-0.02em', whiteSpace: 'nowrap' }}>
-              Job<span style={{ color: '#FF4E6A' }}>Swipe</span>
-            </span>
-          )}
-          <button onClick={() => setLeftOpen(v => !v)} style={{
-            width: '30px', height: '30px', borderRadius: '10px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'transparent', border: 'none',
-            color: 'rgba(255,255,255,0.35)', cursor: 'pointer', marginLeft: 'auto',
-          }}>
-            {leftOpen ? <IconChevronLeft /> : <IconChevronRight />}
-          </button>
-        </div>
-
-        {/* Nav */}
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, padding: '8px 8px 0' }}>
-          {navItems.map(({ id, label, Icon, badge }) => (
-            <button key={id} onClick={() => { if (id === 'home') router.push('/user/swipe'); else setActiveNav(id); }} title={!leftOpen ? label : undefined} style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              borderRadius: '12px', padding: leftOpen ? '9px 12px' : '9px',
-              justifyContent: leftOpen ? 'flex-start' : 'center',
-              color: activeNav === id ? '#FF4E6A' : 'rgba(255,255,255,0.4)',
-              background: activeNav === id ? 'rgba(255,78,106,0.08)' : 'transparent',
-              border: 'none', cursor: 'pointer', minHeight: '40px',
-              fontSize: '13px', fontWeight: 500, position: 'relative',
-            }}>
-              <span style={{ flexShrink: 0 }}><Icon /></span>
-              {leftOpen && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
-              {leftOpen && badge && badge > 0 && (
-                <span style={{
-                  marginLeft: 'auto', background: '#FF4E6A', color: 'white',
-                  fontSize: '10px', fontWeight: 700, padding: '1px 6px', borderRadius: '999px',
-                }}>{badge}</span>
-              )}
-              {!leftOpen && badge && badge > 0 && (
-                <span style={{
-                  position: 'absolute', top: '6px', right: '6px',
-                  width: '7px', height: '7px', borderRadius: '50%', background: '#FF4E6A',
-                }} />
-              )}
-            </button>
-          ))}
-        </nav>
-
-        {/* User */}
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '10px',
-          padding: leftOpen ? '12px 14px 20px' : '12px 0 20px',
-          justifyContent: leftOpen ? 'flex-start' : 'center', marginTop: '8px',
-        }}>
-          <div style={{
-            width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0,
-            overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)',
-            background: 'rgba(255,255,255,0.07)', display: 'flex',
-            alignItems: 'center', justifyContent: 'center',
-            color: 'rgba(255,255,255,0.6)', fontSize: '11px', fontWeight: 700,
-          }}>JD</div>
-          {leftOpen && (
-            <div style={{ minWidth: 0 }}>
-              <p style={{ color: 'white', fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>John Doe</p>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>user@jobswipe.com</p>
-            </div>
-          )}
-        </div>
-      </aside>
+      <LeftSidebar
+        sidebarRef={sidebarRef}
+        leftOpen={leftOpen}
+        setLeftOpen={setLeftOpen}
+        activeNav={activeNav}
+        setActiveNav={setActiveNav}
+        swipedCount={0}
+        swipesLeft={15}
+      />
 
       {/* ─── Thread List ────────────────────────────────────────────────────── */}
       <div style={{
