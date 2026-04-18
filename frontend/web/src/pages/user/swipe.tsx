@@ -1,5 +1,5 @@
-'use client';
 import React, { useState, useRef } from 'react';
+import { useRouter } from 'next/router';
 
 // ─── Job data ─────────────────────────────────────────────────────────────────
 const jobs = [
@@ -215,6 +215,13 @@ const IconChevronRight = () => (
     <polyline points="9 18 15 12 9 6" />
   </svg>
 );
+const IconLogOut = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+    <polyline points="16 17 21 12 16 7" />
+    <line x1="21" y1="12" x2="9" y2="12" />
+  </svg>
+);
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Job {
@@ -252,13 +259,12 @@ function SwipeCard({
   const images = job.images.slice(0, 6);
   const numImgs = images.length;
 
-  // Colour-overlay intensity: 0 → 1 over first 80px of drag
   const overlayOpacity = Math.min(Math.abs(dragX) / 80, 1) * 0.55;
   const overlayColor =
     dragX > 0
-      ? `rgba(34, 197, 94, ${overlayOpacity})`   // green  — apply
+      ? `rgba(34, 197, 94, ${overlayOpacity})`
       : dragX < 0
-      ? `rgba(239, 68, 68, ${overlayOpacity})`    // red    — skip
+      ? `rgba(239, 68, 68, ${overlayOpacity})`
       : 'transparent';
 
   const triggerSwipe = (dir: 'left' | 'right') => {
@@ -289,15 +295,12 @@ function SwipeCard({
     else { setDragX(0); setDragRotate(0); setHint(null); }
   };
 
-  // Fly-out goes far enough to leave the viewport but is clipped by the
-  // overflow-hidden wrapper on the card-stack container — sidebars are safe.
   const flyStyle: React.CSSProperties = flyOut ? {
     transform: `translateX(${flyOut === 'right' ? 150 : -150}%) rotate(${flyOut === 'right' ? 18 : -18}deg)`,
     opacity: 0,
     transition: 'transform 0.35s cubic-bezier(0.4,0,0.2,1), opacity 0.35s',
   } : {};
 
-  // Top card: drag freely. Background cards: no transform needed (inset handles sizing).
   const dragStyle: React.CSSProperties = isTop && !flyOut ? {
     transform: `translateX(${dragX}px) rotate(${dragRotate}deg)`,
     transition: isDragging.current ? 'none' : 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
@@ -318,8 +321,6 @@ function SwipeCard({
     <div
       className="absolute select-none"
       style={{
-        // Background cards sit inset so their edges stay hidden behind the top card.
-        // Each stack level shrinks inward by ~2% per level (matching the visual scale).
         top: isTop ? 0 : `${stackIdx * 2}%`,
         left: isTop ? 0 : `${stackIdx * 2}%`,
         right: isTop ? 0 : `${stackIdx * 2}%`,
@@ -337,7 +338,6 @@ function SwipeCard({
       onPointerUp={onPointerUp}
       onPointerLeave={onPointerUp}
     >
-      {/* Images */}
       {images.map((src, i) => (
         <img
           key={src}
@@ -348,7 +348,6 @@ function SwipeCard({
         />
       ))}
 
-      {/* ── Swipe colour overlay ── */}
       {isTop && (
         <div
           className="absolute inset-0"
@@ -362,13 +361,11 @@ function SwipeCard({
         />
       )}
 
-      {/* Gradient overlay (above colour overlay so text stays legible) */}
       <div className="absolute inset-0" style={{
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.0) 40%, rgba(5,5,18,0.75) 65%, rgba(5,5,18,0.98) 100%)',
         zIndex: 3,
       }} />
 
-      {/* Image progress bars */}
       {isTop && numImgs > 1 && (
         <div
           className="absolute top-3 left-3 right-3 flex gap-1.5"
@@ -394,7 +391,6 @@ function SwipeCard({
         </div>
       )}
 
-      {/* Tap zones */}
       {isTop && numImgs > 1 && (
         <>
           <div className="absolute top-0 bottom-0 left-0" style={{ width: '35%', zIndex: 5, cursor: imgIdx > 0 ? 'w-resize' : 'default' }} onPointerDown={(e) => e.stopPropagation()} onClick={goPrev} />
@@ -402,7 +398,6 @@ function SwipeCard({
         </>
       )}
 
-      {/* Arrow buttons */}
       {isTop && numImgs > 1 && (
         <>
           {imgIdx > 0 && (
@@ -414,14 +409,12 @@ function SwipeCard({
         </>
       )}
 
-      {/* Photo counter */}
       {isTop && numImgs > 1 && (
         <div className="absolute" style={{ top: '14px', right: '14px', zIndex: 10, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '20px', padding: '3px 9px', color: 'rgba(255,255,255,0.9)', fontSize: '11px', fontWeight: 600 }}>
           {imgIdx + 1} / {numImgs}
         </div>
       )}
 
-      {/* Swipe hint labels — sit above colour overlay */}
       {hint === 'like' && (
         <div className="absolute z-20" style={{ top: '28px', left: '20px', border: '2.5px solid #22C55E', color: '#22C55E', fontSize: '18px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(-12deg)', letterSpacing: '0.12em', opacity: 0.95 }}>APPLY</div>
       )}
@@ -429,7 +422,6 @@ function SwipeCard({
         <div className="absolute z-20" style={{ top: '28px', right: '20px', border: '2.5px solid #FF4E6A', color: '#FF4E6A', fontSize: '18px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(12deg)', letterSpacing: '0.12em', opacity: 0.95 }}>SKIP</div>
       )}
 
-      {/* Card content */}
       <div className="absolute bottom-0 left-0 right-0 z-10" style={{ padding: '20px 20px 22px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
           <span style={{ color: 'white', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.01em' }}>{job.company}</span>
@@ -524,6 +516,7 @@ const navItems = [
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function SwipeHomePage() {
+  const router = useRouter();
   const [index, setIndex] = useState(0);
   const [swipedCount, setSwipedCount] = useState(0);
   const [lastAction, setLastAction] = useState<'like' | 'nope' | null>(null);
@@ -546,6 +539,11 @@ export default function SwipeHomePage() {
     handleSwipe(dir);
   };
 
+  const handleLogout = () => {
+    // Add your logout logic here, e.g. clear session/token then redirect
+    router.push('/login');
+  };
+
   const visibleJobs = jobs.slice(index, index + 3);
 
   return (
@@ -561,7 +559,6 @@ export default function SwipeHomePage() {
         flexShrink: 0, background: '#0d0d1a',
         borderRight: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        // Sidebar sits above flying card and clips anything entering it
         position: 'relative', zIndex: 20,
       }}>
         {/* Logo row */}
@@ -579,7 +576,7 @@ export default function SwipeHomePage() {
         {/* Nav */}
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, padding: '0 8px' }}>
           {navItems.map(({ id, label, Icon }) => (
-            <button key={id} onClick={() => setActiveNav(id)} title={!leftOpen ? label : undefined} style={{ display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px', padding: leftOpen ? '9px 12px' : '9px', justifyContent: leftOpen ? 'flex-start' : 'center', color: activeNav === id ? '#FF4E6A' : 'rgba(255,255,255,0.4)', background: activeNav === id ? 'rgba(255,78,106,0.08)' : 'transparent', border: 'none', cursor: 'pointer', minHeight: '40px', fontSize: '13px', fontWeight: 500, position: 'relative' }}>
+            <button key={id} onClick={() => { if (id === 'messages') router.push('/user/messages'); else setActiveNav(id); }} title={!leftOpen ? label : undefined} style={{ display: 'flex', alignItems: 'center', gap: '12px', borderRadius: '12px', padding: leftOpen ? '9px 12px' : '9px', justifyContent: leftOpen ? 'flex-start' : 'center', color: activeNav === id ? '#FF4E6A' : 'rgba(255,255,255,0.4)', background: activeNav === id ? 'rgba(255,78,106,0.08)' : 'transparent', border: 'none', cursor: 'pointer', minHeight: '40px', fontSize: '13px', fontWeight: 500, position: 'relative' }}>
               <span style={{ flexShrink: 0 }}><Icon /></span>
               {leftOpen && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
               {leftOpen && id === 'messages' && (
@@ -603,17 +600,64 @@ export default function SwipeHomePage() {
           </div>
         )}
 
-        {/* User */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: leftOpen ? '12px 14px 20px' : '12px 0 20px', justifyContent: leftOpen ? 'flex-start' : 'center', marginTop: '8px' }}>
+        {/* ─── User + Logout ───────────────────────────────────────────────── */}
+        <div style={{
+          margin: '8px 8px 16px',
+          padding: leftOpen ? '10px 10px 10px 12px' : '8px',
+          borderRadius: '14px',
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid rgba(255,255,255,0.06)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          justifyContent: leftOpen ? 'flex-start' : 'center',
+        }}>
+          {/* Avatar */}
           <div style={{ width: '32px', height: '32px', borderRadius: '50%', flexShrink: 0, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.07)' }}>
             <img src="/assets/images/img1.jpg" alt="You" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </div>
+
+          {/* Name + email */}
           {leftOpen && (
-            <div style={{ minWidth: 0 }}>
-              <p style={{ color: 'white', fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>John Doe</p>
-              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>user@jobswipe.com</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ color: 'white', fontSize: '12px', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>John Doe</p>
+              <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', margin: 0 }}>user@jobswipe.com</p>
             </div>
           )}
+
+          {/* Logout button */}
+          <button
+            onClick={handleLogout}
+            title="Log out"
+            style={{
+              flexShrink: 0,
+              width: '28px',
+              height: '28px',
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.08)',
+              color: 'rgba(255,255,255,0.3)',
+              cursor: 'pointer',
+              transition: 'background 0.18s, color 0.18s, border-color 0.18s',
+            }}
+            onMouseEnter={e => {
+              const btn = e.currentTarget;
+              btn.style.background = 'rgba(255,78,106,0.1)';
+              btn.style.color = '#FF4E6A';
+              btn.style.borderColor = 'rgba(255,78,106,0.3)';
+            }}
+            onMouseLeave={e => {
+              const btn = e.currentTarget;
+              btn.style.background = 'transparent';
+              btn.style.color = 'rgba(255,255,255,0.3)';
+              btn.style.borderColor = 'rgba(255,255,255,0.08)';
+            }}
+          >
+            <IconLogOut />
+          </button>
         </div>
       </aside>
 
@@ -651,14 +695,6 @@ export default function SwipeHomePage() {
                 ))}
               </div>
 
-              {/*
-                Card stack wrapper:
-                - NO overflow:hidden here — that was causing background cards
-                  to peek through the top card's edges during drag.
-                - Sidebars have position:relative + zIndex:20 + overflow:hidden
-                  so they naturally clip any card that flies into their space.
-                - Uses calc() height so the card fills available vertical space.
-              */}
               <div style={{
                 position: 'relative',
                 width: '100%',
@@ -710,7 +746,6 @@ export default function SwipeHomePage() {
         flexShrink: 0, background: '#0d0d1a',
         borderLeft: '1px solid rgba(255,255,255,0.06)',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
-        // Sidebar sits above flying card and clips anything entering it
         position: 'relative', zIndex: 20,
       }}>
         <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)', padding: rightOpen ? '0 20px' : '0 8px', justifyContent: rightOpen ? 'space-between' : 'center', height: '64px' }}>
@@ -743,4 +778,4 @@ export default function SwipeHomePage() {
       </aside>
     </div>
   );
-}
+}   

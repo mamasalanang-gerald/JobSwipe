@@ -31,7 +31,7 @@ const features = [
   {
     title: 'Privacy First',
     description:
-      'Your data is yours. We never share your information without permission.',
+      "Your data is yours. We never share your information without permission.",
   },
 ];
 
@@ -49,6 +49,7 @@ export default function FeaturesSection() {
             index={i}
             title={feature.title}
             description={feature.description}
+            delay={i * 70}
           />
         ))}
       </div>
