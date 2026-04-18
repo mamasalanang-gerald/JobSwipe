@@ -4,16 +4,38 @@ interface StepCardProps {
   step: number;
   title: string;
   description: string;
+  active?: boolean;
 }
 
-export default function StepCard({ step, title, description }: StepCardProps) {
+export default function StepCard({
+  step,
+  title,
+  description,
+  active = false,
+}: StepCardProps) {
   return (
-    <div className="text-center">
-      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-[#FF4E6A] to-[#FF7854] text-white text-xl font-bold flex items-center justify-center mx-auto mb-4">
-        {step}
+    <div
+      className={`rounded-2xl p-5 border transition ${
+        active
+          ? 'bg-[#FF4E6A]/10 border-[#FF4E6A]/40'
+          : 'bg-white/5 border-white/10'
+      }`}
+    >
+      <div className="flex items-center gap-3 mb-2">
+        <div
+          className={`w-9 h-9 rounded-full flex items-center justify-center font-bold ${
+            active
+              ? 'bg-[#FF4E6A] text-white'
+              : 'bg-white/10 text-white/70'
+          }`}
+        >
+          {step}
+        </div>
+
+        <h3 className="text-white font-semibold">{title}</h3>
       </div>
-      <h3 className="text-base font-medium text-gray-900 mb-2">{title}</h3>
-      <p className="text-sm text-gray-500 leading-relaxed">{description}</p>
+
+      <p className="text-white/50 text-sm">{description}</p>
     </div>
   );
 }

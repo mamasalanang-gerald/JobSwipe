@@ -1,7 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter } from 'next/router';
+import { useAuth } from '@/hooks/useAuth';
 
 const profileImages = [
   '/assets/images/img1.jpg',
@@ -39,6 +40,8 @@ const mockProfiles = [
 
 export default function LoginSection() {
   const router = useRouter();
+  const { login, isLoading, error } = useAuth();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -55,9 +58,14 @@ export default function LoginSection() {
     setTimeout(() => router.back(), 320);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    console.log({ email, password });
+    const userData = await login(email, password);
+    if (!userData) return;
+
+    if (userData.role === 'user')    router.push('/user/swipe');
+    if (userData.role === 'company') router.push('/company/dashboard');
+    if (userData.role === 'admin')   router.push('/admin/dashboard');
   };
 
   const cardStyle: React.CSSProperties = {
@@ -130,6 +138,7 @@ export default function LoginSection() {
           <h1 className="text-3xl font-bold text-white mb-1">Welcome back</h1>
           <p className="text-white/60 text-sm mb-6">Sign in to continue your career journey</p>
 
+          {/* Social buttons */}
           <div className="flex gap-3 mb-5">
             <button className="flex-1 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl py-2.5 text-white text-sm font-medium transition-all duration-200 active:scale-95">
               <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -154,6 +163,13 @@ export default function LoginSection() {
             <div className="flex-1 h-px bg-white/20" />
           </div>
 
+          {/* Error message */}
+          {error && (
+            <div className="mb-4 px-4 py-3 rounded-xl bg-[#FF4E6A]/10 border border-[#FF4E6A]/30 text-[#FF4E6A] text-sm text-center">
+              {error}
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input
               type="email"
@@ -161,6 +177,7 @@ export default function LoginSection() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               required
+              disabled={isLoading}
               className={inputClass}
             />
             <div className="relative">
@@ -170,6 +187,7 @@ export default function LoginSection() {
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
+                disabled={isLoading}
                 className={`w-full pr-16 ${inputClass}`}
               />
               <button
@@ -182,16 +200,17 @@ export default function LoginSection() {
             </div>
 
             <div className="flex justify-end -mt-1">
-              <Link href="/forgot-password" className="text-[#FF4E6A] text-xs hover:opacity-80 transition font-medium">
+              <Link href="/forgotpass" className="text-[#FF4E6A] text-xs hover:opacity-80 transition font-medium">
                 Forgot password?
               </Link>
             </div>
 
             <button
               type="submit"
-              className="bg-gradient-to-r from-[#FF4E6A] to-[#FF7854] text-white rounded-full py-3 font-semibold text-sm hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg mt-1"
+              disabled={isLoading}
+              className="bg-gradient-to-r from-[#FF4E6A] to-[#FF7854] text-white rounded-full py-3 font-semibold text-sm hover:opacity-90 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 shadow-lg mt-1 disabled:opacity-60 disabled:cursor-not-allowed disabled:scale-100"
             >
-              Sign in
+              {isLoading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
 
