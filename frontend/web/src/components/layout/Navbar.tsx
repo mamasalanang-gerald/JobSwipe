@@ -1,6 +1,14 @@
 'use client';
 import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import NavLink from '@/components/ui/NavLink';
+import LinkButton from '@/components/ui/LinkButton';
+
+const navLinks = [
+  { label: 'Features', href: '#features' },
+  { label: 'How It Works', href: '#how-it-works' },
+  { label: 'For Companies', href: '#for-companies' },
+  { label: 'Download', href: '#download' },
+];
 
 export default function Navbar() {
   const [hidden, setHidden] = useState(false);
@@ -22,7 +30,9 @@ export default function Navbar() {
   return (
     <nav
       className={`fixed w-full z-50 transition-all duration-300 ${
-        hidden ? 'opacity-0 pointer-events-none -translate-y-2' : 'opacity-100 translate-y-0'
+        hidden
+          ? 'opacity-0 pointer-events-none -translate-y-2'
+          : 'opacity-100 translate-y-0'
       }`}
       style={{
         background: scrolled
@@ -33,34 +43,28 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-8">
         <div className="flex justify-between items-center h-16">
+          {/* Logo */}
           <span className="text-xl font-bold text-white tracking-tight">
             <span className="text-[#FF4E6A]">●</span> JobSwipe
           </span>
+
+          {/* Nav links */}
           <div className="hidden md:flex space-x-8">
-            {['Features', 'How It Works', 'For Companies', 'Download'].map(l => (
-              <Link
-                key={l}
-                href={`#${l.toLowerCase().replace(/ /g, '-')}`}
-                className="text-white/90 hover:text-[#FF4E6A] text-sm font-medium transition-colors duration-200 no-underline relative group"
-              >
-                {l}
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-[#FF4E6A] group-hover:w-full transition-all duration-200" />
-              </Link>
+            {navLinks.map(({ label, href }) => (
+              <NavLink key={label} href={href}>
+                {label}
+              </NavLink>
             ))}
           </div>
+
+          {/* Auth buttons */}
           <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-white font-semibold text-sm px-4 py-2 rounded-full border border-white/30 hover:border-white hover:bg-white/10 transition-all duration-200"
-            >
+            <LinkButton href="/login" variant="outline" size="sm">
               Sign In
-            </Link>
-            <Link
-              href="/signup"
-              className="bg-gradient-to-r from-[#FF4E6A] to-[#FF7854] text-white rounded-full px-5 py-2 text-sm font-semibold hover:opacity-90 hover:scale-105 transition-all duration-200 shadow-lg"
-            >
+            </LinkButton>
+            <LinkButton href="/signup" variant="primary" size="sm">
               Get Started
-            </Link>
+            </LinkButton>
           </div>
         </div>
       </div>
