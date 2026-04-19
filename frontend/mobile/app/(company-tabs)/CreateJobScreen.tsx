@@ -28,13 +28,8 @@ const T = {
 // ─── Skill type ───────────────────────────────────────────────────────────────
 type SkillEntry = { name: string; type: 'hard' | 'soft' };
 
-// ─── Interview templates ──────────────────────────────────────────────────────
-const INTERVIEW_TEMPLATES = [
-  'Tell us about your experience...',
-  'Walk us through your background...',
-  'Describe a challenging project...',
-  'What makes you a great fit?',
-];
+// ─── Interview message placeholder ───────────────────────────────────────────
+const INTERVIEW_MESSAGE_PLACEHOLDER = 'Type the message the applicant will see after you swipe.';
 
 // ─── Work types ───────────────────────────────────────────────────────────────
 const WORK_TYPES = ['remote', 'onsite', 'hybrid'] as const;
@@ -316,7 +311,7 @@ export default function CreateJobScreen() {
   const [locationCity,     setLocationCity]     = useState('');
   const [locationRegion,   setLocationRegion]   = useState('');
 
-  const [interviewTemplate, setInterviewTemplate] = useState(INTERVIEW_TEMPLATES[0]);
+  const [interviewMessage, setInterviewMessage] = useState('');
   const [skills,            setSkills]            = useState<SkillEntry[]>([]);
   const [skillInput,        setSkillInput]        = useState('');
   const [showAddHard,       setShowAddHard]       = useState(false);
@@ -379,7 +374,7 @@ export default function CreateJobScreen() {
       location:           location.trim(),
       location_city:      locationCity.trim(),
       location_region:    locationRegion.trim(),
-      interview_template: interviewTemplate,
+      interview_template: interviewMessage.trim(),
       skills:             skills.map(sk => ({ name: sk.name, type: sk.type })),
     };
 
@@ -582,24 +577,23 @@ export default function CreateJobScreen() {
             </View>
           )}
 
-          {/* ── Section: Interview Template ── */}
-          <SectionLabel icon="comment-question-outline" label="Interview Template" />
-          <FieldLabel label="Opening Question" />
-          {INTERVIEW_TEMPLATES.map(tpl => (
-            <TouchableOpacity
-              key={tpl}
-              style={[s.templateOption, interviewTemplate === tpl && s.templateOptionActive]}
-              onPress={() => setInterviewTemplate(tpl)}
-              activeOpacity={0.8}
-            >
-              <View style={[s.templateRadio, interviewTemplate === tpl && s.templateRadioActive]}>
-                {interviewTemplate === tpl && <View style={s.templateRadioDot} />}
-              </View>
-              <Text style={[s.templateText, interviewTemplate === tpl && s.templateTextActive]}>
-                {tpl}
-              </Text>
-            </TouchableOpacity>
-          ))}
+          {/* ── Section: Swipe Message ── */}
+          <SectionLabel icon="comment-question-outline" label="Swipe message" />
+          <FieldLabel label="Message to applicant" />
+          <TextInput
+            style={[s.input, s.textArea, focusedField === 'interviewMessage' && s.inputFocused]}
+            placeholder={INTERVIEW_MESSAGE_PLACEHOLDER}
+            placeholderTextColor={T.textHint}
+            value={interviewMessage}
+            onChangeText={setInterviewMessage}
+            multiline
+            onFocus={() => setFocusedField('interviewMessage')}
+            onBlur={() => setFocusedField(null)}
+            textAlignVertical="top"
+          />
+          <Text style={s.helpText}>
+            This message will be shown when you swipe the applicant right to confirm interest.
+          </Text>
 
           {/* ── Section: Skills ── */}
           <SectionLabel icon="lightning-bolt" label="Skills" />
@@ -823,6 +817,7 @@ const s = StyleSheet.create({
   },
   inputFocused: { borderColor: T.borderFocus },
   textArea:     { minHeight: 110 },
+  helpText:     { fontSize: 11, color: T.textHint, marginBottom: 12 },
   moneyInput: {
     flexDirection: 'row',
     alignItems: 'center',
