@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import {
   View, Text, StyleSheet, FlatList,
-  TouchableOpacity, SafeAreaView, StatusBar, TextInput,
+  TouchableOpacity, SafeAreaView, StatusBar,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 
 // ─── Theme — matches profile.tsx ─────────────────────────────────────────────
@@ -22,11 +23,12 @@ const T = {
   textHint:    'rgba(255,255,255,0.28)',
 };
 
-// ─── Shared job data (mirrors profile.tsx) ────────────────────────────────────
+// ─── Shared job data ──────────────────────────────────────────────────────────
 export type JobPost = {
   id: number;
   title: string;
   dept: string;
+  description: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   color: string;
   applicants: number;
@@ -34,9 +36,9 @@ export type JobPost = {
 };
 
 export const INITIAL_JOBS: JobPost[] = [
-  { id: 1, title: 'Frontend Developer', dept: 'Engineering', icon: 'code-braces',    color: T.primary,  applicants: 24, status: 'open'   },
-  { id: 2, title: 'UI/UX Designer',     dept: 'Design',      icon: 'pencil-ruler',   color: '#4ade80',  applicants: 18, status: 'open'   },
-  { id: 3, title: 'Backend Developer',  dept: 'Engineering', icon: 'server-outline', color: '#60a5fa',  applicants: 11, status: 'paused' },
+  { id: 1, title: 'Frontend Developer', dept: 'Engineering', description: 'Build responsive and interactive user interfaces using React, TypeScript, and modern web technologies.', icon: 'code-braces',    color: T.primary,  applicants: 24, status: 'open'   },
+  { id: 2, title: 'UI/UX Designer',     dept: 'Design',      description: 'Create beautiful, intuitive designs and user experiences for digital products and applications.', icon: 'pencil-ruler',   color: '#4ade80',  applicants: 18, status: 'open'   },
+  { id: 3, title: 'Backend Developer',  dept: 'Engineering', description: 'Develop robust backend systems and APIs using Laravel, Node.js, or Python for scalable applications.', icon: 'server-outline', color: '#60a5fa',  applicants: 11, status: 'paused' },
 ];
 
 type Filter = 'all' | 'open' | 'paused';
@@ -44,34 +46,29 @@ type Filter = 'all' | 'open' | 'paused';
 export default function JobPostingsScreen() {
   const tabBarHeight      = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
+  const navigation        = useNavigation<any>();
 
   const [jobs, setJobs]         = useState<JobPost[]>(INITIAL_JOBS);
   const [filter, setFilter]     = useState<Filter>('all');
-  const [showAdd, setShowAdd]   = useState(false);
-  const [newJob, setNewJob]     = useState({ title: '', dept: '' });
   const [selected, setSelected] = useState<number | null>(null);
-
-  const JOB_COLORS = [T.primary, '#4ade80', '#60a5fa', '#f472b6', '#fb923c'];
-  const JOB_ICONS: React.ComponentProps<typeof MaterialCommunityIcons>['name'][] = [
-    'code-braces', 'pencil-ruler', 'server-outline', 'chart-line', 'account-group-outline',
-  ];
 
   const filtered = jobs.filter(j => filter === 'all' ? true : j.status === filter);
 
-  const addJob = () => {
-    if (!newJob.title.trim()) return;
-    const idx = jobs.length % JOB_COLORS.length;
-    setJobs(prev => [...prev, {
-      id: Date.now(),
-      title: newJob.title,
-      dept: newJob.dept || 'General',
-      icon: JOB_ICONS[idx],
-      color: JOB_COLORS[idx],
-      applicants: 0,
-      status: 'open',
-    }]);
-    setNewJob({ title: '', dept: '' });
-    setShowAdd(false);
+  // Called by CreateJobScreen via route.params.onJobCreated
+  const handleJobCreated = (incoming: { title: string; dept: string; description: string; icon: any; color: string }) => {
+    setJobs(prev => [
+      ...prev,
+      {
+        id:         Date.now(),
+        title:      incoming.title,
+        dept:       incoming.dept || 'General',
+        description: incoming.description || '',
+        icon:       incoming.icon ?? 'briefcase-outline',
+        color:      incoming.color ?? T.primary,
+        applicants: 0,
+        status:     'open',
+      },
+    ]);
   };
 
   const toggleStatus = (id: number) => {
@@ -85,8 +82,8 @@ export default function JobPostingsScreen() {
     if (selected === id) setSelected(null);
   };
 
-  const openCount   = jobs.filter(j => j.status === 'open').length;
-  const totalApps   = jobs.reduce((a, j) => a + j.applicants, 0);
+  const openCount = jobs.filter(j => j.status === 'open').length;
+  const totalApps = jobs.reduce((a, j) => a + j.applicants, 0);
 
   return (
     <View style={[s.screen, { paddingTop: topInset }]}>
@@ -99,44 +96,16 @@ export default function JobPostingsScreen() {
           <Text style={s.headerSub}>{openCount} active · {totalApps} total applicants</Text>
         </View>
         <TouchableOpacity
-          style={[s.addBtn, showAdd && s.addBtnCancel]}
-          onPress={() => setShowAdd(v => !v)}
+          style={s.addBtn}
+          onPress={() =>
+            navigation.navigate('CreateJobScreen', { onJobCreated: handleJobCreated })
+          }
           activeOpacity={0.8}
         >
-          <MaterialCommunityIcons
-            name={showAdd ? 'close' : 'plus'}
-            size={14}
-            color={showAdd ? T.danger : T.primary}
-          />
-          <Text style={[s.addBtnText, showAdd && { color: T.danger }]}>
-            {showAdd ? 'Cancel' : 'New Post'}
-          </Text>
+          <MaterialCommunityIcons name="plus" size={14} color={T.primary} />
+          <Text style={s.addBtnText}>New Post</Text>
         </TouchableOpacity>
       </View>
-
-      {/* ── Add Job Form ── */}
-      {showAdd && (
-        <View style={s.addForm}>
-          <TextInput
-            style={s.addInput}
-            placeholder="Job Title  e.g. React Native Developer"
-            placeholderTextColor={T.textHint}
-            value={newJob.title}
-            onChangeText={t => setNewJob(p => ({ ...p, title: t }))}
-          />
-          <TextInput
-            style={s.addInput}
-            placeholder="Department  e.g. Engineering, Design"
-            placeholderTextColor={T.textHint}
-            value={newJob.dept}
-            onChangeText={t => setNewJob(p => ({ ...p, dept: t }))}
-          />
-          <TouchableOpacity style={s.postBtn} onPress={addJob} activeOpacity={0.85}>
-            <MaterialCommunityIcons name="briefcase-plus-outline" size={15} color="#fff" />
-            <Text style={s.postBtnText}>Post Job</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* ── Filter chips ── */}
       <View style={s.filterRow}>
@@ -214,6 +183,9 @@ export default function JobPostingsScreen() {
               {isSelected && (
                 <View style={s.cardActions}>
                   <View style={s.divider} />
+                  <Text style={s.descriptionLabel}>Description</Text>
+                  <Text style={s.descriptionText}>{item.description}</Text>
+                  <View style={s.divider} />
                   <View style={s.actionsRow}>
 
                     <TouchableOpacity
@@ -266,20 +238,13 @@ const s = StyleSheet.create({
 
   // Add button
   addBtn:       { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(168,85,247,0.3)', backgroundColor: 'rgba(168,85,247,0.08)' },
-  addBtnCancel: { borderColor: 'rgba(248,113,113,0.3)', backgroundColor: 'rgba(248,113,113,0.08)' },
   addBtnText:   { fontSize: 12, fontWeight: '700', color: T.primary },
 
-  // Add form
-  addForm:      { marginHorizontal: 16, marginBottom: 12, padding: 14, borderRadius: 16, backgroundColor: T.surface, borderWidth: 1, borderColor: T.border, gap: 10 },
-  addInput:     { backgroundColor: T.bg, borderRadius: 10, borderWidth: 1, borderColor: T.border, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: T.textPrimary },
-  postBtn:      { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: T.primary, borderRadius: 10, paddingVertical: 12 },
-  postBtnText:  { fontSize: 13, fontWeight: '700', color: '#fff' },
-
   // Filter chips
-  filterRow:          { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 4 },
-  filterChip:         { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border },
-  filterChipActive:   { backgroundColor: 'rgba(233,30,140,0.12)', borderColor: 'rgba(233,30,140,0.35)' },
-  filterChipText:     { fontSize: 12, fontWeight: '600', color: T.textHint },
+  filterRow:            { flexDirection: 'row', gap: 8, paddingHorizontal: 16, marginBottom: 4 },
+  filterChip:           { paddingHorizontal: 14, paddingVertical: 6, borderRadius: 20, backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border },
+  filterChipActive:     { backgroundColor: 'rgba(233,30,140,0.12)', borderColor: 'rgba(233,30,140,0.35)' },
+  filterChipText:       { fontSize: 12, fontWeight: '600', color: T.textHint },
   filterChipTextActive: { color: '#e91e8c' },
 
   // Cards
@@ -305,6 +270,8 @@ const s = StyleSheet.create({
   // Expanded actions
   cardActions:  { marginTop: 12 },
   divider:      { height: 1, backgroundColor: T.border, marginBottom: 12 },
+  descriptionLabel: { fontSize: 12, fontWeight: '700', color: T.textSub, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  descriptionText: { fontSize: 13, color: T.textPrimary, lineHeight: 20, marginBottom: 12 },
   actionsRow:   { flexDirection: 'row', justifyContent: 'space-around' },
   actionBtn:    { flexDirection: 'row', alignItems: 'center', gap: 5 },
   actionText:   { fontSize: 12, fontWeight: '600' },

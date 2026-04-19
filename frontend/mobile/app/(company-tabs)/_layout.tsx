@@ -33,8 +33,10 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
       <View style={styles.topBorder} />
       <View style={styles.row}>
         {state.routes.map((route: any, i: number) => {
+          const tab = TABS.find(t => t.name === route.name);
+          if (!tab) return null;
+
           const focused = state.index === i;
-          const tab     = TABS[i];
           const color   = focused ? T.active : T.inactive;
 
           const onPress = () => {
@@ -54,12 +56,12 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
               style={styles.tab}
             >
               <MaterialCommunityIcons
-                name={(tab?.icon ?? 'home-outline') as any}
+                name={tab.icon as any}
                 size={24}
                 color={color}
               />
               <Text style={[styles.label, { color }]}>
-                {tab?.label ?? route.name}
+                {tab.label}
               </Text>
               {focused && <View style={styles.indicator} />}
             </TouchableOpacity>
@@ -76,10 +78,11 @@ export default function CompanyTabLayout() {
       screenOptions={{ headerShown: false }}
       tabBar={props => <CustomTabBar {...props} />}
     >
-      <Tabs.Screen name="index"      options={{ title: 'Home'    }} />
-      <Tabs.Screen name="applicants" options={{ title: 'Jobs'    }} />
-      <Tabs.Screen name="matches"    options={{ title: 'Matches' }} />
-      <Tabs.Screen name="profile"    options={{ title: 'Profile' }} />
+      <Tabs.Screen name="index"           options={{ title: 'Home'    }} />
+      <Tabs.Screen name="applicants"      options={{ title: 'Jobs'    }} />
+      <Tabs.Screen name="matches"         options={{ title: 'Matches' }} />
+      <Tabs.Screen name="profile"         options={{ title: 'Profile' }} />
+      <Tabs.Screen name="CreateJobScreen" options={{ href: null       }} />
     </Tabs>
   );
 }
