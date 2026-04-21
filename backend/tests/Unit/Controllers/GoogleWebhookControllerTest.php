@@ -6,39 +6,13 @@ use App\Exceptions\IAPException;
 use App\Http\Controllers\Webhook\GoogleWebhookController;
 use App\Services\IAP\GooglePubSubWebhookVerifierService;
 use App\Services\IAPService;
-use Illuminate\Container\Container;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Facade;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class GoogleWebhookControllerTest extends TestCase
 {
-    protected function setUp(): void
-    {
-        parent::setUp();
-
-        $container = new Container;
-        $container->instance('log', new class
-        {
-            public function info(string $message, array $context = []): void {}
-
-            public function warning(string $message, array $context = []): void {}
-
-            public function error(string $message, array $context = []): void {}
-        });
-
-        Facade::setFacadeApplication($container);
-    }
-
-    protected function tearDown(): void
-    {
-        Facade::clearResolvedInstances();
-
-        parent::tearDown();
-    }
-
     public function test_handle_notification_processes_verified_payload(): void
     {
         /** @var IAPService&MockObject $iapService */

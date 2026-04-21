@@ -23,12 +23,18 @@ class AuthService
         private CompanyMembershipService $memberships,
     ) {}
 
-    public function initiateRegistration(string $email, string $password, string $role, ?string $companyInviteToken = null): string
-    {
+    public function initiateRegistration(
+        string $email,
+        string $password,
+        string $role,
+        ?string $companyInviteToken = null,
+        bool $magicLinkVerified = false
+    ): string {
         Log::info('AuthService: Starting registration', [
             'email' => $email,
             'role' => $role,
             'has_invite_token' => $companyInviteToken !== null,
+            'magic_link_verified' => $magicLinkVerified,
         ]);
 
         if ($this->users->emailExists($email)) {
@@ -58,9 +64,7 @@ class AuthService
                 $invite = $this->invitations->resolvePendingInvite($email, $companyInviteToken);
 
                 if (! $invite) {
-                    Log::warning('AuthService: Invalid company invite', [
-                        'email' => $email,
-                    ]);
+                    Log::warning('AuthService: Invalid company invite', ['email' => $email]);
 
                     return 'company_invite_invalid';
                 }
@@ -75,6 +79,16 @@ class AuthService
                     return 'company_invite_role_mismatch';
                 }
             }
+        }
+
+        // Web magic-link flow: email pre-verified, skip OTP entirely (Req 3 AC 3)
+        if ($magicLinkVerified && $companyInviteToken) {
+            $passwordHash = Hash::make($password, ['rounds' => config('hashing.bcrypt.rounds', 10)]);
+
+            // Directly complete registration without OTP round-trip
+            $result = $this->completeRegistrationDirect($email, $passwordHash, $role, $companyInviteToken);
+
+            return $result['status'] === 'verified' ? 'web_magic_link_registered' : $result['status'];
         }
 
         $passwordHash = Hash::make($password, ['rounds' => config('hashing.bcrypt.rounds', 10)]);
@@ -159,6 +173,56 @@ class AuthService
         $this->otp->clearStoredData($email);
 
         // Dispatch welcome email job
+        SendWelcomeEmail::dispatch($user->id)->onQueue('emails');
+
+        return [
+            'status' => 'verified',
+            'token' => $token,
+            'user' => $user,
+        ];
+    }
+
+    /**
+     * Complete registration for the web magic-link flow — bypasses OTP.
+     * Called from initiateRegistration() when magic_link_verified=true.
+     * Req 3 AC 3.
+     */
+    public function completeRegistrationDirect(
+        string $email,
+        string $passwordHash,
+        string $role,
+        string $companyInviteToken
+    ): array {
+        $user = null;
+        $token = null;
+
+        DB::transaction(function () use ($email, $passwordHash, $role, $companyInviteToken, &$user, &$token) {
+            $user = $this->users->create([
+                'email' => strtolower(trim($email)),
+                'password_hash' => $passwordHash,
+                'role' => $role,
+                'email_verified_at' => now(), // pre-verified by magic link
+            ]);
+
+            if (in_array($user->role, ['hr', 'company_admin'], true)) {
+                try {
+                    $this->invitations->acceptInviteForUser($email, $companyInviteToken, $user->id, $user->role);
+                    Log::info('AuthService: Web magic-link user joined company via invite', [
+                        'user_id' => $user->id,
+                        'email' => $email,
+                    ]);
+                } catch (\InvalidArgumentException $e) {
+                    Log::error('AuthService: Failed to accept invite (web flow)', [
+                        'user_id' => $user->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                    throw $e;
+                }
+            }
+
+            $token = $this->tokens->generateToken($user);
+        });
+
         SendWelcomeEmail::dispatch($user->id)->onQueue('emails');
 
         return [

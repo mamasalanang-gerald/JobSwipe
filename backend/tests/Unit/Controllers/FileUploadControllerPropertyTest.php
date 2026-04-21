@@ -4,12 +4,12 @@ namespace Tests\Unit\Controllers;
 
 use App\Exceptions\FileUploadException;
 use App\Http\Controllers\File\FileUploadController;
+use App\Http\Requests\File\ConfirmUploadRequest;
 use App\Http\Requests\File\GenerateReadUrlRequest;
 use App\Http\Requests\File\GenerateUploadUrlRequest;
 use App\Services\FileUploadService;
-use Illuminate\Http\Request;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class FileUploadControllerPropertyTest extends TestCase
 {
@@ -95,9 +95,8 @@ class FileUploadControllerPropertyTest extends TestCase
         for ($i = 1; $i <= 3; $i++) {
             $url = "https://cdn.jobswipe.test/document/user-{$i}/resume.pdf";
 
-            $request = Request::create('/api/v1/files/confirm-upload', 'POST', [
-                'file_url' => $url,
-            ]);
+            $request = $this->createMock(ConfirmUploadRequest::class);
+            $request->expects($this->once())->method('validated')->willReturn(['file_url' => $url]);
 
             $response = $controller->confirmUpload($request);
             $payload = json_decode($response->getContent(), true);

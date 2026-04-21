@@ -4,6 +4,7 @@ use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckSwipeLimit;
 use App\Http\Middleware\ClearStaleRouteCache;
 use App\Http\Middleware\EnsureEmailVerified;
+use App\Http\Middleware\MembershipActiveMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'swipe.limit' => CheckSwipeLimit::class,
             'role' => CheckRole::class,
             'verified' => EnsureEmailVerified::class,
+            'membership.active' => MembershipActiveMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

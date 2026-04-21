@@ -26,12 +26,16 @@ class CompanyInvite extends Model
         'expires_at',
         'accepted_at',
         'revoked_at',
+        'invite_email_sent_at',
+        'magic_link_clicked_at',
     ];
 
     protected $casts = [
         'expires_at' => 'datetime',
         'accepted_at' => 'datetime',
         'revoked_at' => 'datetime',
+        'invite_email_sent_at' => 'datetime',
+        'magic_link_clicked_at' => 'datetime',
     ];
 
     public function company(): BelongsTo
@@ -40,6 +44,14 @@ class CompanyInvite extends Model
     }
 
     public function invitedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'invited_by_user_id');
+    }
+
+    /**
+     * Alias used in validate endpoint to surface the inviter's name.
+     */
+    public function inviter(): BelongsTo
     {
         return $this->belongsTo(User::class, 'invited_by_user_id');
     }

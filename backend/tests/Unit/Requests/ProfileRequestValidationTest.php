@@ -7,7 +7,7 @@ use App\Http\Requests\File\GenerateUploadUrlRequest;
 use App\Http\Requests\Profile\UpdateApplicantBasicInfoRequest;
 use App\Http\Requests\Profile\UpdateApplicantSkillsRequest;
 use App\Http\Requests\Profile\UpdateCompanyDetailsRequest;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class ProfileRequestValidationTest extends TestCase
 {
