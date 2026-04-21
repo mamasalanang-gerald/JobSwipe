@@ -50,6 +50,15 @@ class MatchLifecycleTest extends TestCase
             'owner_user_id' => $this->hrUser->id,
         ]);
 
+        // Create company membership for HR user
+        \App\Models\PostgreSQL\CompanyMembership::create([
+            'company_id' => $this->company->id,
+            'user_id' => $this->hrUser->id,
+            'membership_role' => 'hr',
+            'status' => 'active',
+            'joined_at' => now(),
+        ]);
+
         $this->job = JobPosting::factory()->create([
             'company_id' => $this->company->id,
         ]);

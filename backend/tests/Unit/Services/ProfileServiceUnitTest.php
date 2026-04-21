@@ -92,6 +92,7 @@ class ProfileServiceUnitTest extends TestCase
         $profile->verification_documents = ['https://cdn.jobswipe/doc1.pdf'];
 
         $company = new CompanyProfile;
+        $company->verification_status = 'pending';
         $company->subscription_status = 'active';
 
         $percentage = $service->calculateCompanyCompletion($profile, $company);
