@@ -10,12 +10,15 @@ use App\Http\Controllers\Applicant\SwipeController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\Company\ApplicantReviewController;
+use App\Http\Controllers\Company\CompanyInviteController;
+use App\Http\Controllers\Company\CompanyMemberController;
 use App\Http\Controllers\Company\JobPostingController;
 use App\Http\Controllers\Company\MatchController as CompanyMatchController;
 use App\Http\Controllers\File\FileUploadController;
 use App\Http\Controllers\IAP\IAPController;
 use App\Http\Controllers\Match\MatchMessageController;
 use App\Http\Controllers\Notification\NotificationController;
+use App\Http\Controllers\Profile\HRProfileController;
 use App\Http\Controllers\Profile\ProfileController;
 use App\Http\Controllers\Review\ReviewController;
 use App\Http\Controllers\Subscription\SubscriptionController;
@@ -48,8 +51,11 @@ Route::middleware('throttle:api-tiered')->group(function () {
         Route::get('auth/google/redirect', [OAuthController::class, 'redirectToGoogle']);
         Route::get('auth/google/callback', [OAuthController::class, 'handleGoogleCallback']);
 
-        // Public company invite validation (for registration flow)
-        Route::post('company/invites/validate', [\App\Http\Controllers\Company\CompanyInviteController::class, 'validate']);
+        // ── Public company invite validation — rate-limited per IP (Req 19 AC 3)
+        Route::post(
+            'company/invites/validate',
+            [CompanyInviteController::class, 'validate']
+        )->middleware('throttle:magic-link-validate');
 
         Route::post('webhooks/stripe', [SubscriptionController::class, 'handleWebhook']);
         Route::post('webhooks/apple-iap', [AppleWebhookController::class, 'handleNotification']);
@@ -91,7 +97,7 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::patch('social-links', [ProfileController::class, 'updateSocialLinks']);
                 });
 
-                Route::middleware('role:hr,company_admin')->prefix('company')->group(function () {
+                Route::middleware('role:hr,company_admin', 'membership.active')->prefix('company')->group(function () {
                     Route::get('/', [ProfileController::class, 'getCompanyProfile']);
                     Route::patch('details', [ProfileController::class, 'updateCompanyDetails']);
                     Route::patch('logo', [ProfileController::class, 'updateCompanyLogo']);
@@ -106,6 +112,13 @@ Route::middleware('throttle:api-tiered')->group(function () {
                 Route::get('onboarding/status', [ProfileController::class, 'getOnboardingStatus']);
                 Route::post('onboarding/complete-step', [ProfileController::class, 'completeOnboardingStep']);
                 Route::get('completion', [ProfileController::class, 'getProfileCompletion']);
+
+                // ── HR Profile (Req 4, Req 17) ───────────────────────────────────────
+                Route::middleware('role:hr', 'membership.active')->prefix('hr')->group(function () {
+                    Route::post('setup', [HRProfileController::class, 'setup'])
+                        ->middleware('throttle:hr-profile-setup');
+                    Route::post('photo-upload-url', [HRProfileController::class, 'photoUploadUrl']);
+                });
             });
 
             Route::prefix('subscriptions')->group(function () {
@@ -124,7 +137,7 @@ Route::middleware('throttle:api-tiered')->group(function () {
                 Route::middleware('role:applicant')->post('subscription/cancel', [IAPController::class, 'cancelSubscription']);
             });
 
-            Route::middleware('role:hr,company_admin')->prefix('company')->group(function () {
+            Route::middleware('role:hr,company_admin', 'membership.active')->prefix('company')->group(function () {
                 Route::apiResource('jobs', JobPostingController::class);
                 Route::post('jobs/{id}/close', [JobPostingController::class, 'close']);
                 Route::post('jobs/{id}/restore', [JobPostingController::class, 'restore']);
@@ -136,11 +149,22 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::post('{applicantId}/left', [ApplicantReviewController::class, 'swipeLeft']);
                 });
 
-                // Company invites (admin only)
+                // ── Company Invites (company_admin only) ──────────────────────────
                 Route::middleware('role:company_admin')->prefix('invites')->group(function () {
-                    Route::post('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'store']);
-                    Route::get('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'index']);
-                    Route::delete('{inviteId}', [\App\Http\Controllers\Company\CompanyInviteController::class, 'destroy']);
+                    Route::post('/', [CompanyInviteController::class, 'store'])
+                        ->middleware('throttle:invite-create');
+                    Route::post('/bulk', [CompanyInviteController::class, 'bulkStore'])
+                        ->middleware('throttle:invite-create');
+                    Route::get('/', [CompanyInviteController::class, 'index']);
+                    Route::delete('{inviteId}', [CompanyInviteController::class, 'destroy']);
+                    Route::post('{inviteId}/resend', [CompanyInviteController::class, 'resend']);
+                });
+
+                // ── Team Member Management (company_admin only) ───────────────────
+                Route::middleware('role:company_admin')->group(function () {
+                    Route::get('members', [CompanyMemberController::class, 'index']);
+                    Route::delete('members/{userId}/revoke', [CompanyMemberController::class, 'revoke']);
+                    Route::get('audit-log', [CompanyMemberController::class, 'auditLog']);
                 });
             });
 
@@ -169,7 +193,7 @@ Route::middleware('throttle:api-tiered')->group(function () {
             });
 
             // ── HR/Company Matches ────────────────────────────────────────────
-            Route::middleware('role:hr,company_admin')->prefix('company/matches')->group(function () {
+            Route::middleware('role:hr,company_admin', 'membership.active')->prefix('company/matches')->group(function () {
                 Route::get('/', [CompanyMatchController::class, 'index']);
                 Route::get('{id}', [CompanyMatchController::class, 'show']);
                 Route::post('{id}/close', [CompanyMatchController::class, 'close']);
@@ -200,7 +224,9 @@ Route::middleware('throttle:api-tiered')->group(function () {
             // ── Admin Job Posting Management ──────────────────────────────────
             Route::middleware('role:moderator,super_admin')->prefix('admin/jobs')->group(function () {
                 Route::delete('{id}/force', [JobPostingController::class, 'forceDestroy']);
-            // ── Admin: Verification, User lookup, Dashboard (moderator + super_admin) ──
+            });
+
+            // ── Admin: Verification, User lookup, Dashboard ──────────────────
             Route::middleware('role:moderator,super_admin')->prefix('admin')->group(function () {
                 Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
 
@@ -215,7 +241,7 @@ Route::middleware('throttle:api-tiered')->group(function () {
                 Route::get('users/{id}', [AdminUserController::class, 'show']);
             });
 
-            // ── Admin: Destructive user actions (super_admin only) ────────────
+            // ── Admin: Destructive user actions ──────────────────────────────
             Route::middleware('role:super_admin')->prefix('admin')->group(function () {
                 Route::post('users/{id}/ban', [AdminUserController::class, 'ban']);
                 Route::post('users/{id}/unban', [AdminUserController::class, 'unban']);

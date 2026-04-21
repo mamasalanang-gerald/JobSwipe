@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\PostgreSQL\CompanyProfile;
+use App\Models\PostgreSQL\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 
@@ -17,7 +18,7 @@ class CompanyProfileFactory extends Factory
     {
         return [
             'id' => Str::uuid()->toString(),
-            'user_id' => Str::uuid()->toString(),
+            'user_id' => User::factory(), // Create actual user instead of random UUID
             'owner_user_id' => null,
             'company_name' => fake()->company(),
             'company_domain' => fake()->unique()->domainName(),

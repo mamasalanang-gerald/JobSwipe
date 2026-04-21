@@ -3,11 +3,11 @@
 namespace App\Http\Controllers\File;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\File\ConfirmUploadRequest;
 use App\Http\Requests\File\GenerateReadUrlRequest;
 use App\Http\Requests\File\GenerateUploadUrlRequest;
 use App\Services\FileUploadService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 
 class FileUploadController extends Controller
 {
@@ -37,11 +37,9 @@ class FileUploadController extends Controller
         return $this->success(data: $result, message: 'Read URL generated.');
     }
 
-    public function confirmUpload(Request $request): JsonResponse
+    public function confirmUpload(ConfirmUploadRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'file_url' => ['required', 'string', 'max:2000'],
-        ]);
+        $validated = $request->validated();
 
         $this->fileUploads->validateFileUrl((string) $validated['file_url']);
 

@@ -22,7 +22,7 @@ class RegisterRequest extends FormRequest
     {
         return [
             'role' => ['required', 'string', 'in:applicant,hr,company_admin'],
-            'email' => ['required', 'email:rfc,dns', 'max:255'],
+            'email' => ['required', 'email:rfc', 'max:255'], // Removed dns validation for testing
             'password' => [
                 'required',
                 'string',

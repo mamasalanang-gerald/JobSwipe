@@ -4,6 +4,7 @@ use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckSwipeLimit;
 use App\Http\Middleware\ClearStaleRouteCache;
 use App\Http\Middleware\EnsureEmailVerified;
+use App\Http\Middleware\MembershipActiveMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -31,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'swipe.limit' => CheckSwipeLimit::class,
             'role' => CheckRole::class,
             'verified' => EnsureEmailVerified::class,
+            'membership.active' => MembershipActiveMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
@@ -52,7 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => 'Validation failed.',
                 'code' => 'VALIDATION_ERROR',
                 'errors' => $exception->errors(),
-            ], 400);
+            ], 422); // Changed from 400 to 422 (standard HTTP status for validation errors)
         });
 
         $exceptions->render(function (NotFoundHttpException $exception, Request $request) {
