@@ -33,7 +33,9 @@ class MatchMessageTest extends TestCase
 
         // Stub notifications
         $notifMock = Mockery::mock(NotificationService::class);
-        $notifMock->shouldReceive('create')->andReturn(new \App\Models\PostgreSQL\Notification());
+        $notifMock->shouldReceive('create')->andReturn(
+            Mockery::mock(\App\Models\PostgreSQL\Notification::class)
+        );
         $notifMock->shouldReceive('sendPush')->andReturnNull();
         $this->app->instance(NotificationService::class, $notifMock);
 
@@ -48,6 +50,7 @@ class MatchMessageTest extends TestCase
 
         $company = CompanyProfile::factory()->verified()->create([
             'user_id' => $this->hrUser->id,
+            'owner_user_id' => $this->hrUser->id,
         ]);
         $job = JobPosting::factory()->create(['company_id' => $company->id]);
         $app = Application::factory()->matched()->create([
@@ -169,12 +172,10 @@ class MatchMessageTest extends TestCase
 
     public function test_applicant_first_message_auto_accepts_pending_match(): void
     {
-        // Create a different HR user and company to avoid unique constraint violation
-        $newHrUser = User::factory()->hr()->create();
-        $newCompany = CompanyProfile::factory()->verified()->create([
-            'user_id' => $newHrUser->id,
+        // Create a NEW job posting for this test to avoid unique constraint violation
+        $newJob = JobPosting::factory()->create([
+            'company_id' => $this->acceptedMatch->jobPosting->company_id,
         ]);
-        $newJob = JobPosting::factory()->create(['company_id' => $newCompany->id]);
         
         // Create a pending match (not accepted yet)
         $app = Application::factory()->matched()->create([
@@ -185,7 +186,7 @@ class MatchMessageTest extends TestCase
             'application_id' => $app->id,
             'applicant_id' => $this->applicantProfile->id,
             'job_posting_id' => $newJob->id,
-            'hr_user_id' => $newHrUser->id,
+            'hr_user_id' => $this->hrUser->id,
             'status' => 'pending',
             'response_deadline' => now()->addHours(23),
         ]);

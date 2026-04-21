@@ -54,7 +54,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => 'Validation failed.',
                 'code' => 'VALIDATION_ERROR',
                 'errors' => $exception->errors(),
-            ], 422); // Changed from 400 to 422 (standard HTTP status for validation errors)
+            ], 422);
         });
 
         $exceptions->render(function (NotFoundHttpException $exception, Request $request) {

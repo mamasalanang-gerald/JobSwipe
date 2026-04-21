@@ -151,20 +151,11 @@ Route::middleware('throttle:api-tiered')->group(function () {
 
                 // ── Company Invites (company_admin only) ──────────────────────────
                 Route::middleware('role:company_admin')->prefix('invites')->group(function () {
-                    Route::post('/', [CompanyInviteController::class, 'store'])
-                        ->middleware('throttle:invite-create');
-                    Route::post('/bulk', [CompanyInviteController::class, 'bulkStore'])
-                        ->middleware('throttle:invite-create');
-                    Route::get('/', [CompanyInviteController::class, 'index']);
-                    Route::delete('{inviteId}', [CompanyInviteController::class, 'destroy']);
-                    Route::post('{inviteId}/resend', [CompanyInviteController::class, 'resend']);
-                });
-
-                // ── Team Member Management (company_admin only) ───────────────────
-                Route::middleware('role:company_admin')->group(function () {
-                    Route::get('members', [CompanyMemberController::class, 'index']);
-                    Route::delete('members/{userId}/revoke', [CompanyMemberController::class, 'revoke']);
-                    Route::get('audit-log', [CompanyMemberController::class, 'auditLog']);
+                    Route::post('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'store']);
+                    Route::post('bulk', [\App\Http\Controllers\Company\CompanyInviteController::class, 'bulkStore']);
+                    Route::get('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'index']);
+                    Route::delete('{inviteId}', [\App\Http\Controllers\Company\CompanyInviteController::class, 'destroy']);
+                    Route::post('{inviteId}/resend', [\App\Http\Controllers\Company\CompanyInviteController::class, 'resend']);
                 });
             });
 
@@ -248,4 +239,5 @@ Route::middleware('throttle:api-tiered')->group(function () {
             });
         });
     });
+});
 });

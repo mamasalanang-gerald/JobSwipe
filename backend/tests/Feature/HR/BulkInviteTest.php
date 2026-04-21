@@ -14,7 +14,6 @@ class BulkInviteTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
-
     private CompanyProfile $company;
 
     protected function setUp(): void
@@ -23,7 +22,10 @@ class BulkInviteTest extends TestCase
         Mail::fake();
 
         $this->admin = User::factory()->create(['role' => 'company_admin']);
-        $this->company = CompanyProfile::factory()->create(['owner_user_id' => $this->admin->id]);
+        $this->company = CompanyProfile::factory()->create([
+            'owner_user_id' => $this->admin->id,
+            'user_id' => $this->admin->id, // Legacy field
+        ]);
 
         CompanyMembership::create([
             'company_id' => $this->company->id,

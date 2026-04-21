@@ -3,8 +3,9 @@
 namespace Tests;
 
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Redis;
 
 abstract class TestCase extends BaseTestCase
@@ -13,43 +14,28 @@ abstract class TestCase extends BaseTestCase
     {
         parent::setUp();
 
-        // Flush the cache before each test to clear rate limiters
-        // (array cache in unit tests, redis cache in real-backend feature tests)
+        // Clear Redis cache between tests to prevent rate limit carryover
+        try {
+            Redis::connection('default')->flushdb();
+        } catch (\Exception $e) {
+            // Ignore if Redis is not available
+        }
+
+        // Clear rate limiter
+        RateLimiter::clear('5,1');
+        
+        // Clear cache
         Cache::flush();
-
-        if ($this->usesRealBackends()) {
-            $this->resetRedis();
-            $this->resetMongo();
-        }
     }
-
-    private function usesRealBackends(): bool
+    
+    /**
+     * Override to clear authentication guards between requests
+     */
+    protected function tearDown(): void
     {
-        return filter_var(env('TEST_USE_REAL_BACKENDS', false), FILTER_VALIDATE_BOOL);
-    }
-
-    private function resetRedis(): void
-    {
-        // Clear both configured Redis DBs used by default and cache connections.
-        Redis::connection('default')->flushdb();
-        Redis::connection('cache')->flushdb();
-    }
-
-    private function resetMongo(): void
-    {
-        /** @var \MongoDB\Laravel\Connection $connection */
-        $connection = DB::connection('mongodb');
-        $database = $connection->getMongoDB();
-
-        foreach ($database->listCollections() as $collectionInfo) {
-            $name = $collectionInfo->getName();
-
-            // Defensive guard; test DB shouldn't have system collections but skip anyway.
-            if (str_starts_with($name, 'system.')) {
-                continue;
-            }
-
-            $database->dropCollection($name);
-        }
+        // Clear all authentication guards to prevent caching between requests
+        Auth::forgetGuards();
+        
+        parent::tearDown();
     }
 }

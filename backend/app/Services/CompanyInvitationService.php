@@ -54,6 +54,7 @@ class CompanyInvitationService
         $token = bin2hex(random_bytes(32));
 
         $invite = CompanyInvite::create([
+            'id' => \Illuminate\Support\Str::uuid()->toString(),
             'company_id' => $companyId,
             'email' => $normalizedEmail,
             'email_domain' => $domain,
@@ -63,22 +64,55 @@ class CompanyInvitationService
             'expires_at' => now()->addDays(7),
         ]);
 
-        // Dispatch email — record timestamp even if queued
-        $invite->refresh();
-        $this->dispatchInviteEmail($invite, $token);
-
-        return ['invite' => $invite->refresh()];
-        // NOTE: Raw token intentionally NOT returned to caller.
+        return [
+            'invite' => $invite,
+            'token' => $token,
+        ];
     }
 
-    /**
-     * Re-send invite email for a pending, non-expired invite.
-     */
-    public function resendInvite(
+    public function createBulkInvites(
         string $companyId,
-        string $requesterUserId,
-        string $inviteId
-    ): CompanyInvite {
+        string $inviterUserId,
+        array $emails,
+        string $inviteRole
+    ): array {
+        if (! $this->memberships->isAdmin($companyId, $inviterUserId)) {
+            throw new InvalidArgumentException('INVITE_FORBIDDEN');
+        }
+
+        if (! in_array($inviteRole, ['company_admin', 'hr'], true)) {
+            throw new InvalidArgumentException('INVITE_ROLE_INVALID');
+        }
+
+        // Deduplicate emails
+        $uniqueEmails = array_unique(array_map(fn($email) => $this->normalizeEmail($email), $emails));
+
+        $succeeded = [];
+        $failed = [];
+
+        foreach ($uniqueEmails as $email) {
+            try {
+                $result = $this->createInvite($companyId, $inviterUserId, $email, $inviteRole);
+                $succeeded[] = [
+                    'email' => $email,
+                    'invite_id' => $result['invite']->id,
+                ];
+            } catch (\Exception $e) {
+                $failed[] = [
+                    'email' => $email,
+                    'error' => $e->getMessage(),
+                ];
+            }
+        }
+
+        return [
+            'succeeded' => $succeeded,
+            'failed' => $failed,
+        ];
+    }
+
+    public function resendInvite(string $companyId, string $requesterUserId, string $inviteId): array
+    {
         if (! $this->memberships->isAdmin($companyId, $requesterUserId)) {
             throw new InvalidArgumentException('INVITE_FORBIDDEN');
         }
@@ -96,22 +130,17 @@ class CompanyInvitationService
             throw new InvalidArgumentException('INVITE_ALREADY_ACCEPTED');
         }
 
-        if ($invite->expires_at < now() || $invite->revoked_at !== null) {
-            throw new InvalidArgumentException('INVITE_EXPIRED');
-        }
-
-        // We cannot recover the raw token (it's hashed), so we generate a
-        // fresh token and update the hash so the existing link is invalidated.
-        $newToken = bin2hex(random_bytes(32));
-
+        // Generate new token and update hash
+        $token = bin2hex(random_bytes(32));
         $invite->update([
-            'token_hash' => $this->hashToken($newToken),
+            'token_hash' => $this->hashToken($token),
             'expires_at' => now()->addDays(7),
         ]);
 
-        $this->dispatchInviteEmail($invite->fresh(), $newToken);
-
-        return $invite->fresh();
+        return [
+            'invite' => $invite->fresh(),
+            'token' => $token,
+        ];
     }
 
     /**

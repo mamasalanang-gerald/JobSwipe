@@ -16,6 +16,7 @@ class CompanyInvite extends Model
     protected $keyType = 'string';
 
     protected $fillable = [
+        'id',
         'company_id',
         'email',
         'email_domain',

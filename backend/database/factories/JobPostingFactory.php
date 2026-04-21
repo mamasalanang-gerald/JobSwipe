@@ -27,6 +27,7 @@ class JobPostingFactory extends Factory
             'location' => fake()->city().', '.fake()->country(),
             'location_city' => fake()->city(),
             'location_region' => fake()->state(),
+            'interview_template' => fake()->paragraph(),
             'status' => 'active',
             'published_at' => now(),
             'expires_at' => now()->addDays(30),
