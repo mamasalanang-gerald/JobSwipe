@@ -52,7 +52,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'message' => 'Validation failed.',
                 'code' => 'VALIDATION_ERROR',
                 'errors' => $exception->errors(),
-            ], 400);
+            ], 422);
         });
 
         $exceptions->render(function (NotFoundHttpException $exception, Request $request) {

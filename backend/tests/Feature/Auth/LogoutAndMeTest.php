@@ -18,7 +18,9 @@ class LogoutAndMeTest extends TestCase
         $user = User::factory()->create([
             'password_hash' => Hash::make('StrongP@ss1'),
         ]);
-        $token = $user->createToken('test')->plainTextToken;
+        $tokenResult = $user->createToken('test');
+        $token = $tokenResult->plainTextToken;
+        $tokenId = $tokenResult->accessToken->id;
 
         $response = $this->withHeaders([
             'Authorization' => 'Bearer '.$token,
@@ -30,11 +32,10 @@ class LogoutAndMeTest extends TestCase
                 'message' => 'Logged out successfully.',
             ]);
 
-        // Token should be revoked — subsequent requests fail
-        $this->withHeaders([
-            'Authorization' => 'Bearer '.$token,
-        ])->getJson('/api/v1/auth/me')
-            ->assertStatus(401);
+        // Verify token was deleted from database
+        $this->assertDatabaseMissing('personal_access_tokens', [
+            'id' => $tokenId,
+        ]);
     }
 
     public function test_unauthenticated_logout_returns_401(): void

@@ -69,6 +69,78 @@ class CompanyInviteController extends Controller
     }
 
     /**
+     * Create multiple invites at once
+     *
+     * POST /api/v1/company/invites/bulk
+     */
+    public function bulkStore(Request $request): JsonResponse
+    {
+        $validator = Validator::make($request->all(), [
+            'emails' => 'required|array|max:20',
+            'emails.*' => 'required|email|max:255',
+            'role' => 'required|in:company_admin,hr',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->error('VALIDATION_FAILED', $validator->errors()->first(), 422);
+        }
+
+        $user = $request->user();
+        $company = $this->memberships->getPrimaryCompanyForUser($user->id);
+
+        if (! $company) {
+            return $this->error('NO_COMPANY_PROFILE', 'No company profile found.', 403);
+        }
+
+        try {
+            $result = $this->invitations->createBulkInvites(
+                companyId: $company->id,
+                inviterUserId: $user->id,
+                emails: $request->input('emails'),
+                inviteRole: $request->input('role')
+            );
+
+            return $this->success($result, 'Bulk invites processed.');
+        } catch (InvalidArgumentException $e) {
+            return $this->error($e->getMessage(), 'Bulk invite failed.', 403);
+        }
+    }
+
+    /**
+     * Resend an invite email
+     *
+     * POST /api/v1/company/invites/{inviteId}/resend
+     */
+    public function resend(Request $request, string $inviteId): JsonResponse
+    {
+        $user = $request->user();
+        $company = $this->memberships->getPrimaryCompanyForUser($user->id);
+
+        if (! $company) {
+            return $this->error('NO_COMPANY_PROFILE', 'No company profile found.', 403);
+        }
+
+        try {
+            $result = $this->invitations->resendInvite($company->id, $user->id, $inviteId);
+
+            return $this->success([
+                'invite' => [
+                    'id' => $result['invite']->id,
+                    'email' => $result['invite']->email,
+                    'invite_email_sent_at' => $result['invite']->invite_email_sent_at,
+                ],
+            ], 'Invite resent successfully.');
+        } catch (InvalidArgumentException $e) {
+            return match ($e->getMessage()) {
+                'INVITE_FORBIDDEN' => $this->error('INVITE_FORBIDDEN', 'Only company admins can resend invites.', 403),
+                'INVITE_NOT_FOUND' => $this->error('INVITE_NOT_FOUND', 'Invite not found.', 404),
+                'INVITE_ALREADY_ACCEPTED' => $this->error('INVITE_ALREADY_ACCEPTED', 'Cannot resend an accepted invite.', 400),
+                default => $this->error('RESEND_FAILED', $e->getMessage(), 400),
+            };
+        }
+    }
+
+    /**
      * List all invites for the company
      *
      * GET /api/v1/company/invites

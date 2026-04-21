@@ -15,10 +15,12 @@ class CompanyProfileFactory extends Factory
 
     public function definition(): array
     {
+        // Don't auto-generate owner_user_id - let tests provide it
+        // This prevents foreign key violations
         return [
             'id' => Str::uuid()->toString(),
-            'user_id' => Str::uuid()->toString(),
-            'owner_user_id' => null,
+            'user_id' => null, // Will be set same as owner_user_id when provided
+            'owner_user_id' => null, // Must be provided by test
             'company_name' => fake()->company(),
             'company_domain' => fake()->unique()->domainName(),
             'is_free_email_domain' => false,
@@ -31,6 +33,19 @@ class CompanyProfileFactory extends Factory
             'listing_cap' => 0,
             'active_listings_count' => 0,
         ];
+    }
+
+    /**
+     * Configure the model factory.
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function (CompanyProfile $profile) {
+            // If owner_user_id is set but user_id isn't, copy it over for backward compatibility
+            if ($profile->owner_user_id && !$profile->user_id) {
+                $profile->user_id = $profile->owner_user_id;
+            }
+        });
     }
 
     /**

@@ -139,8 +139,10 @@ Route::middleware('throttle:api-tiered')->group(function () {
                 // Company invites (admin only)
                 Route::middleware('role:company_admin')->prefix('invites')->group(function () {
                     Route::post('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'store']);
+                    Route::post('bulk', [\App\Http\Controllers\Company\CompanyInviteController::class, 'bulkStore']);
                     Route::get('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'index']);
                     Route::delete('{inviteId}', [\App\Http\Controllers\Company\CompanyInviteController::class, 'destroy']);
+                    Route::post('{inviteId}/resend', [\App\Http\Controllers\Company\CompanyInviteController::class, 'resend']);
                 });
             });
 
@@ -222,4 +224,5 @@ Route::middleware('throttle:api-tiered')->group(function () {
             });
         });
     });
+});
 });

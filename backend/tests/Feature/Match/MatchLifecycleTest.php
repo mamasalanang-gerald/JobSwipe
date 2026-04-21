@@ -33,7 +33,9 @@ class MatchLifecycleTest extends TestCase
 
         // Stub notifications so they don't fail on missing Push implementation
         $notifMock = Mockery::mock(NotificationService::class);
-        $notifMock->shouldReceive('create')->andReturnNull();
+        $notifMock->shouldReceive('create')->andReturn(
+            Mockery::mock(\App\Models\PostgreSQL\Notification::class)
+        );
         $notifMock->shouldReceive('sendPush')->andReturnNull();
         $this->app->instance(NotificationService::class, $notifMock);
 
@@ -45,6 +47,7 @@ class MatchLifecycleTest extends TestCase
         $this->hrUser = User::factory()->hr()->create();
         $this->company = CompanyProfile::factory()->verified()->create([
             'user_id' => $this->hrUser->id,
+            'owner_user_id' => $this->hrUser->id,
         ]);
 
         $this->job = JobPosting::factory()->create([

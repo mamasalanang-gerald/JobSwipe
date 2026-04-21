@@ -18,7 +18,7 @@ class RegistrationTest extends TestCase
     protected function mockOTPService(): void
     {
         $mock = Mockery::mock(OTPService::class);
-        $mock->shouldReceive('sendOtp')->andReturnNull();
+        $mock->shouldReceive('sendOtp')->andReturn(true);
         $mock->shouldReceive('getStoredData')->andReturn(null);
         $this->app->instance(OTPService::class, $mock);
     }
