@@ -33,11 +33,11 @@ class MembershipActiveMiddleware
 
         // Try to find company via active membership first
         $company = $this->memberships->getPrimaryCompanyForUser($user->id);
-        
+
         // If no active membership found, check if there's an inactive one
         if (! $company) {
             $membership = \App\Models\PostgreSQL\CompanyMembership::where('user_id', $user->id)->first();
-            
+
             if ($membership && $membership->status !== 'active') {
                 return response()->json([
                     'success' => false,
@@ -45,7 +45,7 @@ class MembershipActiveMiddleware
                     'code' => 'MEMBERSHIP_INACTIVE',
                 ], 403);
             }
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'No company membership found.',

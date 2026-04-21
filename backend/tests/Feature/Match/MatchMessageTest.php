@@ -99,7 +99,7 @@ class MatchMessageTest extends TestCase
     public function test_duplicate_client_message_id_returns_existing_message(): void
     {
         $clientId = '550e8400-e29b-41d4-a716-446655440000'; // Valid UUID
-        
+
         // First message
         $this->actingAs($this->applicantUser)
             ->postJson("/api/v1/matches/{$this->acceptedMatch->id}/messages", [
@@ -176,7 +176,7 @@ class MatchMessageTest extends TestCase
         $newJob = JobPosting::factory()->create([
             'company_id' => $this->acceptedMatch->jobPosting->company_id,
         ]);
-        
+
         // Create a pending match (not accepted yet)
         $app = Application::factory()->matched()->create([
             'applicant_id' => $this->applicantProfile->id,

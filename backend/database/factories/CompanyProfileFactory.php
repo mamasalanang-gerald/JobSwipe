@@ -42,7 +42,7 @@ class CompanyProfileFactory extends Factory
     {
         return $this->afterMaking(function (CompanyProfile $profile) {
             // If owner_user_id is set but user_id isn't, copy it over for backward compatibility
-            if ($profile->owner_user_id && !$profile->user_id) {
+            if ($profile->owner_user_id && ! $profile->user_id) {
                 $profile->user_id = $profile->owner_user_id;
             }
         });

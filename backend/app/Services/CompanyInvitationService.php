@@ -77,7 +77,7 @@ class CompanyInvitationService
         }
 
         // Deduplicate emails
-        $uniqueEmails = array_unique(array_map(fn($email) => $this->normalizeEmail($email), $emails));
+        $uniqueEmails = array_unique(array_map(fn ($email) => $this->normalizeEmail($email), $emails));
 
         $succeeded = [];
         $failed = [];

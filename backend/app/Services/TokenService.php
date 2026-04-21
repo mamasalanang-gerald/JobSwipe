@@ -17,7 +17,7 @@ class TokenService
     {
         // Get the current access token and delete it
         $token = $user->currentAccessToken();
-        
+
         if ($token) {
             $token->delete();
         }

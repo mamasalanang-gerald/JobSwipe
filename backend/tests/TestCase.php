@@ -23,11 +23,11 @@ abstract class TestCase extends BaseTestCase
 
         // Clear rate limiter
         RateLimiter::clear('5,1');
-        
+
         // Clear cache
         Cache::flush();
     }
-    
+
     /**
      * Override to clear authentication guards between requests
      */
@@ -35,7 +35,7 @@ abstract class TestCase extends BaseTestCase
     {
         // Clear all authentication guards to prevent caching between requests
         Auth::forgetGuards();
-        
+
         parent::tearDown();
     }
 }
