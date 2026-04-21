@@ -42,6 +42,16 @@ body {
   background: #52525b;
 }
 
+/* Hide scrollbar for sidebar navigation */
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.sidebar-nav {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Focus styles */
 *:focus-visible {
   outline: 2px solid rgb(37 99 235);

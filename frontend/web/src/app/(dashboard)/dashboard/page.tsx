@@ -9,7 +9,7 @@ import { formatCurrency, formatNumber } from '@/lib/utils';
 const statCards = [
   { title: 'Total Users', key: 'totalUsers', icon: Users, format: formatNumber },
   { title: 'Active Companies', key: 'activeCompanies', icon: Building2, format: formatNumber },
-  { title: 'Active Jobs', key: 'activeJobs', icon: Briefcase, format: formatNumber },
+  { title: 'Active Listings', key: 'activeJobs', icon: Briefcase, format: formatNumber },
   { title: 'Monthly Revenue', key: 'monthlyRevenue', icon: DollarSign, format: (v: number) => formatCurrency(v) },
   { title: 'Active Subscriptions', key: 'activeSubscriptions', icon: CreditCard, format: formatNumber },
   { title: 'Pending Verifications', key: 'pendingVerifications', icon: Shield, format: formatNumber },

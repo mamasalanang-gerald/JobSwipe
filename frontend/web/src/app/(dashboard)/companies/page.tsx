@@ -212,8 +212,8 @@ export default function CompaniesPage() {
         title={selectedCompany?.action === 'suspend' ? 'Suspend Company' : 'Unsuspend Company'}
         description={
           selectedCompany?.action === 'suspend'
-            ? `Are you sure you want to suspend ${selectedCompany.company.name}? This will disable their account and job postings.`
-            : `Are you sure you want to unsuspend ${selectedCompany.company.name}? Their account and job postings will be reactivated.`
+            ? `Are you sure you want to suspend ${selectedCompany?.company?.name}? This will disable their account and job postings.`
+            : `Are you sure you want to unsuspend ${selectedCompany?.company?.name}? Their account and job postings will be reactivated.`
         }
         variant={selectedCompany?.action === 'suspend' ? 'danger' : 'info'}
         confirmText={selectedCompany?.action === 'suspend' ? 'Suspend Company' : 'Unsuspend Company'}
