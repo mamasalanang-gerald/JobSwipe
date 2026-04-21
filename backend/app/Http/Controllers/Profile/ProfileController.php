@@ -3,9 +3,15 @@
 namespace App\Http\Controllers\Profile;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Profile\AddOfficeImageRequest;
+use App\Http\Requests\Profile\CompleteOnboardingStepRequest;
+use App\Http\Requests\Profile\SubmitVerificationDocumentsRequest;
 use App\Http\Requests\Profile\UpdateApplicantBasicInfoRequest;
+use App\Http\Requests\Profile\UpdateApplicantResumeRequest;
 use App\Http\Requests\Profile\UpdateApplicantSkillsRequest;
 use App\Http\Requests\Profile\UpdateCompanyDetailsRequest;
+use App\Http\Requests\Profile\UpdateCompanyLogoRequest;
+use App\Http\Requests\Profile\UpdateSocialLinksRequest;
 use App\Services\FileUploadService;
 use App\Services\ProfileService;
 use Illuminate\Http\JsonResponse;
@@ -128,11 +134,9 @@ class ProfileController extends Controller
         }
     }
 
-    public function updateApplicantResume(Request $request): JsonResponse
+    public function updateApplicantResume(UpdateApplicantResumeRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'resume_url' => ['required', 'url', 'max:2000'],
-        ]);
+        $validated = $request->validated();
 
         $this->fileUploads->validateFileUrl((string) $validated['resume_url']);
         $result = $this->profiles->updateApplicantResume($request->user()->id, (string) $validated['resume_url']);
@@ -164,11 +168,9 @@ class ProfileController extends Controller
         return $this->successSigned($result, 'Profile photo updated.');
     }
 
-    public function updateSocialLinks(Request $request): JsonResponse
+    public function updateSocialLinks(UpdateSocialLinksRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'social_links' => ['required', 'array'],
-        ]);
+        $validated = $request->validated();
 
         try {
             $result = $this->profiles->updateSocialLinks($request->user()->id, (array) $validated['social_links']);
@@ -199,11 +201,9 @@ class ProfileController extends Controller
         }
     }
 
-    public function updateCompanyLogo(Request $request): JsonResponse
+    public function updateCompanyLogo(UpdateCompanyLogoRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'logo_url' => ['required', 'url', 'max:2000'],
-        ]);
+        $validated = $request->validated();
 
         $this->fileUploads->validateFileUrl((string) $validated['logo_url']);
 
@@ -216,11 +216,9 @@ class ProfileController extends Controller
         }
     }
 
-    public function addOfficeImage(Request $request): JsonResponse
+    public function addOfficeImage(AddOfficeImageRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'image_url' => ['required', 'url', 'max:2000'],
-        ]);
+        $validated = $request->validated();
 
         $this->fileUploads->validateFileUrl((string) $validated['image_url']);
 
@@ -244,12 +242,9 @@ class ProfileController extends Controller
         }
     }
 
-    public function submitVerificationDocuments(Request $request): JsonResponse
+    public function submitVerificationDocuments(SubmitVerificationDocumentsRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'verification_documents' => ['required', 'array', 'min:1'],
-            'verification_documents.*' => ['required', 'url', 'max:2000'],
-        ]);
+        $validated = $request->validated();
 
         foreach ($validated['verification_documents'] as $documentUrl) {
             $this->fileUploads->validateFileUrl((string) $documentUrl);
@@ -277,12 +272,9 @@ class ProfileController extends Controller
         return $this->successSigned($result);
     }
 
-    public function completeOnboardingStep(Request $request): JsonResponse
+    public function completeOnboardingStep(CompleteOnboardingStepRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'step' => ['required', 'integer', 'min:1'],
-            'step_data' => ['nullable', 'array'],
-        ]);
+        $validated = $request->validated();
 
         try {
             $result = $this->profiles->completeOnboardingStep(

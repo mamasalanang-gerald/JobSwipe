@@ -24,6 +24,7 @@ use App\Services\CompanyInvitationService;
 use App\Services\CompanyMembershipService;
 use App\Services\DeckService;
 use App\Services\FileUploadService;
+use App\Services\HRProfileService;
 use App\Services\MatchService;
 use App\Services\NotificationService;
 use App\Services\OTPService;
@@ -38,6 +39,7 @@ use App\Services\SwipeService;
 use App\Services\TokenService;
 use App\Services\TrustScoreService;
 use App\Services\UserDataCleanupService;
+use App\Support\SlidingWindowRateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Router;
@@ -117,6 +119,8 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(AuthService::class);
         $this->app->singleton(UserDataCleanupService::class);
         $this->app->singleton(AdminService::class);
+        $this->app->singleton(HRProfileService::class);
+        $this->app->singleton(SlidingWindowRateLimiter::class);
     }
 
     /**
@@ -150,6 +154,44 @@ class AppServiceProvider extends ServiceProvider
             $identifier = $request->user()?->id ? (string) $request->user()->id : $request->ip();
 
             return Limit::perMinute(60)->by($identifier);
+        });
+
+        // ── HR feature rate limiters (sliding window via Redis) ───────────────
+        // These are enforced in the controller/middleware level using
+        // SlidingWindowRateLimiter instead of Laravel's built-in fixed-window.
+        // The named limiters below are registered for documentation; actual
+        // enforcement happens via the SlidingWindowRateLimiter service.
+        RateLimiter::for('invite-create', function (Request $request) {
+            // 10 per minute per authenticated company_admin (Req 19 AC 1)
+            return Limit::perMinute(10)
+                ->by((string) ($request->user()?->id ?? $request->ip()))
+                ->response(fn () => response()->json([
+                    'success' => false,
+                    'message' => 'Too many requests. Please wait before trying again.',
+                    'code' => 'RATE_LIMIT_EXCEEDED',
+                ], 429));
+        });
+
+        RateLimiter::for('hr-profile-setup', function (Request $request) {
+            // 5 per minute per authenticated HR member (Req 19 AC 2)
+            return Limit::perMinute(5)
+                ->by((string) ($request->user()?->id ?? $request->ip()))
+                ->response(fn () => response()->json([
+                    'success' => false,
+                    'message' => 'Too many requests. Please wait before trying again.',
+                    'code' => 'RATE_LIMIT_EXCEEDED',
+                ], 429));
+        });
+
+        RateLimiter::for('magic-link-validate', function (Request $request) {
+            // 20 per minute per IP (Req 19 AC 3)
+            return Limit::perMinute(20)
+                ->by($request->ip())
+                ->response(fn () => response()->json([
+                    'success' => false,
+                    'message' => 'Too many validation attempts. Please wait before trying again.',
+                    'code' => 'RATE_LIMIT_EXCEEDED',
+                ], 429));
         });
 
         // CRITICAL FIX: Disable route caching on Render.com

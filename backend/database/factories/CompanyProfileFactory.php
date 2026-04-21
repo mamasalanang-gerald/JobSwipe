@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\PostgreSQL\CompanyProfile;
+use App\Models\PostgreSQL\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
 

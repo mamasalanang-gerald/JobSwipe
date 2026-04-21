@@ -3,13 +3,16 @@
 namespace Tests\Unit\Controllers;
 
 use App\Http\Controllers\Profile\ProfileController;
+use App\Http\Requests\Profile\SubmitVerificationDocumentsRequest;
 use App\Http\Requests\Profile\UpdateCompanyDetailsRequest;
+use App\Http\Requests\Profile\UpdateCompanyLogoRequest;
+use App\Models\PostgreSQL\User;
 use App\Services\FileUploadService;
 use App\Services\ProfileService;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class ProfileControllerCompanyTest extends TestCase
 {
@@ -107,13 +110,18 @@ class ProfileControllerCompanyTest extends TestCase
 
         $controller = new ProfileController($profileService, $fileUploadService);
 
-        $request = Request::create('/api/v1/profile/company/verification', 'POST', [
+        $request = $this->createMock(SubmitVerificationDocumentsRequest::class);
+        $request->expects($this->once())->method('validated')->willReturn([
             'verification_documents' => [
                 'https://cdn.jobswipe.test/doc1.pdf',
                 'https://cdn.jobswipe.test/doc2.pdf',
             ],
         ]);
-        $request->setUserResolver(static fn () => (object) ['id' => 'u1', 'role' => 'company_admin']);
+
+        $user = new User;
+        $user->id = 'u1';
+        $user->role = 'company_admin';
+        $request->expects($this->once())->method('user')->willReturn($user);
 
         $response = $controller->submitVerificationDocuments($request);
         $payload = json_decode($response->getContent(), true);
@@ -193,10 +201,15 @@ class ProfileControllerCompanyTest extends TestCase
 
         $controller = new ProfileController($profileService, $fileUploadService);
 
-        $request = Request::create('/api/v1/profile/company/logo', 'PATCH', [
+        $request = $this->createMock(UpdateCompanyLogoRequest::class);
+        $request->expects($this->once())->method('validated')->willReturn([
             'logo_url' => 'https://cdn.jobswipe.test/company/logo.png',
         ]);
-        $request->setUserResolver(static fn () => (object) ['id' => 'u1', 'role' => 'company_admin']);
+
+        $user = new User;
+        $user->id = 'u1';
+        $user->role = 'company_admin';
+        $request->expects($this->once())->method('user')->willReturn($user);
 
         $response = $controller->updateCompanyLogo($request);
         $payload = json_decode($response->getContent(), true);

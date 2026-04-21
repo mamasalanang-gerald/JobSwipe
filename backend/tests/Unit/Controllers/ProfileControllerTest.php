@@ -3,14 +3,18 @@
 namespace Tests\Unit\Controllers;
 
 use App\Http\Controllers\Profile\ProfileController;
+use App\Http\Requests\Profile\AddOfficeImageRequest;
 use App\Http\Requests\Profile\UpdateApplicantBasicInfoRequest;
+use App\Http\Requests\Profile\UpdateApplicantResumeRequest;
 use App\Http\Requests\Profile\UpdateApplicantSkillsRequest;
+use App\Http\Requests\Profile\UpdateSocialLinksRequest;
+use App\Models\PostgreSQL\User;
 use App\Services\FileUploadService;
 use App\Services\ProfileService;
 use Illuminate\Http\Request;
 use InvalidArgumentException;
 use PHPUnit\Framework\MockObject\MockObject;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase;
 
 class ProfileControllerTest extends TestCase
 {
@@ -94,10 +98,15 @@ class ProfileControllerTest extends TestCase
 
         $controller = new ProfileController($profileService, $fileUploadService);
 
-        $request = Request::create('/api/v1/profile/applicant/social-links', 'PATCH', [
+        $request = $this->createMock(UpdateSocialLinksRequest::class);
+        $request->expects($this->once())->method('validated')->willReturn([
             'social_links' => ['github' => 'http://github.com/invalid'],
         ]);
-        $request->setUserResolver(static fn () => (object) ['id' => 'user-1', 'role' => 'applicant']);
+
+        $user = new User;
+        $user->id = 'user-1';
+        $user->role = 'applicant';
+        $request->expects($this->any())->method('user')->willReturn($user);
 
         $response = $controller->updateSocialLinks($request);
         $payload = json_decode($response->getContent(), true);
@@ -124,10 +133,15 @@ class ProfileControllerTest extends TestCase
 
         $controller = new ProfileController($profileService, $fileUploadService);
 
-        $request = Request::create('/api/v1/profile/company/office-images', 'POST', [
+        $request = $this->createMock(AddOfficeImageRequest::class);
+        $request->expects($this->once())->method('validated')->willReturn([
             'image_url' => 'https://cdn.jobswipe.test/company/office-1.jpg',
         ]);
-        $request->setUserResolver(static fn () => (object) ['id' => 'user-1', 'role' => 'company_admin']);
+
+        $user = new User;
+        $user->id = 'user-1';
+        $user->role = 'company_admin';
+        $request->expects($this->any())->method('user')->willReturn($user);
 
         $response = $controller->addOfficeImage($request);
         $payload = json_decode($response->getContent(), true);
@@ -265,10 +279,15 @@ class ProfileControllerTest extends TestCase
 
         $controller = new ProfileController($profileService, $fileUploadService);
 
-        $request = Request::create('/api/v1/profile/applicant/resume', 'PATCH', [
+        $request = $this->createMock(UpdateApplicantResumeRequest::class);
+        $request->expects($this->once())->method('validated')->willReturn([
             'resume_url' => 'https://cdn.jobswipe.test/document/user-1/resume.pdf',
         ]);
-        $request->setUserResolver(static fn () => (object) ['id' => 'user-1', 'role' => 'applicant']);
+
+        $user = new User;
+        $user->id = 'user-1';
+        $user->role = 'applicant';
+        $request->expects($this->any())->method('user')->willReturn($user);
 
         $response = $controller->updateApplicantResume($request);
         $payload = json_decode($response->getContent(), true);

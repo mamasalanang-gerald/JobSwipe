@@ -106,8 +106,8 @@ class PasswordResetTest extends TestCase
         ]);
 
         // All tokens should be revoked
-        $user->refresh();
-        $this->assertCount(0, $user->tokens);
+        // Use fresh() to reload the model with relationships
+        $this->assertCount(0, $user->fresh()->tokens);
     }
 
     public function test_invalid_reset_code_returns_422(): void

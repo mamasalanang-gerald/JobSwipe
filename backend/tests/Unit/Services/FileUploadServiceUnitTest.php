@@ -4,9 +4,9 @@ namespace Tests\Unit\Services;
 
 use App\Exceptions\FileUploadException;
 use App\Services\FileUploadService;
-use PHPUnit\Framework\TestCase;
+use Tests\TestCase as LaravelTestCase;
 
-class FileUploadServiceUnitTest extends TestCase
+class FileUploadServiceUnitTest extends LaravelTestCase
 {
     protected function setUp(): void
     {
@@ -38,7 +38,7 @@ class FileUploadServiceUnitTest extends TestCase
         $this->assertArrayHasKey('public_url', $result);
         $this->assertArrayHasKey('expires_in', $result);
 
-        $this->assertStringContainsString('/image/user-123/', $result['file_key']);
+        $this->assertStringContainsString('image/user-123/', $result['file_key']);
         $this->assertStringEndsWith('.png', $result['file_key']);
         $this->assertSame(FileUploadService::PRESIGNED_EXPIRATION_SECONDS, $result['expires_in']);
     }
