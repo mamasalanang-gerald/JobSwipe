@@ -215,29 +215,27 @@ Route::middleware('throttle:api-tiered')->group(function () {
             // ── Admin Job Posting Management ──────────────────────────────────
             Route::middleware('role:moderator,super_admin')->prefix('admin/jobs')->group(function () {
                 Route::delete('{id}/force', [JobPostingController::class, 'forceDestroy']);
-            });
+                // ── Admin: Verification, User lookup, Dashboard (moderator + super_admin) ──
+                Route::middleware('role:moderator,super_admin')->prefix('admin')->group(function () {
+                    Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
 
-            // ── Admin: Verification, User lookup, Dashboard ──────────────────
-            Route::middleware('role:moderator,super_admin')->prefix('admin')->group(function () {
-                Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
+                    Route::prefix('companies/verifications')->group(function () {
+                        Route::get('/', [AdminCompanyVerificationController::class, 'index']);
+                        Route::get('{companyId}', [AdminCompanyVerificationController::class, 'show']);
+                        Route::post('{companyId}/approve', [AdminCompanyVerificationController::class, 'approve']);
+                        Route::post('{companyId}/reject', [AdminCompanyVerificationController::class, 'reject']);
+                    });
 
-                Route::prefix('companies/verifications')->group(function () {
-                    Route::get('/', [AdminCompanyVerificationController::class, 'index']);
-                    Route::get('{companyId}', [AdminCompanyVerificationController::class, 'show']);
-                    Route::post('{companyId}/approve', [AdminCompanyVerificationController::class, 'approve']);
-                    Route::post('{companyId}/reject', [AdminCompanyVerificationController::class, 'reject']);
+                    Route::get('users', [AdminUserController::class, 'index']);
+                    Route::get('users/{id}', [AdminUserController::class, 'show']);
                 });
 
-                Route::get('users', [AdminUserController::class, 'index']);
-                Route::get('users/{id}', [AdminUserController::class, 'show']);
-            });
-
-            // ── Admin: Destructive user actions ──────────────────────────────
-            Route::middleware('role:super_admin')->prefix('admin')->group(function () {
-                Route::post('users/{id}/ban', [AdminUserController::class, 'ban']);
-                Route::post('users/{id}/unban', [AdminUserController::class, 'unban']);
+                // ── Admin: Destructive user actions (super_admin only) ────────────
+                Route::middleware('role:super_admin')->prefix('admin')->group(function () {
+                    Route::post('users/{id}/ban', [AdminUserController::class, 'ban']);
+                    Route::post('users/{id}/unban', [AdminUserController::class, 'unban']);
+                });
             });
         });
     });
-});
 });

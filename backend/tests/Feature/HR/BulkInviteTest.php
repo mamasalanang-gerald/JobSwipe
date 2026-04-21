@@ -14,6 +14,7 @@ class BulkInviteTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private CompanyProfile $company;
 
     protected function setUp(): void
