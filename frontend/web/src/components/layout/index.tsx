@@ -11,11 +11,12 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   return (
     <div className="min-h-screen bg-zinc-950">
       {/* Sidebar */}
-      <Sidebar />
+      <Sidebar onCollapse={setIsSidebarCollapsed} />
 
       {/* Mobile sidebar overlay */}
       {isMobileMenuOpen && (
@@ -32,11 +33,16 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <Sidebar />
+        <Sidebar onCollapse={() => {}} />
       </div>
 
       {/* Main content */}
-      <div className="pl-0 lg:pl-64">
+      <div 
+        className={cn(
+          "pl-0 transition-all duration-300",
+          isSidebarCollapsed ? "lg:pl-16" : "lg:pl-64"
+        )}
+      >
         <Header onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
         <main className="p-6">{children}</main>
       </div>

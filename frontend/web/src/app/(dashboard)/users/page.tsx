@@ -196,8 +196,8 @@ export default function UsersPage() {
         }
         description={
           selectedUser?.action === 'ban'
-            ? `Are you sure you want to ban ${selectedUser.user.name}? This will prevent them from accessing the platform.`
-            : `Are you sure you want to unban ${selectedUser.user.name}? They will regain access to the platform.`
+            ? `Are you sure you want to ban ${selectedUser?.user?.name}? This will prevent them from accessing the platform.`
+            : `Are you sure you want to unban ${selectedUser?.user?.name}? They will regain access to the platform.`
         }
         variant={selectedUser?.action === 'ban' ? 'danger' : 'info'}
         confirmText={selectedUser?.action === 'ban' ? 'Ban User' : 'Unban User'}
