@@ -11,7 +11,7 @@ import { Select } from '@/components/shared/Input';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { useUsers, useBanUser, useUnbanUser } from '@/lib/hooks';
 import { User, UserFilters, UserRole, UserStatus } from '@/types';
-import { formatDateTime, getInitials } from '@/lib/utils';
+import { formatDateTime, getInitials, formatRole } from '@/lib/utils';
 import { MoreHorizontal, Eye, Ban, CheckCircle, Search } from 'lucide-react';
 
 export default function UsersPage() {
@@ -42,8 +42,8 @@ export default function UsersPage() {
               {getInitials(user.name)}
             </div>
             <div>
-              <p className="font-medium text-zinc-200">{user.name}</p>
-              <p className="text-xs text-zinc-500">{user.email}</p>
+              <p className="font-medium text-zinc-200">{user.name || 'Unknown User'}</p>
+              <p className="text-xs text-zinc-500">{user.email || 'No email provided'}</p>
             </div>
           </div>
         );
@@ -53,7 +53,7 @@ export default function UsersPage() {
       accessorKey: 'role',
       header: 'Role',
       cell: ({ row }) => (
-        <span className="capitalize text-zinc-300">{row.original.role}</span>
+        <span className="text-zinc-300">{formatRole(row.original.role)}</span>
       ),
     },
     {

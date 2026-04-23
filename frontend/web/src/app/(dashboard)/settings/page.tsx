@@ -5,6 +5,7 @@ import { Button } from '@/components/shared/Button';
 import { Input } from '@/components/shared/Input';
 import { Select } from '@/components/shared/Input';
 import { User, Mail, Shield, Bell, Lock, Globe } from 'lucide-react';
+import { formatRole } from '@/lib/utils';
 
 export default function SettingsPage() {
   const { user } = useAuthStore();
@@ -42,7 +43,7 @@ export default function SettingsPage() {
               <Shield className="h-5 w-5 text-zinc-500" />
               <div>
                 <p className="text-xs text-zinc-500">Role</p>
-                <p className="text-sm font-medium capitalize text-zinc-200">{user?.role || 'User'}</p>
+                <p className="text-sm font-medium text-zinc-200">{formatRole(user?.role || '')}</p>
               </div>
             </div>
           </div>

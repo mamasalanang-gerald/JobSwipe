@@ -28,6 +28,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // API-only app: unauthenticated users should get 401 JSON, not a web login redirect.
         $middleware->redirectGuestsTo(fn () => null);
 
+        // Enable CORS for API routes
+        $middleware->api(prepend: [
+            \Illuminate\Http\Middleware\HandleCors::class,
+        ]);
+
         $middleware->alias([
             'swipe.limit' => CheckSwipeLimit::class,
             'role' => CheckRole::class,

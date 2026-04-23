@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/authStore';
 import { DashboardLayout } from '@/components/layout';
@@ -13,29 +13,34 @@ export default function DashboardRootLayout({
 }) {
   const router = useRouter();
   const { isAuthenticated, isLoading, restoreSession } = useAuthStore();
+  const [isHydrated, setIsHydrated] = useState(false);
 
+  // Restore session on mount
   useEffect(() => {
     restoreSession();
+    setIsHydrated(true);
   }, [restoreSession]);
 
-  // Bypass auth check for local development
-  // useEffect(() => {
-  //   if (!isLoading && !isAuthenticated) {
-  //     router.push('/login');
-  //   }
-  // }, [isLoading, isAuthenticated, router]);
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (isHydrated && !isLoading && !isAuthenticated) {
+      router.push('/login');
+    }
+  }, [isHydrated, isLoading, isAuthenticated, router]);
 
-  // if (isLoading) {
-  //   return (
-  //     <div className="flex min-h-screen items-center justify-center bg-zinc-950">
-  //       <Skeleton className="h-12 w-12 rounded-full" />
-  //     </div>
-  //   );
-  // }
+  // Show loading state while checking auth
+  if (!isHydrated || isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-zinc-950">
+        <Skeleton className="h-12 w-12 rounded-full" />
+      </div>
+    );
+  }
 
-  // if (!isAuthenticated) {
-  //   return null;
-  // }
+  // Don't render anything if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return <DashboardLayout>{children}</DashboardLayout>;
 }

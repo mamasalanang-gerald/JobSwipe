@@ -47,13 +47,18 @@ class JobPosting extends Model
         'location_region', 'lat', 'lng', 'interview_template',
         'status', 'expires_at', 'published_at',
         'deleted_by', 'deletion_reason',
+        'is_flagged', 'flag_reason', 'flagged_at', 'flagged_by',
+        'closed_at', 'closed_by',
     ];
 
     protected $casts = [
         'salary_is_hidden' => 'boolean',
+        'is_flagged' => 'boolean',
         'expires_at' => 'datetime',
         'published_at' => 'datetime',
         'deleted_at' => 'datetime',
+        'flagged_at' => 'datetime',
+        'closed_at' => 'datetime',
     ];
 
     public function company(): BelongsTo
@@ -76,6 +81,16 @@ class JobPosting extends Model
         return $this->belongsTo(User::class, 'deleted_by');
     }
 
+    public function flaggedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'flagged_by');
+    }
+
+    public function closedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
     // Meilisearch: define what gets indexed
     public function toSearchableArray(): array
     {
@@ -95,6 +110,7 @@ class JobPosting extends Model
     public function scopeActive($query)
     {
         return $query->where('status', 'active')
+            ->where('is_flagged', false) // Exclude flagged jobs from applicant feeds
             ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
             ->whereNull('deleted_at'); // Explicitly exclude soft-deleted jobs
     }

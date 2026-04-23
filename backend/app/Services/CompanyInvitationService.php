@@ -64,8 +64,11 @@ class CompanyInvitationService
             'expires_at' => now()->addDays(7),
         ]);
 
+        // Dispatch the invitation email
+        $this->dispatchInviteEmail($invite, $token);
+
         return [
-            'invite' => $invite,
+            'invite' => $invite->fresh(),
             'token' => $token,
         ];
     }
@@ -137,6 +140,9 @@ class CompanyInvitationService
             'expires_at' => now()->addDays(7),
         ]);
 
+        // Dispatch the invitation email
+        $this->dispatchInviteEmail($invite->fresh(), $token);
+
         return [
             'invite' => $invite->fresh(),
             'token' => $token,
@@ -149,36 +155,6 @@ class CompanyInvitationService
      * @param  array<string>  $emails
      * @return array{succeeded: array, failed: array}
      */
-    public function createBulkInvites(
-        string $companyId,
-        string $inviterUserId,
-        array $emails,
-        string $inviteRole
-    ): array {
-        if (! $this->memberships->isAdmin($companyId, $inviterUserId)) {
-            throw new InvalidArgumentException('INVITE_FORBIDDEN');
-        }
-
-        $succeeded = [];
-        $failed = [];
-
-        foreach (array_unique($emails) as $email) {
-            try {
-                $result = $this->createInvite($companyId, $inviterUserId, $email, $inviteRole);
-                $succeeded[] = [
-                    'email' => $email,
-                    'invite' => $result['invite'],
-                ];
-            } catch (InvalidArgumentException $e) {
-                $failed[] = [
-                    'email' => $email,
-                    'reason' => $e->getMessage(),
-                ];
-            }
-        }
-
-        return compact('succeeded', 'failed');
-    }
 
     /**
      * List all invites for a company.

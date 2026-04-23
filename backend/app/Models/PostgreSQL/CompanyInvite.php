@@ -4,6 +4,7 @@ namespace App\Models\PostgreSQL;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class CompanyInvite extends Model
 {
@@ -37,6 +38,15 @@ class CompanyInvite extends Model
         'invite_email_sent_at' => 'datetime',
         'magic_link_clicked_at' => 'datetime',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $invite): void {
+            if (empty($invite->id)) {
+                $invite->id = (string) Str::uuid();
+            }
+        });
+    }
 
     public function company(): BelongsTo
     {

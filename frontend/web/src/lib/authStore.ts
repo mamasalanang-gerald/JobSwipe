@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from './api';
 
-export type UserRole = 'admin' | 'moderator';
+export type UserRole = 'super_admin' | 'moderator';
 
 export interface AuthUser {
   id: string;
@@ -28,26 +28,39 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       isAuthenticated: false,
-      isLoading: true,
+      isLoading: false,
 
       login: async (email: string, password: string) => {
         set({ isLoading: true });
         try {
-          const { data } = await api.post<{ token: string; user: AuthUser }>('/auth/login', {
+          const response = await api.post('/auth/login', {
             email,
             password,
           });
+          
+          // The API interceptor unwraps the Laravel envelope, so response.data is already the inner data
+          const { token, user } = response.data;
+          
+          if (!token || !user) {
+            console.error('Invalid response structure:', response.data);
+            throw new Error('Invalid response from server');
+          }
+          
+          // Store in localStorage first
+          if (typeof window !== 'undefined') {
+            localStorage.setItem('auth_token', token);
+            localStorage.setItem('auth_user', JSON.stringify(user));
+          }
+          
+          // Then update state
           set({
-            user: data.user,
-            token: data.token,
+            user: user,
+            token: token,
             isAuthenticated: true,
             isLoading: false,
           });
-          if (typeof window !== 'undefined') {
-            localStorage.setItem('auth_token', data.token);
-            localStorage.setItem('auth_user', JSON.stringify(data.user));
-          }
         } catch (error) {
+          console.error('Login error:', error);
           set({ isLoading: false });
           throw error;
         }
@@ -68,26 +81,41 @@ export const useAuthStore = create<AuthState>()(
 
       restoreSession: async () => {
         const token = get().token;
+        
         if (!token) {
-          set({ isLoading: false });
+          set({ isLoading: false, isAuthenticated: false });
           return;
         }
 
         try {
-          const { data } = await api.get<{ user: AuthUser }>('/auth/me');
+          const response = await api.get('/auth/me');
+          // The API interceptor unwraps the Laravel envelope
+          const user = response.data;
+          
           set({
-            user: data.user,
+            user: user,
             isAuthenticated: true,
             isLoading: false,
           });
-        } catch {
+        } catch (error) {
+          console.error('Session restore failed:', error);
           get().logout();
         }
       },
     }),
     {
       name: 'auth-storage',
-      partialize: (state) => ({ token: state.token, user: state.user }),
+      partialize: (state) => ({ 
+        token: state.token, 
+        user: state.user,
+        isAuthenticated: state.isAuthenticated,
+      }),
+      onRehydrateStorage: () => (state) => {
+        // Always reset isLoading to false after rehydration
+        if (state) {
+          state.isLoading = false;
+        }
+      },
     }
   )
 );
