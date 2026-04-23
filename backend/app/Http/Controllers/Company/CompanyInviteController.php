@@ -208,41 +208,6 @@ class CompanyInviteController extends Controller
     }
 
     /**
-     * Re-send an invitation email for a pending invite.
-     * POST /api/v1/company/invites/{inviteId}/resend
-     */
-    public function resend(Request $request, string $inviteId): JsonResponse
-    {
-        $user = $request->user();
-        $company = $this->memberships->getPrimaryCompanyForUser($user->id);
-
-        if (! $company) {
-            return $this->error('NO_COMPANY_PROFILE', 'No company profile found.', 403);
-        }
-
-        try {
-            $invite = $this->invitations->resendInvite($company->id, $user->id, $inviteId);
-
-            return $this->success([
-                'invite' => [
-                    'id' => $invite->id,
-                    'email' => $invite->email,
-                    'invite_email_sent_at' => $invite->invite_email_sent_at,
-                ],
-            ], 'Invite re-sent successfully.');
-
-        } catch (InvalidArgumentException $e) {
-            return match ($e->getMessage()) {
-                'INVITE_FORBIDDEN' => $this->error('INVITE_FORBIDDEN', 'Only company admins can resend invites.', 403),
-                'INVITE_NOT_FOUND' => $this->error('INVITE_NOT_FOUND', 'Invite not found.', 404),
-                'INVITE_ALREADY_ACCEPTED' => $this->error('INVITE_ALREADY_ACCEPTED', 'This invite has already been accepted.', 400),
-                'INVITE_EXPIRED' => $this->error('INVITE_EXPIRED', 'This invite has expired.', 400),
-                default => $this->error('RESEND_FAILED', $e->getMessage(), 400),
-            };
-        }
-    }
-
-    /**
      * Validate an invite token — used by registration flow (public endpoint).
      * POST /api/v1/company/invites/validate
      */

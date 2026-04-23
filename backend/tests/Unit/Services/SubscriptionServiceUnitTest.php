@@ -42,6 +42,7 @@ class SubscriptionServiceUnitTest extends TestCase
         $companyProfile = new CompanyProfile;
         $companyProfile->subscription_tier = 'basic';
         $companyProfile->subscription_status = 'active';
+        $companyProfile->status = 'active';
         $companyProfile->verification_status = 'approved';
         $companyProfile->listing_cap = 10;
         $companyProfile->active_listings_count = 0;
@@ -73,7 +74,7 @@ class SubscriptionServiceUnitTest extends TestCase
         $repo = $this->createMock(CompanyProfileRepository::class);
 
         $companyProfile = new CompanyProfile;
-        $companyProfile->subscription_status = 'inactive';
+        $companyProfile->status = 'inactive';
 
         $repo->expects($this->once())
             ->method('findByUserId')

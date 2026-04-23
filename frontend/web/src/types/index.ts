@@ -1,10 +1,10 @@
 // User types
-export type UserRole = 'admin' | 'moderator' | 'user';
+export type UserRole = 'super_admin' | 'moderator' | 'applicant' | 'hr' | 'company_admin';
 export type UserStatus = 'active' | 'banned' | 'suspended' | 'pending';
 
 export interface User {
   id: string;
-  name: string;
+  name?: string; // not present for admin/moderator accounts — backend has no name column
   email: string;
   role: UserRole;
   status: UserStatus;
@@ -168,11 +168,11 @@ export interface IAPTransaction {
 }
 
 export type WebhookStatus = 'pending' | 'delivered' | 'failed' | 'retrying';
-export type WebhookEvent = 'subscription.created' | 'subscription.cancelled' | 'payment.succeeded' | 'payment.failed' | 'user.created' | 'user.deleted';
+export type WebhookEventType = 'subscription.created' | 'subscription.cancelled' | 'payment.succeeded' | 'payment.failed' | 'user.created' | 'user.deleted';
 
 export interface WebhookEvent {
   id: string;
-  event: WebhookEvent;
+  event: WebhookEventType;
   payload: Record<string, unknown>;
   status: WebhookStatus;
   attempts: number;

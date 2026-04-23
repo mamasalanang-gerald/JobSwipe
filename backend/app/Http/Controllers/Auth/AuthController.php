@@ -38,8 +38,30 @@ class AuthController extends Controller
                 password: $request->input('password'),
                 role: $request->input('role'),
                 companyInviteToken: $request->input('company_invite_token'),
+                magicLinkVerified: $request->boolean('magic_link_verified', false),
             );
 
+            // Handle web magic link registration (returns array)
+            if (is_array($result) && isset($result['status']) && $result['status'] === 'verified') {
+                \Log::info('AuthController: Web magic link registration completed', [
+                    'email' => $request->input('email'),
+                ]);
+
+                return $this->success(
+                    data: [
+                        'status' => 'web_magic_link_registered',
+                        'token' => $result['token'],
+                        'user' => [
+                            'id' => $result['user']->id,
+                            'email' => $result['user']->email,
+                            'role' => $result['user']->role,
+                        ],
+                    ],
+                    message: 'Registration completed successfully'
+                );
+            }
+
+            // Handle string status codes
             if ($result === 'email_taken') {
                 \Log::warning('AuthController: Email already taken', ['email' => $request->input('email')]);
 

@@ -23,7 +23,10 @@ class InviteResendTest extends TestCase
         parent::setUp();
         Mail::fake();
 
-        $this->admin = User::factory()->create(['role' => 'company_admin']);
+        $this->admin = User::factory()->create([
+            'role' => 'company_admin',
+            'email_verified_at' => now(),
+        ]);
         $this->company = CompanyProfile::factory()->create(['owner_user_id' => $this->admin->id]);
 
         CompanyMembership::create([

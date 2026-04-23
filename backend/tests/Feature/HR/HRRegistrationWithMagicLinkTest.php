@@ -48,6 +48,10 @@ class HRRegistrationWithMagicLinkTest extends TestCase
             'magic_link_verified' => true, // Skipping OTP
         ]);
 
+        if ($response->status() !== 200) {
+            dump($response->json());
+        }
+
         $response->assertStatus(200);
         $response->assertJsonPath('data.status', 'web_magic_link_registered');
         $this->assertNotNull($response->json('data.token'));

@@ -7,7 +7,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/shared/Button';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { Skeleton } from '@/components/shared/Skeleton';
-import { formatDateTime, getInitials } from '@/lib/utils';
+import { formatDateTime, getInitials, formatRole } from '@/lib/utils';
 import { ArrowLeft, Ban, CheckCircle, User as UserIcon, Mail, Calendar, Shield } from 'lucide-react';
 import Link from 'next/link';
 
@@ -86,7 +86,7 @@ export default function UserDetailPage() {
                 <UserIcon className="h-5 w-5 text-zinc-500" />
                 <div>
                   <p className="text-xs text-zinc-500">Role</p>
-                  <p className="text-sm font-medium capitalize text-zinc-200">{user.role}</p>
+                  <p className="text-sm font-medium text-zinc-200">{formatRole(user.role)}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 rounded-lg bg-zinc-800/50 p-3">
