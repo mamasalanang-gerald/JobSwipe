@@ -2,14 +2,7 @@ import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-
-const T = {
-  bg:       '#0f0a1e',
-  surface:  '#130d22',
-  border:   'rgba(255,255,255,0.07)',
-  active:   '#e91e8c',
-  inactive: 'rgba(255,255,255,0.38)',
-};
+import { useTheme } from '../../theme';
 
 type IconName =
   | 'home-outline'
@@ -18,26 +11,28 @@ type IconName =
   | 'office-building-outline';
 
 const TABS: { name: string; label: string; icon: IconName }[] = [
-  { name: 'index',      label: 'Home',     icon: 'home-outline'             },
-  { name: 'applicants', label: 'Jobs',     icon: 'briefcase-plus-outline'   },
-  { name: 'matches',    label: 'Matches',  icon: 'heart-outline'            },
-  { name: 'profile',    label: 'Profile',  icon: 'office-building-outline'  },
+  { name: 'index', label: 'Home', icon: 'home-outline' },
+  { name: 'applicants', label: 'Jobs', icon: 'briefcase-plus-outline' },
+  { name: 'matches', label: 'Matches', icon: 'heart-outline' },
+  { name: 'profile', label: 'Profile', icon: 'office-building-outline' },
 ];
 
-function CustomTabBar({ state, descriptors, navigation }: any) {
-  const insets    = useSafeAreaInsets();
+function CustomTabBar({ state, navigation }: any) {
+  const T = useTheme();
+  const insets = useSafeAreaInsets();
   const bottomPad = Math.max(insets.bottom, 8);
 
   return (
-    <View style={[styles.bar, { paddingBottom: bottomPad }]}>
-      <View style={styles.topBorder} />
+    <View style={[styles.bar, { backgroundColor: T.tabBar, paddingBottom: bottomPad }]}>
+      <View style={[styles.topBorder, { backgroundColor: T.borderFaint }]} />
+
       <View style={styles.row}>
         {state.routes.map((route: any, i: number) => {
-          const tab = TABS.find(t => t.name === route.name);
+          const tab = TABS.find((t) => t.name === route.name);
           if (!tab) return null;
 
           const focused = state.index === i;
-          const color   = focused ? T.active : T.inactive;
+          const color = focused ? T.tabActive : T.tabInactive;
 
           const onPress = () => {
             const event = navigation.emit({
@@ -49,21 +44,10 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           };
 
           return (
-            <TouchableOpacity
-              key={route.key}
-              onPress={onPress}
-              activeOpacity={0.7}
-              style={styles.tab}
-            >
-              <MaterialCommunityIcons
-                name={tab.icon as any}
-                size={24}
-                color={color}
-              />
-              <Text style={[styles.label, { color }]}>
-                {tab.label}
-              </Text>
-              {focused && <View style={styles.indicator} />}
+            <TouchableOpacity key={route.key} onPress={onPress} activeOpacity={0.7} style={styles.tab}>
+              <MaterialCommunityIcons name={tab.icon} size={24} color={color} />
+              <Text style={[styles.label, { color }]}>{tab.label}</Text>
+              {focused && <View style={[styles.indicator, { backgroundColor: T.tabActive }]} />}
             </TouchableOpacity>
           );
         })}
@@ -74,15 +58,12 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
 
 export default function CompanyTabLayout() {
   return (
-    <Tabs
-      screenOptions={{ headerShown: false }}
-      tabBar={props => <CustomTabBar {...props} />}
-    >
-      <Tabs.Screen name="index"           options={{ title: 'Home'    }} />
-      <Tabs.Screen name="applicants"      options={{ title: 'Jobs'    }} />
-      <Tabs.Screen name="matches"         options={{ title: 'Matches' }} />
-      <Tabs.Screen name="profile"         options={{ title: 'Profile' }} />
-      <Tabs.Screen name="CreateJobScreen" options={{ href: null       }} />
+    <Tabs screenOptions={{ headerShown: false }} tabBar={(props) => <CustomTabBar {...props} />}>
+      <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="applicants" options={{ title: 'Jobs' }} />
+      <Tabs.Screen name="matches" options={{ title: 'Matches' }} />
+      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen name="CreateJobScreen" options={{ href: null }} />
     </Tabs>
   );
 }
@@ -90,12 +71,12 @@ export default function CompanyTabLayout() {
 const styles = StyleSheet.create({
   bar: {
     position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    backgroundColor: T.surface,
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   topBorder: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: T.border,
   },
   row: {
     flexDirection: 'row',
@@ -120,6 +101,5 @@ const styles = StyleSheet.create({
     width: 20,
     height: 2,
     borderRadius: 2,
-    backgroundColor: T.active,
   },
 });

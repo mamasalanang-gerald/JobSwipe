@@ -7,6 +7,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useTheme } from '../../theme';
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const T = {
@@ -176,6 +177,7 @@ function CustomPicker({
   placeholder: string;
   enabled?: boolean;
 }) {
+  const T = useTheme();
   const [visible, setVisible] = useState(false);
   const selectedLabel = items.find(i => i.value === selectedValue)?.label;
 
@@ -184,6 +186,7 @@ function CustomPicker({
       <TouchableOpacity
         style={[
           s.pickerWrap,
+          { backgroundColor: T.surface, borderColor: T.border },
           !enabled && s.pickerDisabled,
         ]}
         onPress={() => enabled && setVisible(true)}
@@ -205,8 +208,8 @@ function CustomPicker({
         <TouchableWithoutFeedback onPress={() => setVisible(false)}>
           <View style={cp.overlay}>
             <TouchableWithoutFeedback>
-              <View style={cp.sheet}>
-                <Text style={cp.sheetTitle}>{placeholder}</Text>
+              <View style={[cp.sheet, { backgroundColor: T.surface, borderColor: T.border }]}>
+                <Text style={[cp.sheetTitle, { color: T.textSub }]}>{placeholder}</Text>
                 <FlatList
                   data={items}
                   keyExtractor={i => i.value}
@@ -214,6 +217,7 @@ function CustomPicker({
                     <TouchableOpacity
                       style={[
                         cp.option,
+                        { borderTopColor: T.border },
                         item.value === selectedValue && cp.optionActive,
                       ]}
                       onPress={() => {
@@ -224,6 +228,7 @@ function CustomPicker({
                     >
                       <Text style={[
                         cp.optionText,
+                        { color: T.textPrimary },
                         item.value === selectedValue && cp.optionTextActive,
                       ]}>
                         {item.label}
@@ -291,6 +296,7 @@ const cp = StyleSheet.create({
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
 export default function CreateJobScreen() {
+  const T = useTheme();
   const navigation      = useNavigation<any>();
   const route           = useRoute<RouteProp<RouteParams, 'CreateJob'>>();
   const { top, bottom } = useSafeAreaInsets();
@@ -351,7 +357,11 @@ export default function CreateJobScreen() {
 
   const inputStyle = (field: string) => [
     s.input,
-    focusedField === field && s.inputFocused,
+    {
+      backgroundColor: T.surface,
+      borderColor: focusedField === field ? T.primary + '73' : T.border,
+      color: T.textPrimary,
+    },
   ];
 
   const handleSubmit = async () => {
@@ -404,19 +414,19 @@ export default function CreateJobScreen() {
   };
 
   return (
-    <View style={[s.screen, { paddingTop: top }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[s.screen, { paddingTop: top, backgroundColor: T.bg }]}>
+      <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
 
       {/* ── Top Bar ── */}
       <View style={s.topBar}>
         <TouchableOpacity
-          style={s.backBtn}
+          style={[s.backBtn, { backgroundColor: T.surface, borderColor: T.border }]}
           onPress={() => navigation.navigate('applicants')}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="arrow-left" size={20} color={T.textPrimary} />
         </TouchableOpacity>
-        <Text style={s.screenTitle}>Create Job</Text>
+        <Text style={[s.screenTitle, { color: T.textPrimary }]}>Create Job</Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -458,7 +468,7 @@ export default function CreateJobScreen() {
             onFocus={() => setFocusedField('description')}
             onBlur={() => setFocusedField(null)}
           />
-          <Text style={s.charCount}>{description.length} / 100+ chars</Text>
+          <Text style={[s.charCount, { color: T.textHint }]}>{description.length} / 100+ chars</Text>
 
           {/* ── Section: Salary ── */}
           <SectionLabel icon="cash-multiple" label="Salary" />
@@ -466,10 +476,18 @@ export default function CreateJobScreen() {
           <View style={s.row}>
             <View style={{ flex: 1 }}>
               <FieldLabel label="Min" />
-              <View style={[s.moneyInput, focusedField === 'smin' && s.inputFocused]}>
+              <View
+                style={[
+                  s.moneyInput,
+                  {
+                    backgroundColor: T.surface,
+                    borderColor: focusedField === 'smin' ? T.primary + '73' : T.border,
+                  },
+                ]}
+              >
                 <MaterialCommunityIcons name="currency-php" size={18} color={T.textHint} />
                 <TextInput
-                  style={s.moneyTextInput}
+                  style={[s.moneyTextInput, { color: T.textPrimary }]}
                   placeholder="50000"
                   placeholderTextColor={T.textHint}
                   value={salaryMin}
@@ -482,10 +500,18 @@ export default function CreateJobScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <FieldLabel label="Max" />
-              <View style={[s.moneyInput, focusedField === 'smax' && s.inputFocused]}>
+              <View
+                style={[
+                  s.moneyInput,
+                  {
+                    backgroundColor: T.surface,
+                    borderColor: focusedField === 'smax' ? T.primary + '73' : T.border,
+                  },
+                ]}
+              >
                 <MaterialCommunityIcons name="currency-php" size={18} color={T.textHint} />
                 <TextInput
-                  style={s.moneyTextInput}
+                  style={[s.moneyTextInput, { color: T.textPrimary }]}
                   placeholder="80000"
                   placeholderTextColor={T.textHint}
                   value={salaryMax}
@@ -498,9 +524,9 @@ export default function CreateJobScreen() {
             </View>
           </View>
 
-          <View style={s.switchRow}>
+          <View style={[s.switchRow, { backgroundColor: T.surface, borderColor: T.border }]}>
             <View>
-              <Text style={s.switchLabel}>Hide salary from applicants</Text>
+              <Text style={[s.switchLabel, { color: T.textPrimary }]}>Hide salary from applicants</Text>
             </View>
             <Switch
               value={salaryHidden}
@@ -518,7 +544,11 @@ export default function CreateJobScreen() {
             {WORK_TYPES.map(wt => (
               <TouchableOpacity
                 key={wt}
-                style={[s.typeChip, workType === wt && s.typeChipActive]}
+                style={[
+                  s.typeChip,
+                  { backgroundColor: T.surfaceHigh, borderColor: T.border },
+                  workType === wt && { borderColor: T.primary + '73', backgroundColor: T.primary + '18' },
+                ]}
                 onPress={() => setWorkType(wt)}
                 activeOpacity={0.8}
               >
@@ -527,7 +557,7 @@ export default function CreateJobScreen() {
                   size={14}
                   color={workType === wt ? T.primary : T.textHint}
                 />
-                <Text style={[s.typeChipText, workType === wt && s.typeChipTextActive]}>
+                <Text style={[s.typeChipText, { color: workType === wt ? T.primary : T.textHint }]}>
                   {wt.charAt(0).toUpperCase() + wt.slice(1)}
                 </Text>
               </TouchableOpacity>
@@ -571,9 +601,9 @@ export default function CreateJobScreen() {
           />
 
           {!!location && (
-            <View style={s.locationPreview}>
+            <View style={[s.locationPreview, { backgroundColor: 'rgba(74,222,128,0.07)', borderColor: 'rgba(74,222,128,0.25)' }]}>
               <MaterialCommunityIcons name="map-marker-check-outline" size={14} color={T.green} />
-              <Text style={s.locationPreviewText}>{location}</Text>
+              <Text style={[s.locationPreviewText, { color: T.green }]}>{location}</Text>
             </View>
           )}
 
@@ -581,7 +611,15 @@ export default function CreateJobScreen() {
           <SectionLabel icon="comment-question-outline" label="Swipe message" />
           <FieldLabel label="Message to applicant" />
           <TextInput
-            style={[s.input, s.textArea, focusedField === 'interviewMessage' && s.inputFocused]}
+            style={[
+              s.input,
+              s.textArea,
+              {
+                backgroundColor: T.surface,
+                borderColor: focusedField === 'interviewMessage' ? T.primary + '73' : T.border,
+                color: T.textPrimary,
+              },
+            ]}
             placeholder={INTERVIEW_MESSAGE_PLACEHOLDER}
             placeholderTextColor={T.textHint}
             value={interviewMessage}
@@ -591,7 +629,7 @@ export default function CreateJobScreen() {
             onBlur={() => setFocusedField(null)}
             textAlignVertical="top"
           />
-          <Text style={s.helpText}>
+          <Text style={[s.helpText, { color: T.textHint }]}>
             This message will be shown when you swipe the applicant right to confirm interest.
           </Text>
 
@@ -602,7 +640,7 @@ export default function CreateJobScreen() {
             <View style={s.skillSectionHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                 <MaterialCommunityIcons name="code-braces" size={13} color={T.primary} />
-                <Text style={s.skillSegmentLabel}>Required Skills</Text>
+                <Text style={[s.skillSegmentLabel, { color: T.primary }]}>Required Skills</Text>
               </View>
               <TouchableOpacity
                 style={s.addBtn}
@@ -613,13 +651,16 @@ export default function CreateJobScreen() {
                 activeOpacity={0.8}
               >
                 <MaterialCommunityIcons name={showAddHard ? 'minus' : 'plus'} size={12} color={T.primary} />
-                <Text style={s.addBtnText}>{showAddHard ? 'Cancel' : 'Add'}</Text>
+                <Text style={[s.addBtnText, { color: T.primary }]}>{showAddHard ? 'Cancel' : 'Add'}</Text>
               </TouchableOpacity>
             </View>
 
             <View style={s.chips}>
               {skills.filter(sk => sk.type === 'hard').map((sk, idx) => (
-                <View key={`hard-${idx}`} style={[s.chip, s.chipHard]}>
+                <View
+                  key={`hard-${idx}`}
+                  style={[s.chip, s.chipHard, { backgroundColor: T.primary + '12', borderColor: T.primary + '59' }]}
+                >
                   <Text style={[s.chipText, { color: T.primary }]}>{sk.name}</Text>
                   <TouchableOpacity
                     onPress={() => removeSkill(skills.findIndex(s => s.name === sk.name && s.type === sk.type))}
@@ -635,7 +676,14 @@ export default function CreateJobScreen() {
             {showAddHard && (
               <View style={{ marginTop: 12 }}>
                 <TextInput
-                  style={[s.input, focusedField === 'skill' && s.inputFocused]}
+                  style={[
+                    s.input,
+                    {
+                      backgroundColor: T.surface,
+                      borderColor: focusedField === 'skill' ? T.primary + '73' : T.border,
+                      color: T.textPrimary,
+                    },
+                  ]}
                   placeholder="Add a required skill (e.g. React, AWS, SQL…)"
                   placeholderTextColor={T.textHint}
                   value={skillInput}
@@ -646,7 +694,7 @@ export default function CreateJobScreen() {
                   returnKeyType="done"
                 />
                 <TouchableOpacity
-                  style={s.addBtnPrimary}
+                  style={[s.addBtnPrimary, { backgroundColor: T.primary }]}
                   onPress={() => addSkill('hard')}
                   activeOpacity={0.8}
                 >
@@ -656,7 +704,7 @@ export default function CreateJobScreen() {
             )}
           </View>
 
-          <View style={s.skillDivider} />
+          <View style={[s.skillDivider, { backgroundColor: T.borderFaint }]} />
 
           <View style={s.skillSegment}>
             <View style={s.skillSectionHeader}>
@@ -679,7 +727,10 @@ export default function CreateJobScreen() {
 
             <View style={s.chips}>
               {skills.filter(sk => sk.type === 'soft').map((sk, idx) => (
-                <View key={`soft-${idx}`} style={[s.chip, s.chipSoft]}>
+                <View
+                  key={`soft-${idx}`}
+                  style={[s.chip, s.chipSoft, { backgroundColor: 'rgba(74,222,128,0.07)', borderColor: 'rgba(74,222,128,0.3)' }]}
+                >
                   <Text style={[s.chipText, { color: T.green }]}>{sk.name}</Text>
                   <TouchableOpacity
                     onPress={() => removeSkill(skills.findIndex(s => s.name === sk.name && s.type === sk.type))}
@@ -695,7 +746,14 @@ export default function CreateJobScreen() {
             {showAddSoft && (
               <View style={{ marginTop: 12 }}>
                 <TextInput
-                  style={[s.input, focusedField === 'skill' && s.inputFocused]}
+                  style={[
+                    s.input,
+                    {
+                      backgroundColor: T.surface,
+                      borderColor: focusedField === 'skill' ? T.primary + '73' : T.border,
+                      color: T.textPrimary,
+                    },
+                  ]}
                   placeholder="Add a preferred skill (e.g. Communication, Leadership…)"
                   placeholderTextColor={T.textHint}
                   value={skillInput}
@@ -718,7 +776,7 @@ export default function CreateJobScreen() {
 
           {/* ── Submit ── */}
           <TouchableOpacity
-            style={[s.submitBtn, submitting && s.submitBtnDisabled]}
+            style={[s.submitBtn, { backgroundColor: T.primary }, submitting && s.submitBtnDisabled]}
             onPress={handleSubmit}
             activeOpacity={0.85}
             disabled={submitting}
@@ -741,10 +799,11 @@ function SectionLabel({
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   label: string;
 }) {
+  const T = useTheme();
   return (
     <View style={sl.wrap}>
       <MaterialCommunityIcons name={icon} size={14} color={T.primary} />
-      <Text style={sl.text}>{label}</Text>
+      <Text style={[sl.text, { color: T.primary }]}>{label}</Text>
     </View>
   );
 }
@@ -766,8 +825,9 @@ const sl = StyleSheet.create({
 });
 
 function FieldLabel({ label, required }: { label: string; required?: boolean }) {
+  const T = useTheme();
   return (
-    <Text style={fl.text}>
+    <Text style={[fl.text, { color: T.textSub }]}>
       {label}
       {required && <Text style={{ color: T.danger }}> *</Text>}
     </Text>
