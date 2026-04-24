@@ -233,7 +233,7 @@ export default function ProfileTab() {
   const clearToken = useAuthStore((s) => s.clearToken);
   const handleSignOut = async () => {
     await clearToken();
-    router.replace('/(auth)/register');
+    router.replace('/(auth)/login');
   };
 
   return (
