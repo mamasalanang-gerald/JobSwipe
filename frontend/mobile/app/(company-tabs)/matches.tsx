@@ -7,6 +7,7 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { useTheme } from '../../theme';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -124,6 +125,7 @@ function GhostCard({ rotate, translateX, translateY, blur }: {
 }
 
 function EmptyMatchesState() {
+  const T = useTheme();
   return (
     <View style={s.emptyWrap}>
       <View style={s.ghostStack}>
@@ -133,16 +135,16 @@ function EmptyMatchesState() {
           <MaterialCommunityIcons name="lightning-bolt" size={17} color="#fff" />
         </View>
       </View>
-      <Text style={s.emptyTitle}>No applicants yet.{'\n'}Start swiping to find talent!</Text>
-      <Text style={s.emptySub}>Swipe on candidate profiles to match with top applicants for your open roles.</Text>
-      <TouchableOpacity style={s.boostBtn} activeOpacity={0.85}>
+      <Text style={[s.emptyTitle, { color: T.textPrimary }]}>No applicants yet.{'\n'}Start swiping to find talent!</Text>
+      <Text style={[s.emptySub, { color: T.textSub }]}>Swipe on candidate profiles to match with top applicants for your open roles.</Text>
+      <TouchableOpacity style={[s.boostBtn, { backgroundColor: T.primary, shadowColor: T.primary }]} activeOpacity={0.85}>
         <View style={s.boostIconWrap}>
           <MaterialCommunityIcons name="rocket-launch" size={15} color="#fff" />
         </View>
         <Text style={s.boostBtnText}>Boost Job Post</Text>
       </TouchableOpacity>
       <TouchableOpacity activeOpacity={0.7}>
-        <Text style={s.editProfileText}>Edit Job Listing</Text>
+        <Text style={[s.editProfileText, { color: T.textSub }]}>Edit Job Listing</Text>
       </TouchableOpacity>
     </View>
   );
@@ -153,18 +155,19 @@ function SegmentTabs({ tabs, active, onSelect }: {
   active: string;
   onSelect: (key: string) => void;
 }) {
+  const T = useTheme();
   return (
-    <View style={s.segWrap}>
+    <View style={[s.segWrap, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
       {tabs.map(tab => {
         const isActive = tab.key === active;
         return (
           <TouchableOpacity
             key={tab.key}
-            style={[s.segTab, isActive && s.segTabActive]}
+            style={[s.segTab, isActive && { backgroundColor: T.primary }]}
             onPress={() => onSelect(tab.key)}
             activeOpacity={0.75}
           >
-            <Text style={[s.segTabText, isActive && s.segTabTextActive]}>{tab.label}</Text>
+            <Text style={[s.segTabText, { color: isActive ? '#fff' : T.textSub }]}>{tab.label}</Text>
             {!!tab.badge && tab.badge > 0 && (
               <View style={s.segBadge}>
                 <Text style={s.segBadgeText}>{tab.badge}</Text>
@@ -178,6 +181,7 @@ function SegmentTabs({ tabs, active, onSelect }: {
 }
 
 function ApplicantAvatar({ uri, size = 52 }: { uri: string; size?: number }) {
+  const T = useTheme();
   return (
     <Image
       source={{ uri }}
@@ -196,6 +200,7 @@ function ConversationScreen({
   onBack: () => void;
   tabBarHeight: number;
 }) {
+  const T = useTheme();
   const { top: topInset } = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>(SEED_MESSAGES[applicant.id] ?? []);
   const [draft, setDraft] = useState('');
@@ -249,20 +254,20 @@ function ConversationScreen({
   const stage = PIPELINE_STAGES.find(st => st.key === applicant.status);
 
   return (
-    <View style={[cs.screen, { paddingTop: topInset }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[cs.screen, { paddingTop: topInset, backgroundColor: T.bg }]}>
+      <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
 
       {/* Header */}
       <View style={cs.header}>
-        <TouchableOpacity onPress={onBack} style={cs.backBtn} activeOpacity={0.7}>
+        <TouchableOpacity onPress={onBack} style={[cs.backBtn, { backgroundColor: T.surface, borderColor: T.borderFaint }]} activeOpacity={0.7}>
           <MaterialCommunityIcons name="arrow-left" size={22} color={T.primary} />
         </TouchableOpacity>
         <Image source={{ uri: applicant.avatar }} style={cs.headerAvatar} />
         <View style={cs.headerInfo}>
-          <Text style={cs.headerName}>{applicant.name}</Text>
+          <Text style={[cs.headerName, { color: T.textPrimary }]}>{applicant.name}</Text>
           {isTyping
-            ? <Text style={cs.typingLabel}>typing…</Text>
-            : <Text style={cs.headerRole}>{applicant.role}</Text>
+            ? <Text style={[cs.typingLabel, { color: T.primary }]}>typing...</Text>
+            : <Text style={[cs.headerRole, { color: T.textSub }]}>{applicant.role}</Text>
           }
         </View>
         {stage && (
@@ -271,7 +276,7 @@ function ConversationScreen({
           </View>
         )}
       </View>
-      <View style={cs.headerDivider} />
+      <View style={[cs.headerDivider, { backgroundColor: T.borderFaint }]} />
 
       {/* Messages + input */}
       <View style={[{ flex: 1 }, keyboardHeight > 0 && { marginBottom: keyboardHeight }]}>
@@ -309,18 +314,18 @@ function ConversationScreen({
                 <View style={cs.bubbleCol}>
                   <View style={[
                     cs.bubble,
-                    isMe ? cs.bubbleMe : cs.bubbleThem,
+                    isMe ? [cs.bubbleMe, { backgroundColor: T.primary }] : [cs.bubbleThem, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint }],
                     !isMe && isFirstInGroup && cs.bubbleThemFirst,
                     !isMe && isLastInGroup  && cs.bubbleThemLast,
                     isMe  && isFirstInGroup && cs.bubbleMeFirst,
                     isMe  && isLastInGroup  && cs.bubbleMeLast,
                   ]}>
-                    <Text style={[cs.bubbleText, isMe ? cs.bubbleTextMe : cs.bubbleTextThem]}>
+                    <Text style={[cs.bubbleText, isMe ? cs.bubbleTextMe : [cs.bubbleTextThem, { color: T.textPrimary }]]}>
                       {msg.text}
                     </Text>
                   </View>
                   {isLastInGroup && (
-                    <Text style={[cs.bubbleTime, isMe ? cs.bubbleTimeMe : cs.bubbleTimeThem]}>
+                    <Text style={[cs.bubbleTime, { color: T.textHint }, isMe ? cs.bubbleTimeMe : cs.bubbleTimeThem]}>
                       {msg.time}
                     </Text>
                   )}
@@ -332,7 +337,7 @@ function ConversationScreen({
           {isTyping && (
             <View style={[cs.bubbleWrap, cs.bubbleWrapThem, { marginTop: 8 }]}>
               <Image source={{ uri: applicant.avatar }} style={cs.bubbleAvatar} />
-              <View style={[cs.bubble, cs.bubbleThem, cs.typingBubble]}>
+              <View style={[cs.bubble, cs.bubbleThem, cs.typingBubble, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint }]}>
                 <View style={cs.typingDots}>
                   <View style={[cs.typingDot, cs.typingDot1]} />
                   <View style={[cs.typingDot, cs.typingDot2]} />
@@ -343,17 +348,17 @@ function ConversationScreen({
           )}
 
           {applicant.expired && (
-            <View style={cs.expiredBanner}>
+            <View style={[cs.expiredBanner, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
               <MaterialCommunityIcons name="lock-outline" size={13} color={T.textHint} />
-              <Text style={cs.expiredBannerText}>This conversation has closed</Text>
+              <Text style={[cs.expiredBannerText, { color: T.textHint }]}>This conversation has closed</Text>
             </View>
           )}
         </ScrollView>
 
         {!applicant.expired && (
-          <View style={[cs.inputBar, { paddingBottom: keyboardHeight > 0 ? 8 : tabBarHeight + 8 }]}>
+          <View style={[cs.inputBar, { paddingBottom: keyboardHeight > 0 ? 8 : tabBarHeight + 8, backgroundColor: T.bg, borderTopColor: T.borderFaint }]}>
             <TextInput
-              style={cs.input}
+              style={[cs.input, { backgroundColor: T.surface, borderColor: T.borderFaint, color: T.textPrimary }]}
               value={draft}
               onChangeText={setDraft}
               placeholder="Message…"
@@ -362,7 +367,7 @@ function ConversationScreen({
               maxLength={500}
             />
             <TouchableOpacity
-              style={[cs.sendBtn, !draft.trim() && cs.sendBtnDisabled]}
+              style={[cs.sendBtn, { backgroundColor: T.primary }, !draft.trim() && cs.sendBtnDisabled]}
               onPress={sendMessage}
               activeOpacity={0.85}
               disabled={!draft.trim()}
@@ -378,6 +383,7 @@ function ConversationScreen({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function CompanyMatchesScreen() {
+  const T = useTheme();
   const tabBarHeight          = useTabBarHeight();
   const { top: topInset }     = useSafeAreaInsets();
   const [activeTab, setActiveTab] = useState('matches');
@@ -444,14 +450,14 @@ export default function CompanyMatchesScreen() {
   }
 
   return (
-    <View style={[s.screen, { paddingTop: topInset }]}>
-      <StatusBar barStyle="light-content" />
+    <View style={[s.screen, { paddingTop: topInset, backgroundColor: T.bg }]}>
+      <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
 
       {/* Header */}
       <View style={s.header}>
         <View style={s.headerRow}>
-          <Text style={s.pageTitle}>Matches</Text>
-          <TouchableOpacity style={s.filterBtn} activeOpacity={0.85}>
+          <Text style={[s.pageTitle, { color: T.textPrimary }]}>Matches</Text>
+          <TouchableOpacity style={[s.filterBtn, { backgroundColor: T.primary }]} activeOpacity={0.85}>
             <MaterialCommunityIcons name="filter-variant" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -469,10 +475,10 @@ export default function CompanyMatchesScreen() {
           hasMatches ? (
             <>
               <View style={s.sectionRow}>
-                <Text style={s.sectionTitle}>New applicants</Text>
-                <TouchableOpacity><Text style={s.viewAll}>View all</Text></TouchableOpacity>
+                <Text style={[s.sectionTitle, { color: T.textPrimary }]}>New applicants</Text>
+                <TouchableOpacity><Text style={[s.viewAll, { color: T.primary }]}>View all</Text></TouchableOpacity>
               </View>
-              <View style={s.card}>
+              <View style={[s.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={s.newMatchRow}>
                     {NEW_MATCHES.map(m => (
@@ -485,8 +491,8 @@ export default function CompanyMatchesScreen() {
                             </View>
                           )}
                         </View>
-                        <Text style={s.newMatchName} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
-                        <Text style={s.newMatchRole} numberOfLines={1}>{m.role}</Text>
+                        <Text style={[s.newMatchName, { color: T.textPrimary }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
+                        <Text style={[s.newMatchRole, { color: T.textHint }]} numberOfLines={1}>{m.role}</Text>
                       </TouchableOpacity>
                     ))}
                   </View>
@@ -494,28 +500,28 @@ export default function CompanyMatchesScreen() {
               </View>
 
               <View style={[s.sectionRow, { marginTop: 4 }]}>
-                <Text style={s.sectionTitle}>Applicant pipeline</Text>
+                <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Applicant pipeline</Text>
               </View>
-              <View style={s.card}>
+              <View style={[s.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
                 {PIPELINE_STAGES.map((stage, si) => {
                   const stageApplicants = PIPELINE.filter(p => p.status === stage.key);
                   if (!stageApplicants.length) return null;
                   return (
                     <View key={stage.key}>
-                      {si > 0 && <View style={s.divider} />}
+                      {si > 0 && <View style={[s.divider, { backgroundColor: T.borderFaint }]} />}
                       <View style={s.stageHeader}>
                         <View style={[s.stagePill, { backgroundColor: stage.bg }]}>
                           <MaterialCommunityIcons name={stage.icon as any} size={12} color={stage.text} />
                           <Text style={[s.stagePillText, { color: stage.text }]}>{stage.label}</Text>
                         </View>
-                        <Text style={s.stageCount}>{stageApplicants.length}</Text>
+                        <Text style={[s.stageCount, { color: T.textHint }]}>{stageApplicants.length}</Text>
                       </View>
                       {stageApplicants.map(app => (
                         <TouchableOpacity key={app.id} style={s.pipelineRow} activeOpacity={0.8}>
                           <ApplicantAvatar uri={app.avatar} size={40} />
                           <View style={s.pipelineInfo}>
-                            <Text style={s.pipelineName}>{app.name}</Text>
-                            <Text style={s.pipelineRole}>{app.role}</Text>
+                            <Text style={[s.pipelineName, { color: T.textPrimary }]}>{app.name}</Text>
+                            <Text style={[s.pipelineRole, { color: T.textSub }]}>{app.role}</Text>
                           </View>
                           <MaterialCommunityIcons name="chevron-right" size={18} color={T.textHint} />
                         </TouchableOpacity>
@@ -534,12 +540,12 @@ export default function CompanyMatchesScreen() {
         {activeTab === 'messages' && (
           <>
             <View style={s.sectionRow}>
-              <Text style={s.sectionTitle}>Recent conversations</Text>
+              <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Recent conversations</Text>
             </View>
-            <View style={s.card}>
+            <View style={[s.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
               {PIPELINE.map((msg, i) => (
                 <View key={msg.id}>
-                  {i > 0 && <View style={s.divider} />}
+                  {i > 0 && <View style={[s.divider, { backgroundColor: T.borderFaint }]} />}
                   <TouchableOpacity
                     style={[s.msgRow, msg.expired && s.msgRowExpired]}
                     activeOpacity={0.85}
@@ -555,10 +561,10 @@ export default function CompanyMatchesScreen() {
                     </View>
                     <View style={s.msgBody}>
                       <View style={s.msgTopRow}>
-                        <Text style={[s.msgName, msg.expired && s.msgFaded]}>{msg.name}</Text>
-                        <Text style={s.msgTime}>{msg.time}</Text>
+                        <Text style={[s.msgName, { color: T.textPrimary }, msg.expired && s.msgFaded]}>{msg.name}</Text>
+                        <Text style={[s.msgTime, { color: T.textHint }]}>{msg.time}</Text>
                       </View>
-                      <Text style={[s.msgRole, msg.expired && s.msgFaded]}>{msg.role}</Text>
+                      <Text style={[s.msgRole, { color: T.textSub }, msg.expired && s.msgFaded]}>{msg.role}</Text>
                       <Text style={[s.msgPreview, msg.expired && s.msgFaded]} numberOfLines={1}>
                         {msg.lastMsg}
                       </Text>
@@ -611,15 +617,15 @@ export default function CompanyMatchesScreen() {
               <>
                 <TouchableOpacity style={s.backBtn} onPress={() => setSelectedApplicantId(null)} activeOpacity={0.7}>
                   <MaterialCommunityIcons name="arrow-left" size={18} color={T.primary} />
-                  <Text style={s.backBtnText}>All applicants</Text>
+                  <Text style={[s.backBtnText, { color: T.primary }]}>All applicants</Text>
                 </TouchableOpacity>
 
-                <View style={s.detailCard}>
+                <View style={[s.detailCard, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
                   <View style={s.detailHeader}>
                     <ApplicantAvatar uri={selectedApplicant.avatar} size={64} />
                     <View style={{ marginLeft: 14 }}>
-                      <Text style={s.detailName}>{selectedApplicant.name}</Text>
-                      <Text style={s.detailRole}>{selectedApplicant.role}</Text>
+                      <Text style={[s.detailName, { color: T.textPrimary }]}>{selectedApplicant.name}</Text>
+                      <Text style={[s.detailRole, { color: T.textSub }]}>{selectedApplicant.role}</Text>
                       <View style={s.closedTag}>
                         <MaterialCommunityIcons name="lock-outline" size={10} color={T.textHint} />
                         <Text style={s.closedTagText}>Conversation closed</Text>
@@ -654,18 +660,18 @@ export default function CompanyMatchesScreen() {
                           {['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][reviewRating]}
                         </Text>
                       )}
-                      <Text style={s.fieldLabel}>Review title</Text>
+                      <Text style={[s.fieldLabel, { color: T.textSub }]}>Review title</Text>
                       <TextInput
-                        style={s.textField}
+                        style={[s.textField, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint, color: T.textPrimary }]}
                         value={reviewTitle}
                         onChangeText={setReviewTitle}
                         placeholder="Summarise your experience with this applicant…"
                         placeholderTextColor={T.textHint}
                         maxLength={80}
                       />
-                      <Text style={s.fieldLabel}>Your review</Text>
+                      <Text style={[s.fieldLabel, { color: T.textSub }]}>Your review</Text>
                       <TextInput
-                        style={[s.textField, s.textArea]}
+                        style={[s.textField, s.textArea, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint, color: T.textPrimary }]}
                         value={reviewBody}
                         onChangeText={setReviewBody}
                         placeholder="Share details about communication, skills, interview performance…"
@@ -676,7 +682,7 @@ export default function CompanyMatchesScreen() {
                         textAlignVertical="top"
                       />
                       <TouchableOpacity
-                        style={[s.submitBtn, (!reviewRating || !reviewTitle.trim() || !reviewBody.trim()) && s.submitBtnDisabled]}
+                        style={[s.submitBtn, { backgroundColor: T.primary }, (!reviewRating || !reviewTitle.trim() || !reviewBody.trim()) && s.submitBtnDisabled]}
                         onPress={handleSubmitReview}
                         activeOpacity={0.85}
                       >
@@ -705,8 +711,8 @@ export default function CompanyMatchesScreen() {
                               ))}
                               <Text style={s.reviewDate}>{rev.date}</Text>
                             </View>
-                            <Text style={s.reviewTitle}>{rev.title}</Text>
-                            <Text style={s.reviewBody}>{rev.body}</Text>
+                            <Text style={[s.reviewTitle, { color: T.textPrimary }]}>{rev.title}</Text>
+                            <Text style={[s.reviewBody, { color: T.textSub }]}>{rev.body}</Text>
                           </View>
                         ))}
                     </>
@@ -717,22 +723,22 @@ export default function CompanyMatchesScreen() {
               CLOSED_APPLICANTS.length === 0 ? (
                 <View style={s.reviewsEmptyWrap}>
                   <MaterialCommunityIcons name="star-off-outline" size={40} color={T.borderFaint} />
-                  <Text style={s.reviewsEmptyTitle}>No closed conversations yet</Text>
-                  <Text style={s.reviewsEmptySub}>
+                  <Text style={[s.reviewsEmptyTitle, { color: T.textSub }]}>No closed conversations yet</Text>
+                  <Text style={[s.reviewsEmptySub, { color: T.textHint }]}>
                     You can leave a review once a conversation with an applicant has closed.
                   </Text>
                 </View>
               ) : (
                 <>
                   <View style={s.sectionRow}>
-                    <Text style={s.sectionTitle}>Closed conversations</Text>
+                    <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Closed conversations</Text>
                   </View>
-                  <View style={s.card}>
+                  <View style={[s.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
                     {CLOSED_APPLICANTS.map((app, i) => {
                       const appReviews = submittedReviews.filter(r => r.applicantId === app.id);
                       return (
                         <View key={app.id}>
-                          {i > 0 && <View style={s.divider} />}
+                          {i > 0 && <View style={[s.divider, { backgroundColor: T.borderFaint }]} />}
                           <TouchableOpacity
                             style={s.applicantListRow}
                             onPress={() => openApplicant(app.id)}
@@ -740,8 +746,8 @@ export default function CompanyMatchesScreen() {
                           >
                             <ApplicantAvatar uri={app.avatar} size={48} />
                             <View style={s.applicantListInfo}>
-                              <Text style={s.applicantListName}>{app.name}</Text>
-                              <Text style={s.applicantListRole}>{app.role}</Text>
+                              <Text style={[s.applicantListName, { color: T.textPrimary }]}>{app.name}</Text>
+                              <Text style={[s.applicantListRole, { color: T.textSub }]}>{app.role}</Text>
                               {appReviews.length > 0 ? (
                                 <View style={s.reviewedRow}>
                                   <MaterialCommunityIcons name="check-circle" size={12} color={T.success} />

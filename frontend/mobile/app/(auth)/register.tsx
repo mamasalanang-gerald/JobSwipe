@@ -1,298 +1,644 @@
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  ActivityIndicator,
-  StatusBar,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
-import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
-import {
-  PageHeader,
-  SectionCard,
-  Divider,
-  Spacer,
-  Colors,
-  Typography,
-  Spacing,
-  Radii,
-  Shadows,
-} from '../../components/ui';
+import { useTheme } from '../../theme';
+import { Divider, Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../components/ui';
+import { RegisterEmailGate } from '../../components/auth/register/RegisterEmailGate';
+import { HRInviteRegistrationForm } from '../../components/auth/register/HRInviteRegistrationForm';
+import { RegisterInviteCodeScreen } from '../../components/auth/register/RegisterInviteCodeScreen';
+import { RegisterRoleSplash } from '../../components/auth/register/RegisterRoleSplash';
+import { RegisterStepContent } from '../../components/auth/register/RegisterStepContent';
+import { RegisterStepProgressBar } from '../../components/auth/register/RegisterStepProgressBar';
+import { APPLICANT_STEPS, HARD_SKILL_SUGGESTIONS, HR_STEPS, JOB_TITLE_OPTIONS, Role, SOFT_SKILL_SUGGESTIONS, STEP_LABELS, WorkEntry, EducationEntry } from '../../components/auth/register/types';
 
-type Role = 'applicant' | 'hr';
+const MOCK_COMPANIES: Record<string, { name: string; validCodes: string[] }> = {
+  'google.com': { name: 'Google', validCodes: ['GOOGLE-2024', 'GOOG-HR-01'] },
+  'microsoft.com': { name: 'Microsoft', validCodes: ['MS-INVITE-99', 'MSFT-HR-01'] },
+  'apple.com': { name: 'Apple', validCodes: ['APPLE-HR-2024', 'APL-INVITE'] },
+};
 
-function ApplicantIcon({ active }: { active: boolean }) {
-  const color = active ? Colors.primaryDark : Colors.gray400;
-  return (
-    <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <Circle cx="12" cy="8" r="4" stroke={color} strokeWidth="1.8" />
-      <Path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-    </Svg>
-  );
-}
+const INVITE_CODE_EMAIL_MAP: Record<string, { email: string; domain: string }> = {
+  'GOOGLE-2024': { email: 'newhr@google.com', domain: 'google.com' },
+  'GOOG-HR-01': { email: 'recruit@google.com', domain: 'google.com' },
+  'MS-INVITE-99': { email: 'newhr@microsoft.com', domain: 'microsoft.com' },
+  'MSFT-HR-01': { email: 'hr@microsoft.com', domain: 'microsoft.com' },
+  'APPLE-HR-2024': { email: 'newhr@apple.com', domain: 'apple.com' },
+  'APL-INVITE': { email: 'recruit@apple.com', domain: 'apple.com' },
+};
 
-function HRIcon({ active }: { active: boolean }) {
-  const color = active ? Colors.primaryDark : Colors.gray400;
-  return (
-    <Svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-      <Rect x="3" y="6" width="18" height="14" rx="2" stroke={color} strokeWidth="1.8" />
-      <Path d="M3 10h18" stroke={color} strokeWidth="1.8" />
-      <Path d="M8 6V4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <Path d="M16 6V4" stroke={color} strokeWidth="1.8" strokeLinecap="round" />
-      <Circle cx="9" cy="15" r="1.5" fill={color} />
-      <Circle cx="15" cy="15" r="1.5" fill={color} />
-    </Svg>
-  );
-}
+const getCompanyFromEmail = (email: string) => {
+  const domain = email.split('@')[1]?.toLowerCase();
+  return domain ? MOCK_COMPANIES[domain] ?? null : null;
+};
+
+const getInfoFromInviteCode = (code: string): { email: string; company: { name: string; validCodes: string[] } } | null => {
+  const entry = INVITE_CODE_EMAIL_MAP[code.trim().toUpperCase()];
+  if (!entry) return null;
+  const company = MOCK_COMPANIES[entry.domain] ?? null;
+  return company ? { email: entry.email, company } : null;
+};
 
 export default function RegisterScreen() {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
+  const T = useTheme();
+  const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
+  const setToken = useAuthStore((s) => s.setToken);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState<Role>('applicant');
   const [showPassword, setShowPassword] = useState(false);
+  const [role, setRole] = useState<Role>('applicant');
+
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [location, setLocation] = useState('');
+  const [locationCity, setLocationCity] = useState('');
+  const [locationRegion, setLocationRegion] = useState('');
+  const [bio, setBio] = useState('');
+  const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
+  const [hardSkills, setHardSkills] = useState<string[]>([]);
+  const [softSkills, setSoftSkills] = useState<string[]>([]);
+  const [hardSkillInput, setHardSkillInput] = useState('');
+  const [softSkillInput, setSoftSkillInput] = useState('');
+  const [workEntries, setWorkEntries] = useState<WorkEntry[]>([{ company: '', position: '', start_date: '', end_date: '', description: '' }]);
+  const [educationEntries, setEducationEntries] = useState<EducationEntry[]>([{ school: '', degree: '', field_of_study: '', start_date: '', end_date: '' }]);
+  const [photoFile, setPhotoFile] = useState<{ uri: string; name: string } | null>(null);
+  const [linkedinUrl, setLinkedinUrl] = useState('');
+  const [githubUrl, setGithubUrl] = useState('');
+  const [portfolioUrl, setPortfolioUrl] = useState('');
+  const [twitterUrl, setTwitterUrl] = useState('');
+
+  const [companyName, setCompanyName] = useState('');
+  const [companyTagline, setCompanyTagline] = useState('');
+  const [companyDescription, setCompanyDescription] = useState('');
+  const [companyIndustry, setCompanyIndustry] = useState('');
+  const [companySize, setCompanySize] = useState('');
+  const [foundedYear, setFoundedYear] = useState('');
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [addressStreet, setAddressStreet] = useState('');
+  const [addressCity, setAddressCity] = useState('');
+  const [addressState, setAddressState] = useState('');
+  const [addressCountry, setAddressCountry] = useState('');
+  const [addressPostal, setAddressPostal] = useState('');
+  const [companySocialLinks, setCompanySocialLinks] = useState<string[]>(['']);
+  const [verificationDocs, setVerificationDocs] = useState<{ uri: string; name: string }[]>([]);
+  const [logoFile, setLogoFile] = useState<{ uri: string; name: string } | null>(null);
+  const [officeImages, setOfficeImages] = useState<{ uri: string; name: string }[]>([]);
+
+  const [roleSelected, setRoleSelected] = useState(false);
+  const [emailDone, setEmailDone] = useState(false);
+  const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { top: topInset } = useSafeAreaInsets();
-  const setToken = useAuthStore((s) => s.setToken);
+  const [detectedCompany, setDetectedCompany] = useState<{ name: string; validCodes: string[] } | null>(null);
+  const [showInvitePrompt, setShowInvitePrompt] = useState(false);
+  const [inviteCode, setInviteCode] = useState('');
+  const [inviteError, setInviteError] = useState('');
+  const [isInvitedHR, setIsInvitedHR] = useState(false);
 
-  const strengthLevel = password.length === 0 ? null : password.length < 8 ? 'weak' : password.length < 12 ? 'good' : 'strong';
-  const strengthColor = strengthLevel === 'weak' ? Colors.danger : strengthLevel === 'good' ? Colors.warning : Colors.success;
+  const steps = role === 'applicant' ? APPLICANT_STEPS : HR_STEPS;
+  const stepKey = steps[currentStep];
+  const totalSteps = steps.length;
+  const progress = (currentStep + 1) / totalSteps;
 
-  const handleRegister = async () => {
-    if (!firstName || !lastName || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields.'); return;
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasMinLength = password.length >= 8;
+  const strengthLevel =
+    password.length === 0 ? null : !hasMinLength || !hasUppercase || !hasNumber ? 'weak' : password.length < 12 ? 'good' : 'strong';
+  const strengthColor = strengthLevel === 'weak' ? T.danger : strengthLevel === 'good' ? T.warning : T.success;
+
+  const inputRowStyle = {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: Spacing['2'],
+    backgroundColor: T.surface,
+    borderWidth: 1,
+    borderColor: T.border,
+    borderRadius: Radii.md,
+    paddingHorizontal: Spacing['3'],
+  };
+
+  const inputStyle = {
+    flex: 1,
+    paddingVertical: Spacing['3'],
+    fontSize: Typography.md,
+    color: T.textPrimary,
+  };
+
+  const fieldLabelStyle = {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold as any,
+    color: T.textSub,
+    letterSpacing: 0.2,
+    marginBottom: Spacing['2'],
+  };
+
+  const addSkill = (type: 'hard' | 'soft', value?: string) => {
+    const currentInput = type === 'hard' ? hardSkillInput : softSkillInput;
+    const currentSkills = type === 'hard' ? hardSkills : softSkills;
+    const setCurrentSkills = type === 'hard' ? setHardSkills : setSoftSkills;
+    const setCurrentInput = type === 'hard' ? setHardSkillInput : setSoftSkillInput;
+    const trimmed = (value ?? currentInput).trim();
+    const normalized = trimmed.toLowerCase();
+    if (trimmed && !currentSkills.some((skill) => skill.toLowerCase() === normalized)) {
+      setCurrentSkills((prev) => [...prev, trimmed]);
     }
-    if (password !== confirmPassword) { setError('Passwords do not match.'); return; }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
+    setCurrentInput('');
+  };
+
+  const removeSkill = (type: 'hard' | 'soft', skill: string) => {
+    const setCurrentSkills = type === 'hard' ? setHardSkills : setSoftSkills;
+    setCurrentSkills((prev) => prev.filter((item) => item !== skill));
+  };
+
+  const getFilteredSkillSuggestions = (type: 'hard' | 'soft', input: string, selectedSkills: string[]) =>
+    input.trim()
+      ? (type === 'hard' ? HARD_SKILL_SUGGESTIONS : SOFT_SKILL_SUGGESTIONS).filter((skill) => {
+        const normalizedSkill = skill.toLowerCase();
+        const normalizedInput = input.trim().toLowerCase();
+        return normalizedSkill.includes(normalizedInput) && !selectedSkills.some((selectedSkill) => selectedSkill.toLowerCase() === normalizedSkill);
+      }).slice(0, 6)
+      : [];
+
+  const hardSkillSuggestions = getFilteredSkillSuggestions('hard', hardSkillInput, hardSkills);
+  const softSkillSuggestions = getFilteredSkillSuggestions('soft', softSkillInput, softSkills);
+
+  const validateCurrentStep = () => {
     setError('');
+    if (stepKey === 'password') {
+      if (!password || !confirmPassword) return setError('Please fill in all fields.'), false;
+      if (password !== confirmPassword) return setError('Passwords do not match.'), false;
+      if (!hasMinLength) return setError('Password must be at least 8 characters.'), false;
+      if (!hasUppercase) return setError('Password must contain at least 1 uppercase letter.'), false;
+      if (!hasNumber) return setError('Password must contain at least 1 number.'), false;
+    }
+    if (stepKey === 'basic' && (!firstName || !lastName || !location)) return setError('First name, last name, and location are required.'), false;
+    if (stepKey === 'skills' && hardSkills.length + softSkills.length === 0) return setError('Please add at least one hard or soft skill.'), false;
+    if (stepKey === 'company_details') {
+      if (!companyName) return setError('Company name is required.'), false;
+      if (companyName.length < 2 || companyName.length > 100) return setError('Company name must be 2-100 characters.'), false;
+      if (!companyDescription) return setError('Company description is required.'), false;
+      if (companyDescription.length < 50 || companyDescription.length > 2000) return setError('Description must be 50-2000 characters.'), false;
+      if (!companyIndustry) return setError('Please select an industry.'), false;
+      if (!companySize) return setError('Please select a company size.'), false;
+    }
+    if (stepKey === 'company_docs' && verificationDocs.length === 0) return setError('Please upload at least one verification document.'), false;
+    if (stepKey === 'company_media') {
+      if (!logoFile) return setError('Please upload a company logo.'), false;
+      if (officeImages.length === 0) return setError('Please upload at least one office image.'), false;
+    }
+    return true;
+  };
+
+  const handleSubmit = async () => {
     setLoading(true);
     try {
       const response = await fetch('http://localhost:8000/api/v1/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ first_name: firstName, last_name: lastName, email, password, role }),
+        body: JSON.stringify({
+          email,
+          password,
+          role,
+          first_name: firstName,
+          last_name: lastName,
+          location,
+          location_city: locationCity,
+          location_region: locationRegion,
+          bio,
+          skills: [...hardSkills, ...softSkills],
+          resume_url: resumeFile?.uri ?? null,
+          photo_url: photoFile?.uri ?? null,
+          linkedin_url: linkedinUrl,
+          github_url: githubUrl,
+          portfolio_url: portfolioUrl,
+          twitter_url: twitterUrl,
+        }),
       });
       const data = await response.json();
-      if (data.success) {
-        setToken(data.data.token);
-        router.replace('/(tabs)');
-      } else {
+      if (!data.success) {
         setError(data.message || 'Registration failed. Please try again.');
+        setCurrentStep(0);
+        return;
       }
+
+      const token = data.data.token;
+
+      if (role === 'hr') {
+        await fetch('http://localhost:8000/api/v1/profile/onboarding/step/1', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            company_name: companyName,
+            tagline: companyTagline,
+            description: companyDescription,
+            industry: companyIndustry,
+            company_size: companySize,
+            founded_year: foundedYear ? parseInt(foundedYear) : null,
+            website_url: websiteUrl || null,
+            address: {
+              street: addressStreet,
+              city: addressCity,
+              state: addressState,
+              country: addressCountry,
+              postal_code: addressPostal,
+            },
+            social_links: companySocialLinks.filter(Boolean),
+          }),
+        });
+
+        if (verificationDocs.length > 0) {
+          const formData2 = new FormData();
+          verificationDocs.forEach((doc) => {
+            formData2.append('verification_documents', { uri: doc.uri, name: doc.name, type: 'application/octet-stream' } as any);
+          });
+          await fetch('http://localhost:8000/api/v1/profile/onboarding/step/2', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData2,
+          });
+        }
+
+        const formData3 = new FormData();
+        if (logoFile) formData3.append('logo_url', { uri: logoFile.uri, name: logoFile.name, type: 'image/jpeg' } as any);
+        officeImages.forEach((image) => {
+          formData3.append('office_images', { uri: image.uri, name: image.name, type: 'image/jpeg' } as any);
+        });
+        await fetch('http://localhost:8000/api/v1/profile/onboarding/step/3', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData3,
+        });
+      }
+
+      await setToken(token, role);
+      router.replace(role === 'hr' ? '/(company-tabs)' : '/(tabs)');
     } catch {
       setError('Could not connect to server. Please try again.');
+      setCurrentStep(0);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: Colors.background, paddingTop: topInset }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-      <StatusBar barStyle="dark-content" />
+  const handleNext = () => {
+    if (!validateCurrentStep()) return;
+    if (currentStep < totalSteps - 1) setCurrentStep((value) => value + 1);
+    else handleSubmit();
+  };
 
-      <PageHeader title="Create Account" subtitle="Start your job search today" />
+  const resetForm = () => {
+    setEmailDone(false);
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setShowPassword(false);
+    setRole('applicant');
+    setFirstName('');
+    setLastName('');
+    setLocation('');
+    setLocationCity('');
+    setLocationRegion('');
+    setBio('');
+    setResumeFile(null);
+    setHardSkills([]);
+    setSoftSkills([]);
+    setHardSkillInput('');
+    setSoftSkillInput('');
+    setWorkEntries([{ company: '', position: '', start_date: '', end_date: '', description: '' }]);
+    setEducationEntries([{ school: '', degree: '', field_of_study: '', start_date: '', end_date: '' }]);
+    setPhotoFile(null);
+    setLinkedinUrl('');
+    setGithubUrl('');
+    setPortfolioUrl('');
+    setTwitterUrl('');
+    setCompanyName('');
+    setCompanyTagline('');
+    setCompanyDescription('');
+    setCompanyIndustry('');
+    setCompanySize('');
+    setFoundedYear('');
+    setWebsiteUrl('');
+    setAddressStreet('');
+    setAddressCity('');
+    setAddressState('');
+    setAddressCountry('');
+    setAddressPostal('');
+    setCompanySocialLinks(['']);
+    setVerificationDocs([]);
+    setLogoFile(null);
+    setOfficeImages([]);
+    setCurrentStep(0);
+    setError('');
+    setDetectedCompany(null);
+    setShowInvitePrompt(false);
+    setInviteCode('');
+    setInviteError('');
+    setIsInvitedHR(false);
+  };
+
+  if (!roleSelected) {
+    return <RegisterRoleSplash T={T} topInset={topInset} bottomInset={bottomInset} role={role} setRole={setRole} onContinue={() => setRoleSelected(true)} />;
+  }
+
+  if (showInvitePrompt) {
+    return (
+      <RegisterInviteCodeScreen
+        T={T}
+        topInset={topInset}
+        inviteCode={inviteCode}
+        inviteError={inviteError}
+        detectedCompany={detectedCompany}
+        fieldLabelStyle={fieldLabelStyle}
+        inputRowStyle={inputRowStyle}
+        inputStyle={inputStyle}
+        onBack={() => {
+          setShowInvitePrompt(false);
+          setInviteCode('');
+          setInviteError('');
+        }}
+        onChangeInviteCode={(value) => {
+          setInviteCode(value);
+          setInviteError('');
+        }}
+        onVerify={() => {
+          if (!inviteCode.trim()) {
+            setInviteError('Please enter your invite code.');
+            return;
+          }
+          const inviteInfo = getInfoFromInviteCode(inviteCode.trim());
+          if (inviteInfo) {
+            setEmail(inviteInfo.email);
+            setDetectedCompany(inviteInfo.company);
+            setIsInvitedHR(true);
+            setShowInvitePrompt(false);
+            setEmailDone(true);
+            return;
+          }
+          if (detectedCompany && detectedCompany.validCodes.includes(inviteCode.trim().toUpperCase())) {
+            setIsInvitedHR(true);
+            setShowInvitePrompt(false);
+            setEmailDone(true);
+            return;
+          }
+          setInviteError('Invalid invite code. Please check with your company admin.');
+        }}
+        onRequestInvite={() => {
+          setInviteError('');
+          alert(`Contact your ${detectedCompany ? detectedCompany.name : 'company'} admin to receive an invite link to your work email.`);
+        }}
+      />
+    );
+  }
+
+  if (isInvitedHR && emailDone) {
+    return (
+      <HRInviteRegistrationForm
+        T={T}
+        topInset={topInset}
+        email={email}
+        detectedCompany={detectedCompany}
+        fieldLabelStyle={fieldLabelStyle}
+        inputRowStyle={inputRowStyle}
+        inputStyle={inputStyle}
+        jobTitleOptions={JOB_TITLE_OPTIONS}
+        setToken={setToken}
+        inviteCode={inviteCode}
+        onBack={() => {
+          setEmailDone(false);
+          setIsInvitedHR(false);
+          setInviteCode('');
+          setInviteError('');
+          setShowInvitePrompt(false);
+        }}
+      />
+    );
+  }
+
+  if (!emailDone) {
+    return (
+      <RegisterEmailGate
+        T={T}
+        topInset={topInset}
+        role={role}
+        email={email}
+        error={error}
+        fieldLabelStyle={fieldLabelStyle}
+        inputRowStyle={inputRowStyle}
+        inputStyle={inputStyle}
+        onBack={() => {
+          resetForm();
+          setRoleSelected(false);
+        }}
+        onChangeEmail={setEmail}
+        onContinue={() => {
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!email) {
+            setError('Please enter your email address.');
+            return;
+          }
+          if (!emailRegex.test(email)) {
+            setError('Please enter a valid email address.');
+            return;
+          }
+          setError('');
+          const company = getCompanyFromEmail(email);
+          if (company) {
+            setError(`The domain @${email.split('@')[1]} is already in use by ${company.name}. Please register via invite code or use a different email.`);
+            return;
+          }
+          setEmailDone(true);
+        }}
+        onInviteCode={() => {
+          setError('');
+          setEmail('');
+          setShowInvitePrompt(true);
+        }}
+      />
+    );
+  }
+
+  const isLastStep = currentStep === totalSteps - 1;
+
+  return (
+    <KeyboardAvoidingView
+      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <StatusBar barStyle="light-content" />
+
+      <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['5'] }}>
+        <TouchableOpacity
+          onPress={() => {
+            if (currentStep === 0) {
+              setError('');
+              setEmailDone(false);
+            } else {
+              setError('');
+              setCurrentStep((value) => value - 1);
+            }
+          }}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], alignSelf: 'flex-start' }}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={20} color={T.textSub} />
+          <Text style={{ fontSize: Typography.md, color: T.textSub }}>Back</Text>
+        </TouchableOpacity>
+      </View>
+
+      {totalSteps > 1 && <RegisterStepProgressBar T={T} currentStep={currentStep} totalSteps={totalSteps} progress={progress} steps={steps} stepKey={stepKey} stepLabels={STEP_LABELS} />}
 
       <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-
-        {/* ── Brand ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['4'] }}>
-          <View style={{ width: 44, height: 44, borderRadius: Radii.md, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', ...Shadows.colored(Colors.primary) }}>
-            <Text style={{ color: Colors.white, fontSize: Typography['2xl'], fontWeight: Typography.bold }}>J</Text>
-          </View>
-          <View>
-            <Text style={{ fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.gray900, letterSpacing: -0.3 }}>JobSwipe</Text>
-            <Text style={{ fontSize: Typography.sm, color: Colors.gray400, marginTop: 1 }}>Your next role is one swipe away</Text>
-          </View>
-        </View>
-
-        {/* ── Error banner ── */}
         {error ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: Colors.dangerLight, borderWidth: 1, borderColor: Colors.dangerMid, borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={Colors.danger} />
-            <Text style={{ flex: 1, color: Colors.danger, fontSize: Typography.base }}>{error}</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={T.danger} />
+            <Text style={{ flex: 1, color: T.danger, fontSize: Typography.base }}>{error}</Text>
           </View>
         ) : null}
 
-        {/* ── Role selector ── */}
-        <SectionCard title="I am a...">
-          <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-            {([
-              { key: 'applicant', title: 'Job Seeker',   desc: 'Browse and apply to jobs', Icon: ApplicantIcon },
-              { key: 'hr',        title: 'HR / Company', desc: 'Post jobs and find talent',  Icon: HRIcon },
-            ] as const).map(({ key, title, desc, Icon }) => {
-              const active = role === key;
-              return (
-                <TouchableOpacity
-                  key={key}
-                  onPress={() => setRole(key)}
-                  activeOpacity={0.8}
-                  style={{ flex: 1, backgroundColor: active ? Colors.primaryLight : Colors.white, borderWidth: 1.5, borderColor: active ? Colors.primary : Colors.gray200, borderRadius: Radii.lg, padding: Spacing['4'], alignItems: 'center', gap: Spacing['1'], position: 'relative' }}
-                >
-                  <View style={{ width: 48, height: 48, borderRadius: Radii.md, backgroundColor: active ? Colors.primaryMid : Colors.gray100, alignItems: 'center', justifyContent: 'center', marginBottom: Spacing['1'] }}>
-                    <Icon active={active} />
-                  </View>
-                  <Text style={{ fontSize: Typography.base, fontWeight: Typography.semibold, color: active ? Colors.primaryDark : Colors.gray500, textAlign: 'center' }}>{title}</Text>
-                  <Text style={{ fontSize: Typography.xs, color: active ? Colors.primary : Colors.gray400, textAlign: 'center', lineHeight: 15 }}>{desc}</Text>
-                  {active && (
-                    <View style={{ position: 'absolute', top: Spacing['2'], right: Spacing['2'], width: 18, height: 18, borderRadius: Radii.full, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' }}>
-                      <MaterialCommunityIcons name="check" size={11} color={Colors.white} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </SectionCard>
+        <RegisterStepContent
+          T={T}
+          stepKey={stepKey}
+          fieldLabelStyle={fieldLabelStyle}
+          inputRowStyle={inputRowStyle}
+          inputStyle={inputStyle}
+          password={password}
+          confirmPassword={confirmPassword}
+          showPassword={showPassword}
+          setPassword={setPassword}
+          setConfirmPassword={setConfirmPassword}
+          setShowPassword={setShowPassword}
+          strengthLevel={strengthLevel}
+          strengthColor={strengthColor}
+          firstName={firstName}
+          lastName={lastName}
+          location={location}
+          locationCity={locationCity}
+          locationRegion={locationRegion}
+          bio={bio}
+          setFirstName={setFirstName}
+          setLastName={setLastName}
+          setLocation={setLocation}
+          setLocationCity={setLocationCity}
+          setLocationRegion={setLocationRegion}
+          setBio={setBio}
+          resumeFile={resumeFile}
+          setResumeFile={setResumeFile}
+          hardSkills={hardSkills}
+          softSkills={softSkills}
+          hardSkillInput={hardSkillInput}
+          softSkillInput={softSkillInput}
+          setHardSkillInput={setHardSkillInput}
+          setSoftSkillInput={setSoftSkillInput}
+          addSkill={addSkill}
+          removeSkill={removeSkill}
+          hardSkillSuggestions={hardSkillSuggestions}
+          softSkillSuggestions={softSkillSuggestions}
+          workEntries={workEntries}
+          setWorkEntries={setWorkEntries}
+          educationEntries={educationEntries}
+          setEducationEntries={setEducationEntries}
+          photoFile={photoFile}
+          setPhotoFile={setPhotoFile}
+          linkedinUrl={linkedinUrl}
+          githubUrl={githubUrl}
+          portfolioUrl={portfolioUrl}
+          twitterUrl={twitterUrl}
+          setLinkedinUrl={setLinkedinUrl}
+          setGithubUrl={setGithubUrl}
+          setPortfolioUrl={setPortfolioUrl}
+          setTwitterUrl={setTwitterUrl}
+          companyName={companyName}
+          companyTagline={companyTagline}
+          companyDescription={companyDescription}
+          companyIndustry={companyIndustry}
+          companySize={companySize}
+          foundedYear={foundedYear}
+          websiteUrl={websiteUrl}
+          addressStreet={addressStreet}
+          addressCity={addressCity}
+          addressState={addressState}
+          addressCountry={addressCountry}
+          addressPostal={addressPostal}
+          companySocialLinks={companySocialLinks}
+          setCompanyName={setCompanyName}
+          setCompanyTagline={setCompanyTagline}
+          setCompanyDescription={setCompanyDescription}
+          setCompanyIndustry={setCompanyIndustry}
+          setCompanySize={setCompanySize}
+          setFoundedYear={setFoundedYear}
+          setWebsiteUrl={setWebsiteUrl}
+          setAddressStreet={setAddressStreet}
+          setAddressCity={setAddressCity}
+          setAddressState={setAddressState}
+          setAddressCountry={setAddressCountry}
+          setAddressPostal={setAddressPostal}
+          setCompanySocialLinks={setCompanySocialLinks}
+          verificationDocs={verificationDocs}
+          setVerificationDocs={setVerificationDocs}
+          logoFile={logoFile}
+          setLogoFile={setLogoFile}
+          officeImages={officeImages}
+          setOfficeImages={setOfficeImages}
+          setError={setError}
+        />
 
-        {/* ── Personal info ── */}
-        <SectionCard title="Personal info">
-
-          {/* Name row */}
-          <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-            <View style={{ flex: 1, gap: Spacing['2'] }}>
-              <Text style={s.fieldLabel}>First name</Text>
-              <View style={s.inputRow}>
-                <TextInput style={s.input} placeholder="John" placeholderTextColor={Colors.gray300} value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
+        <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
+          <TouchableOpacity
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: T.primary, borderRadius: Radii.lg, paddingVertical: Spacing['4'], opacity: loading ? 0.6 : 1, ...Shadows.colored(T.primary) }}
+            onPress={handleNext}
+            activeOpacity={0.85}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color={T.white} />
+            ) : (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
+                <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>
+                  {isLastStep ? 'Create account' : 'Continue'}
+                </Text>
+                <MaterialCommunityIcons name={isLastStep ? 'check' : 'arrow-right'} size={18} color={T.white} />
               </View>
-            </View>
-            <View style={{ flex: 1, gap: Spacing['2'] }}>
-              <Text style={s.fieldLabel}>Last name</Text>
-              <View style={s.inputRow}>
-                <TextInput style={s.input} placeholder="Doe" placeholderTextColor={Colors.gray300} value={lastName} onChangeText={setLastName} autoCapitalize="words" />
-              </View>
-            </View>
-          </View>
-
-          <Divider spacing={Spacing['4']} />
-
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={s.fieldLabel}>Email</Text>
-            <View style={s.inputRow}>
-              <MaterialCommunityIcons name="email-outline" size={16} color={Colors.gray400} />
-              <TextInput style={s.input} placeholder="you@example.com" placeholderTextColor={Colors.gray300} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} />
-            </View>
-          </View>
-
-        </SectionCard>
-
-        {/* ── Password ── */}
-        <SectionCard title="Password">
-
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={s.fieldLabel}>Password</Text>
-            <View style={s.inputRow}>
-              <MaterialCommunityIcons name="lock-outline" size={16} color={Colors.gray400} />
-              <TextInput style={[s.input, { flex: 1 }]} placeholder="Min. 8 characters" placeholderTextColor={Colors.gray300} value={password} onChangeText={setPassword} secureTextEntry={!showPassword} autoCapitalize="none" />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: Spacing['1'] }}>
-                <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={Colors.gray400} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* Strength bar */}
-          {strengthLevel && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], marginTop: Spacing['2'] }}>
-              <View style={{ flex: 1, height: 3, backgroundColor: Colors.gray100, borderRadius: Radii.full, overflow: 'hidden' }}>
-                <View style={{ height: '100%', borderRadius: Radii.full, backgroundColor: strengthColor, width: strengthLevel === 'weak' ? '33%' : strengthLevel === 'good' ? '66%' : '100%' }} />
-              </View>
-              <Text style={{ fontSize: Typography.xs, color: strengthColor, fontWeight: Typography.semibold, minWidth: 36 }}>
-                {strengthLevel === 'weak' ? 'Weak' : strengthLevel === 'good' ? 'Good' : 'Strong'}
-              </Text>
-            </View>
-          )}
-
-          <Divider spacing={Spacing['4']} />
-
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={s.fieldLabel}>Confirm password</Text>
-            <View style={s.inputRow}>
-              <MaterialCommunityIcons name="lock-check-outline" size={16} color={Colors.gray400} />
-              <TextInput style={s.input} placeholder="Re-enter your password" placeholderTextColor={Colors.gray300} value={confirmPassword} onChangeText={setConfirmPassword} secureTextEntry={!showPassword} autoCapitalize="none" />
-            </View>
-          </View>
-
-        </SectionCard>
-
-        {/* ── Create account button ── */}
-        <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing['2'], backgroundColor: Colors.primary, borderRadius: Radii.lg, paddingVertical: Spacing['4'], opacity: loading ? 0.6 : 1, ...Shadows.colored(Colors.primary) }}
-          onPress={handleRegister}
-          activeOpacity={0.85}
-          disabled={loading}
-        >
-          {loading
-            ? <ActivityIndicator color={Colors.white} />
-            : <><Text style={{ color: Colors.white, fontSize: Typography.lg, fontWeight: Typography.semibold }}>Create account</Text><MaterialCommunityIcons name="arrow-right" size={18} color={Colors.white} /></>
-          }
-        </TouchableOpacity>
-
-        {/* ── Terms ── */}
-        <Text style={{ fontSize: Typography.xs, color: Colors.gray400, textAlign: 'center', lineHeight: 18 }}>
-          By creating an account, you agree to our{' '}
-          <Text style={{ color: Colors.primary, fontWeight: Typography.medium }}>Terms of Service</Text>
-          {' '}and{' '}
-          <Text style={{ color: Colors.primary, fontWeight: Typography.medium }}>Privacy Policy</Text>.
-        </Text>
-
-        {/* ── OR divider ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] }}>
-          <View style={{ flex: 1, height: 1, backgroundColor: Colors.gray200 }} />
-          <Text style={{ fontSize: Typography.sm, color: Colors.gray400 }}>or</Text>
-          <View style={{ flex: 1, height: 1, backgroundColor: Colors.gray200 }} />
+            )}
+          </TouchableOpacity>
         </View>
 
-        {/* ── Login link ── */}
-        <SectionCard>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing['2'] }}>
-            <Text style={{ fontSize: Typography.md, color: Colors.gray400 }}>Already have an account?</Text>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity>
-                <Text style={{ fontSize: Typography.md, color: Colors.primary, fontWeight: Typography.semibold }}>Sign in</Text>
-              </TouchableOpacity>
-            </Link>
+        {['resume', 'photo', 'social'].includes(stepKey) && !isLastStep && (
+          <TouchableOpacity onPress={() => setCurrentStep((value) => value + 1)} style={{ alignItems: 'center', paddingVertical: Spacing['1'] }}>
+            <Text style={{ fontSize: Typography.sm, color: T.textHint }}>Skip for now</Text>
+          </TouchableOpacity>
+        )}
+
+        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
+          <View style={{ gap: Spacing['2'] }}>
+            <Text style={{ fontSize: Typography.sm, fontWeight: Typography.semibold as any, color: T.textPrimary }}>
+              Registration overview
+            </Text>
+            <Text style={{ fontSize: Typography.sm, color: T.textSub, lineHeight: 20 }}>
+              {role === 'applicant'
+                ? 'Applicant onboarding is now split into smaller sections: registration, basic info, resume, skills, experience, photo, and social links.'
+                : 'Company onboarding is now split into registration, company details, verification documents, and media uploads.'}
+            </Text>
           </View>
         </SectionCard>
+
+        <Divider spacing={Spacing['2']} />
+
+        <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing['2'] }}>
+          <Text style={{ fontSize: Typography.sm, color: T.textSub }}>Already have an account?</Text>
+          <Link href="/(auth)/login" asChild>
+            <TouchableOpacity>
+              <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.semibold as any }}>Sign in</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
 
         <Spacer size="xl" />
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
-
-// Only styles reused across multiple elements live here
-const s = StyleSheet.create({
-  fieldLabel: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.semibold,
-    color: Colors.gray600,
-    letterSpacing: 0.2,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing['2'],
-    backgroundColor: Colors.gray50,
-    borderWidth: 1,
-    borderColor: Colors.gray200,
-    borderRadius: Radii.md,
-    paddingHorizontal: Spacing['3'],
-  },
-  input: {
-    flex: 1,
-    paddingVertical: Spacing['3'],
-    fontSize: Typography.md,
-    color: Colors.gray900,
-  },
-});

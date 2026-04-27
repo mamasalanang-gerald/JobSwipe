@@ -134,7 +134,7 @@ const light: ThemeTokens = {
 // ─── Runtime state ────────────────────────────────────────────────────────────
 export type ThemeMode = 'dark' | 'light';
 
-let _mode: ThemeMode = 'dark';
+let _mode: ThemeMode = 'light';
 let _listeners: Array<() => void> = [];
 
 /**
@@ -182,5 +182,5 @@ export function useTheme(): ThemeTokens {
   return _mode === 'light' ? light : dark;
 }
 
-// ─── Default export (dark theme snapshot — useful for quick compat) ───────────
-export default dark as ThemeTokens;
+// ─── Default export (light theme snapshot — useful for quick compat) ──────────
+export default light as ThemeTokens;

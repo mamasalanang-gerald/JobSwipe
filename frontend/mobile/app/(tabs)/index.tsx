@@ -834,8 +834,8 @@ export default function HomeTab() {
         <View style={s.emptyIconWrap}>
           <MaterialCommunityIcons name="lightning-bolt" size={40} color={Colors.primary} />
         </View>
-        <Text style={s.emptyTitle}>Daily limit reached</Text>
-        <Text style={s.emptySub}>You've used all 15 swipes for today. Upgrade to Pro for unlimited swipes.</Text>
+        <Text style={s.emptyTitle}>No swipes left</Text>
+        <Text style={s.emptySub}>You no longer have any swipes left. Upgrade to Pro for unlimited swipes.</Text>
         <TouchableOpacity
           style={s.refreshBtn}
           onPress={() => navigation.navigate('subscription' as never)}
@@ -954,21 +954,6 @@ export default function HomeTab() {
         <View style={[s.topBar, { paddingTop: topInset > 0 ? topInset + 8 : (Platform.OS === 'ios' ? 54 : 40) }]} pointerEvents="box-none" onLayout={e => setTopBarHeight(e.nativeEvent.layout.height)}>
           <View style={s.tabRow}>
             <TouchableOpacity style={s.iconPill} onPress={openSettings}><MaterialCommunityIcons name="tune-variant" size={19} color={Colors.white} /></TouchableOpacity>
-            {(() => {
-              const remaining = MAX_SWIPES - swipesUsed;
-              const accentColor = remaining > Math.floor(MAX_SWIPES / 2)
-                ? '#10B981'
-                : remaining > Math.floor(MAX_SWIPES * 0.25)
-                  ? '#F59E0B'
-                  : '#EF4444';
-              return (
-                <View style={[s.swipeCounterPill, { borderColor: accentColor }]}>
-                  <Text style={[s.swipeCounterText, { color: accentColor }]}>
-                    {remaining}/{MAX_SWIPES} swipes left
-                  </Text>
-                </View>
-              );
-            })()}
             <TouchableOpacity style={s.iconPill} onPress={() => navigation.navigate('subscription' as never)}><MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA" /></TouchableOpacity>
           </View>
           <View style={s.dotsRow}>
@@ -1489,21 +1474,6 @@ const s = StyleSheet.create({
   lightboxArrow: {
     position: 'absolute', top: '50%', marginTop: -24,
     backgroundColor: 'rgba(255,255,255,0.12)', borderRadius: Radii.full, padding: 8,
-  },
-  // Swipe counter
-  swipeCounterPill: {
-    height: 38,
-    borderRadius: Radii.full,
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    paddingHorizontal: 14,
-  },
-  swipeCounterText: {
-    fontSize: Typography.sm,
-    fontWeight: Typography.semibold,
-    letterSpacing: 0.2,
   },
   lightboxArrowLeft:  { left: Spacing['4'] },
   lightboxArrowRight: { right: Spacing['4'] },
