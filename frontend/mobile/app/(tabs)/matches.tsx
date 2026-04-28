@@ -386,7 +386,7 @@ export default function MatchesTab() {
         {activeTab === 'messages' && (
           <>
             <View style={cs2.sectionRow}>
-              <Text style={[cs2.sectionTitle, { color: T.textPrimary }]}>Recent conversations</Text>
+              <Text style={[cs2.sectionTitle, { color: T.textPrimary }]}>Conversations</Text>
             </View>
             <View style={[cs2.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
               {PIPELINE.map((msg, i) => (
