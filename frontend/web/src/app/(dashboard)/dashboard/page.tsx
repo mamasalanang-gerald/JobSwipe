@@ -43,7 +43,6 @@ export default function DashboardPage() {
                     <div className="rounded-lg bg-zinc-800 p-2">
                       <Icon className="h-5 w-5 text-zinc-400" />
                     </div>
-                    <StatusBadge status="success" variant="success" />
                   </div>
                   <div className="mt-4">
                     <p className="text-sm text-zinc-400">{stat.title}</p>

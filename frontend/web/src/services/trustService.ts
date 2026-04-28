@@ -20,7 +20,7 @@ export const trustService = {
       '/admin/trust/low-trust-companies',
       { signal }
     );
-    return data.data;
+    return data.data || [];
   },
 
   companyHistory: async (companyId: string, signal?: AbortSignal): Promise<TrustEvent[]> => {
@@ -28,7 +28,7 @@ export const trustService = {
       `/admin/trust/companies/${companyId}/history`,
       { signal }
     );
-    return data.data;
+    return data.data || [];
   },
 
   recalculateTrustScore: async (companyId: string): Promise<{ message: string; score: number }> => {

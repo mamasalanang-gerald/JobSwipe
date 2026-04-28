@@ -60,7 +60,20 @@ export const matchService = {
       '/admin/matches/stats',
       { signal }
     );
-    return data.data;
+    return data.data || {
+      totalMatches: 0,
+      pendingMatches: 0,
+      acceptedMatches: 0,
+      rejectedMatches: 0,
+      averageMatchScore: 0,
+      acceptanceRate: 0,
+      averageResponseTime: 0,
+      conversionMetrics: {
+        swipeToMatch: 0,
+        matchToApplication: 0,
+        applicationToHire: 0,
+      },
+    };
   },
 
   applications: async (
@@ -82,6 +95,11 @@ export const matchService = {
       '/admin/applications/stats',
       { signal }
     );
-    return data.data;
+    return data.data || {
+      totalApplications: 0,
+      conversionRate: 0,
+      averageTimeToApply: 0,
+      statusDistribution: {},
+    };
   },
 };

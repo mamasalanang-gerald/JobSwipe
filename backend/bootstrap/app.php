@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Middleware\AdminRateLimit;
+use App\Http\Middleware\CheckPermission;
 use App\Http\Middleware\CheckRole;
 use App\Http\Middleware\CheckSwipeLimit;
 use App\Http\Middleware\ClearStaleRouteCache;
@@ -36,6 +38,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'swipe.limit' => CheckSwipeLimit::class,
             'role' => CheckRole::class,
+            'permission' => CheckPermission::class,
+            'admin.rate_limit' => AdminRateLimit::class,
             'verified' => EnsureEmailVerified::class,
             'membership.active' => MembershipActiveMiddleware::class,
         ]);

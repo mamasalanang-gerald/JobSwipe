@@ -6,3 +6,5 @@ export { subscriptionService } from './subscriptionService';
 export { iapService } from './iapService';
 export { trustService } from './trustService';
 export { matchService } from './matchService';
+export { adminUserService } from './adminUserService';
+export { auditService } from './auditService';

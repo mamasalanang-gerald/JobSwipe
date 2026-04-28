@@ -272,24 +272,53 @@ class JobPostingController extends Controller
      *
      * Permanently delete a job posting (hard delete).
      * This is irreversible and should only be used by admins for compliance reasons.
-     * Requires super_admin or moderator role.
+     * Requires super_admin role.
+     * 
+     * Requirements: 5.6
      */
     public function forceDestroy(Request $request, string $id): JsonResponse
     {
-        // Only admins can force delete
-        if (! in_array($request->user()->role, ['super_admin', 'moderator'])) {
-            return $this->error('UNAUTHORIZED', 'Only administrators can permanently delete job postings', 403);
+        try {
+            $job = JobPosting::withTrashed()->find($id);
+
+            if (! $job) {
+                return $this->error('JOB_NOT_FOUND', 'Job posting not found', 404);
+            }
+
+            // Store job data for audit log before deletion
+            $jobData = [
+                'title' => $job->title,
+                'company_id' => $job->company_id,
+                'status' => $job->status,
+            ];
+
+            // Remove from search index if it was indexed
+            $job->unsearchable();
+
+            // Permanently delete
+            $job->forceDelete();
+
+            // Log audit
+            app(\App\Services\AuditService::class)->log(
+                'job_force_delete',
+                'job',
+                $id,
+                $request->user(),
+                $jobData,
+                $jobData,
+                null
+            );
+
+            return $this->success(message: 'Job posting permanently deleted');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Job force delete failed', [
+                'job_id' => $id,
+                'error' => $e->getMessage(),
+                'user_id' => $request->user()->id,
+            ]);
+
+            return $this->error('INTERNAL_ERROR', 'Failed to delete job posting', 500);
         }
-
-        $job = JobPosting::withTrashed()->findOrFail($id);
-
-        // Remove from search index if it was indexed
-        $job->unsearchable();
-
-        // Permanently delete
-        $job->forceDelete();
-
-        return $this->success(message: 'Job posting permanently deleted');
     }
 
     /**

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\AdminCompanyVerificationController;
 use App\Http\Controllers\Admin\AdminDashboardController;
 use App\Http\Controllers\Admin\AdminIAPController;
 use App\Http\Controllers\Admin\AdminJobController;
+use App\Http\Controllers\Admin\AdminMatchController;
 use App\Http\Controllers\Admin\AdminReviewController;
 use App\Http\Controllers\Admin\AdminSubscriptionController;
 use App\Http\Controllers\Admin\AdminTrustController;
@@ -60,6 +61,12 @@ Route::middleware('throttle:api-tiered')->group(function () {
             'company/invites/validate',
             [CompanyInviteController::class, 'validate']
         )->middleware('throttle:magic-link-validate');
+
+        // ── Admin invitation acceptance (public routes)
+        Route::prefix('admin/invitations')->group(function () {
+            Route::post('validate', [\App\Http\Controllers\Admin\AdminInvitationController::class, 'validate'])->middleware('throttle:5,1');
+            Route::post('accept', [\App\Http\Controllers\Admin\AdminInvitationController::class, 'accept'])->middleware('throttle:3,1');
+        });
 
         Route::post('webhooks/stripe', [SubscriptionController::class, 'handleWebhook']);
         Route::post('webhooks/apple-iap', [AppleWebhookController::class, 'handleNotification']);
@@ -218,20 +225,39 @@ Route::middleware('throttle:api-tiered')->group(function () {
             });
 
             // ── Admin Review Moderation ───────────────────────────────────────
-            Route::middleware('role:moderator,super_admin')->prefix('admin/reviews')->group(function () {
-                Route::get('flagged', [AdminReviewController::class, 'getFlaggedReviews']);
-                Route::post('{id}/unflag', [AdminReviewController::class, 'unflag']);
-                Route::delete('{id}', [AdminReviewController::class, 'remove']);
+            Route::prefix('admin/reviews')->group(function () {
+                // List all reviews with filtering - accessible by moderator, admin, super_admin
+                Route::middleware('role:moderator,admin,super_admin')->get('/', [AdminReviewController::class, 'index']);
+                
+                // View flagged reviews - accessible by moderator, admin, super_admin
+                Route::middleware('role:moderator,admin,super_admin')->get('flagged', [AdminReviewController::class, 'getFlaggedReviews']);
+                
+                // Unflag and remove reviews - accessible by admin, super_admin only
+                Route::middleware('role:admin,super_admin')->group(function () {
+                    Route::post('{id}/unflag', [AdminReviewController::class, 'unflag']);
+                    Route::delete('{id}', [AdminReviewController::class, 'remove']);
+                });
             });
 
             // ── Admin Job Posting Management ──────────────────────────────────
-            Route::middleware('role:moderator,super_admin')->prefix('admin/jobs')->group(function () {
-                Route::get('/', [AdminJobController::class, 'index']);
-                Route::get('{id}', [AdminJobController::class, 'show']);
-                Route::post('{id}/flag', [AdminJobController::class, 'flag']);
-                Route::post('{id}/unflag', [AdminJobController::class, 'unflag']);
-                Route::post('{id}/close', [AdminJobController::class, 'close']);
-                Route::delete('{id}/force', [JobPostingController::class, 'forceDestroy']);
+            Route::prefix('admin/jobs')->group(function () {
+                // View endpoints - accessible by moderator, admin, super_admin
+                Route::middleware('role:moderator,admin,super_admin')->group(function () {
+                    Route::get('/', [AdminJobController::class, 'index']);
+                    Route::get('{id}', [AdminJobController::class, 'show']);
+                });
+                
+                // Moderation endpoints - accessible by admin, super_admin
+                Route::middleware('role:admin,super_admin')->group(function () {
+                    Route::post('{id}/flag', [AdminJobController::class, 'flag']);
+                    Route::post('{id}/unflag', [AdminJobController::class, 'unflag']);
+                    Route::post('{id}/close', [AdminJobController::class, 'close']);
+                });
+                
+                // Destructive endpoint - accessible by super_admin only
+                Route::middleware('role:super_admin')->group(function () {
+                    Route::delete('{id}/force', [JobPostingController::class, 'forceDestroy']);
+                });
             });
 
             // ── Admin: Verification, User lookup, Dashboard (moderator + super_admin) ──
@@ -245,11 +271,10 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::get('activity', [AdminAnalyticsController::class, 'recentActivity']);
                 });
 
+                // ── Admin Company Verification Viewing (moderator can view) ───
                 Route::prefix('companies/verifications')->group(function () {
                     Route::get('/', [AdminCompanyVerificationController::class, 'index']);
                     Route::get('{companyId}', [AdminCompanyVerificationController::class, 'show']);
-                    Route::post('{companyId}/approve', [AdminCompanyVerificationController::class, 'approve']);
-                    Route::post('{companyId}/reject', [AdminCompanyVerificationController::class, 'reject']);
                 });
 
                 // ── Admin Company Management Endpoints ─────────────────────────
@@ -257,7 +282,16 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::get('/', [\App\Http\Controllers\Admin\AdminCompanyController::class, 'index']);
                     Route::get('{id}', [\App\Http\Controllers\Admin\AdminCompanyController::class, 'show']);
                 });
+            });
 
+            // ── Admin: Company Verification Actions (admin + super_admin) ─────
+            Route::middleware('role:admin,super_admin')->prefix('admin/companies/verifications')->group(function () {
+                Route::post('{companyId}/approve', [AdminCompanyVerificationController::class, 'approve']);
+                Route::post('{companyId}/reject', [AdminCompanyVerificationController::class, 'reject']);
+            });
+
+            // ── Admin: Subscription, IAP, Trust, User Management (moderator + admin + super_admin) ──
+            Route::middleware('role:moderator,admin,super_admin')->prefix('admin')->group(function () {
                 // ── Admin Subscription Management Endpoints ────────────────────
                 Route::prefix('subscriptions')->group(function () {
                     Route::get('/', [AdminSubscriptionController::class, 'index']);
@@ -283,8 +317,16 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::post('companies/{companyId}/adjust', [AdminTrustController::class, 'adjustTrustScore']);
                 });
 
+                // ── Admin User Management Endpoints ────────────────────────────
                 Route::get('users', [AdminUserController::class, 'index']);
                 Route::get('users/{id}', [AdminUserController::class, 'show']);
+
+                // ── Admin Match Management Endpoints ───────────────────────────
+                Route::prefix('matches')->group(function () {
+                    Route::get('/', [AdminMatchController::class, 'index']);
+                    Route::get('stats', [AdminMatchController::class, 'stats']);
+                    Route::get('{id}', [AdminMatchController::class, 'show']);
+                });
             });
 
             // ── Admin: Destructive user actions (super_admin only) ────────────
@@ -302,6 +344,32 @@ Route::middleware('throttle:api-tiered')->group(function () {
                 Route::prefix('subscriptions')->group(function () {
                     Route::post('{id}/cancel', [AdminSubscriptionController::class, 'cancel']);
                 });
+
+                // ── Admin User Management (super_admin only) ───────────────────
+                Route::prefix('admin-users')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Admin\AdminUserManagementController::class, 'index']);
+                    Route::get('{id}', [\App\Http\Controllers\Admin\AdminUserManagementController::class, 'show']);
+                    Route::post('/', [\App\Http\Controllers\Admin\AdminUserManagementController::class, 'store']);
+                    Route::patch('{id}/role', [\App\Http\Controllers\Admin\AdminUserManagementController::class, 'updateRole']);
+                    Route::post('{id}/deactivate', [\App\Http\Controllers\Admin\AdminUserManagementController::class, 'deactivate']);
+                    Route::post('{id}/reactivate', [\App\Http\Controllers\Admin\AdminUserManagementController::class, 'reactivate']);
+                    Route::post('{id}/resend-invitation', [\App\Http\Controllers\Admin\AdminUserManagementController::class, 'resendInvitation']);
+                    Route::post('{id}/revoke-invitation', [\App\Http\Controllers\Admin\AdminUserManagementController::class, 'revokeInvitation']);
+                });
+
+                // ── Audit Logs (super_admin can view all) ─────────────────────
+                Route::prefix('audit')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Admin\AdminAuditLogController::class, 'index']);
+                    Route::get('action-types', [\App\Http\Controllers\Admin\AdminAuditLogController::class, 'actionTypes']);
+                    Route::get('{id}', [\App\Http\Controllers\Admin\AdminAuditLogController::class, 'show']);
+                    Route::post('export', [\App\Http\Controllers\Admin\AdminAuditLogController::class, 'export']);
+                });
+            });
+
+            // ── Audit Logs (moderator/admin can view own) ─────────────────────
+            Route::middleware('role:moderator,admin')->prefix('admin/audit')->group(function () {
+                Route::get('/', [\App\Http\Controllers\Admin\AdminAuditLogController::class, 'index']);
+                Route::get('{id}', [\App\Http\Controllers\Admin\AdminAuditLogController::class, 'show']);
             });
         });
     });

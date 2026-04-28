@@ -86,9 +86,9 @@ export default function WebhooksPage() {
 
   const stats = {
     total: data?.total ?? 0,
-    delivered: data?.data.filter((w) => w.status === 'delivered').length ?? 0,
-    failed: data?.data.filter((w) => w.status === 'failed').length ?? 0,
-    pending: data?.data.filter((w) => w.status === 'pending').length ?? 0,
+    delivered: data?.data?.filter((w) => w.status === 'delivered').length ?? 0,
+    failed: data?.data?.filter((w) => w.status === 'failed').length ?? 0,
+    pending: data?.data?.filter((w) => w.status === 'pending').length ?? 0,
   };
 
   return (

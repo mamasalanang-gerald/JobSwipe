@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/shared/DataTable';
@@ -9,25 +9,39 @@ import { Button } from '@/components/shared/Button';
 import { Input } from '@/components/shared/Input';
 import { Select } from '@/components/shared/Input';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
+import { AdminActionButton } from '@/components/shared/AdminActionButton';
 import { useUsers, useBanUser, useUnbanUser } from '@/lib/hooks';
 import { User, UserFilters, UserRole, UserStatus } from '@/types';
 import { formatDateTime, getInitials, formatRole } from '@/lib/utils';
 import { MoreHorizontal, Eye, Ban, CheckCircle, Search } from 'lucide-react';
+import { usePermissions } from '@/contexts/PermissionContext';
 
 export default function UsersPage() {
   const [filters, setFilters] = useState<UserFilters>({});
   const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<{ user: User; action: 'ban' | 'unban' } | null>(null);
 
+  const { hasPermission } = usePermissions();
   const { data, isLoading } = useUsers(filters, page, 20);
   const banUser = useBanUser();
   const unbanUser = useUnbanUser();
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  useEffect(() => {
+    setPage(1);
+    setFilters((prev) => ({ ...prev, search: debouncedSearchTerm || undefined }));
+  }, [debouncedSearchTerm]);
+
   const handleSearch = (value: string) => {
     setSearchTerm(value);
-    setPage(1);
-    setFilters((prev) => ({ ...prev, search: value || undefined }));
   };
 
   const columns: ColumnDef<User>[] = [
@@ -72,6 +86,9 @@ export default function UsersPage() {
       id: 'actions',
       cell: ({ row }) => {
         const user = row.original;
+        const canBan = hasPermission('users.ban');
+        const canUnban = hasPermission('users.unban');
+        
         return (
           <div className="flex items-center gap-2">
             <Link href={`/users/${user.id}`}>
@@ -80,21 +97,45 @@ export default function UsersPage() {
               </Button>
             </Link>
             {user.status === 'banned' ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedUser({ user, action: 'unban' })}
-              >
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
-              </Button>
+              canUnban ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedUser({ user, action: 'unban' })}
+                  title="Unban user"
+                >
+                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled
+                  title="Requires users.unban permission"
+                >
+                  <CheckCircle className="h-4 w-4 text-zinc-600" />
+                </Button>
+              )
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedUser({ user, action: 'ban' })}
-              >
-                <Ban className="h-4 w-4 text-red-500" />
-              </Button>
+              canBan ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedUser({ user, action: 'ban' })}
+                  title="Ban user"
+                >
+                  <Ban className="h-4 w-4 text-red-500" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled
+                  title="Requires users.ban permission"
+                >
+                  <Ban className="h-4 w-4 text-zinc-600" />
+                </Button>
+              )
             )}
           </div>
         );
@@ -139,7 +180,7 @@ export default function UsersPage() {
 
       {/* Filters */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+        <div className="relative flex-1 sm:min-w-[300px] md:min-w-[400px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
           <input
             type="text"

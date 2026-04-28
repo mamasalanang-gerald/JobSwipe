@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AdminFlagJobRequest;
 use App\Http\Requests\Admin\AdminJobFilterRequest;
 use App\Repositories\PostgreSQL\JobPostingRepository;
+use App\Services\AuditService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
@@ -15,6 +16,7 @@ class AdminJobController extends Controller
     public function __construct(
         private JobPostingRepository $jobs,
         private NotificationService $notifications,
+        private AuditService $auditService,
     ) {}
 
     /**
@@ -99,6 +101,17 @@ class AdminJobController extends Controller
                 return $this->error('FLAG_FAILED', 'Failed to flag job posting', 500);
             }
 
+            // Log audit
+            $this->auditService->log(
+                'job_flag',
+                'job',
+                $id,
+                auth()->user(),
+                ['reason' => $request->input('reason')],
+                ['is_flagged' => false],
+                ['is_flagged' => true]
+            );
+
             // Notify company owner about flagged job
             if ($job->company && $job->company->owner_user_id) {
                 $this->notifications->create(
@@ -149,6 +162,17 @@ class AdminJobController extends Controller
                 return $this->error('UNFLAG_FAILED', 'Failed to unflag job posting', 500);
             }
 
+            // Log audit
+            $this->auditService->log(
+                'job_unflag',
+                'job',
+                $id,
+                auth()->user(),
+                null,
+                ['is_flagged' => true],
+                ['is_flagged' => false]
+            );
+
             // Notify company owner about unflagged job
             if ($job->company && $job->company->owner_user_id) {
                 $this->notifications->create(
@@ -197,6 +221,17 @@ class AdminJobController extends Controller
             if (! $result) {
                 return $this->error('CLOSE_FAILED', 'Failed to close job posting', 500);
             }
+
+            // Log audit
+            $this->auditService->log(
+                'job_close',
+                'job',
+                $id,
+                auth()->user(),
+                null,
+                ['status' => $job->status],
+                ['status' => 'closed']
+            );
 
             // Notify company owner about closed job
             if ($job->company && $job->company->owner_user_id) {
