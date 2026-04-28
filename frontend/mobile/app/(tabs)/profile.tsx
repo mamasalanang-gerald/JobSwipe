@@ -255,7 +255,7 @@ export default function ProfileTab() {
 
           {/* ── Settings gear button ── */}
           <TouchableOpacity
-            style={[s.settingsBtn, { backgroundColor: 'rgba(0,0,0,0.42)', borderColor: 'rgba(255,255,255,0.18)' }]}
+            style={[s.settingsBtn, { top: topInset + 12, backgroundColor: 'rgba(0,0,0,0.42)', borderColor: 'rgba(255,255,255,0.18)' }]}
             onPress={() => setShowSettings(true)}
             activeOpacity={0.8}
           >
@@ -584,7 +584,7 @@ const s = StyleSheet.create({
   coverFallback:   { alignItems: 'center', justifyContent: 'center', borderBottomWidth: 1 },
   coverEditBtn:    { position: 'absolute', bottom: 12, right: 14, flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
   coverEditText:   { fontSize: 11, fontWeight: '700', color: '#fff' },
-  settingsBtn:     { position: 'absolute', top: 12, right: 14, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  settingsBtn:     { position: 'absolute', right: 14, width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1, padding: 8 },
 
   heroRow:         { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: -38, marginBottom: 10 },
   heroInfo:        { paddingHorizontal: 24, paddingBottom: 16 },

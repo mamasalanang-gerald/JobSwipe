@@ -1,8 +1,9 @@
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ExpoLinking from 'expo-linking';
 import { useAuthStore } from '../../store/authStore';
 import { useTheme } from '../../theme';
 import { Divider, Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../components/ui';
@@ -45,6 +46,7 @@ export default function RegisterScreen() {
   const T = useTheme();
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
   const setToken = useAuthStore((s) => s.setToken);
+  const GOOGLE_OAUTH_REDIRECT_ENDPOINT = 'http://localhost:8000/api/v1/auth/google/redirect';
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -92,6 +94,7 @@ export default function RegisterScreen() {
   const [emailDone, setEmailDone] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [detectedCompany, setDetectedCompany] = useState<{ name: string; validCodes: string[] } | null>(null);
   const [showInvitePrompt, setShowInvitePrompt] = useState(false);
@@ -166,6 +169,44 @@ export default function RegisterScreen() {
 
   const hardSkillSuggestions = getFilteredSkillSuggestions('hard', hardSkillInput, hardSkills);
   const softSkillSuggestions = getFilteredSkillSuggestions('soft', softSkillInput, softSkills);
+
+  useEffect(() => {
+    const completeGoogleAuth = async (url: string | null) => {
+      if (!url || !url.startsWith('jobapp://')) return;
+
+      const { hostname, queryParams } = ExpoLinking.parse(url);
+      if (hostname !== 'auth') return;
+
+      const token = typeof queryParams?.token === 'string'
+        ? queryParams.token
+        : typeof queryParams?.auth_token === 'string'
+          ? queryParams.auth_token
+          : null;
+      const oauthError = typeof queryParams?.error === 'string' ? queryParams.error : null;
+      const oauthMessage = typeof queryParams?.message === 'string' ? queryParams.message : null;
+
+      if (oauthError) {
+        setError(oauthMessage || 'Google sign-up could not be completed.');
+        setGoogleLoading(false);
+        return;
+      }
+
+      if (!token) return;
+
+      setError('');
+      setGoogleLoading(false);
+      await setToken(token, 'applicant');
+      router.replace('/(tabs)');
+    };
+
+    completeGoogleAuth(ExpoLinking.getLinkingURL());
+
+    const subscription = ExpoLinking.addEventListener('url', ({ url }) => {
+      void completeGoogleAuth(url);
+    });
+
+    return () => subscription.remove();
+  }, [setToken]);
 
   const validateCurrentStep = () => {
     setError('');
@@ -291,6 +332,34 @@ export default function RegisterScreen() {
     else handleSubmit();
   };
 
+  const handleGoogleRegister = async () => {
+    setError('');
+    setGoogleLoading(true);
+
+    try {
+      const response = await fetch(GOOGLE_OAUTH_REDIRECT_ENDPOINT);
+      const data = await response.json();
+      const redirectUrl = data?.data?.redirect_url;
+
+      if (!data?.success || !redirectUrl) {
+        setError(data?.message || 'Could not start Google registration. Please try again.');
+        return;
+      }
+
+      const canOpen = await ExpoLinking.canOpenURL(redirectUrl);
+      if (!canOpen) {
+        setError('Google registration is not available on this device.');
+        return;
+      }
+
+      await ExpoLinking.openURL(redirectUrl);
+    } catch {
+      setError('Could not start Google registration. Please try again.');
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
   const resetForm = () => {
     setEmailDone(false);
     setEmail('');
@@ -333,6 +402,7 @@ export default function RegisterScreen() {
     setLogoFile(null);
     setOfficeImages([]);
     setCurrentStep(0);
+    setGoogleLoading(false);
     setError('');
     setDetectedCompany(null);
     setShowInvitePrompt(false);
@@ -427,6 +497,7 @@ export default function RegisterScreen() {
         role={role}
         email={email}
         error={error}
+        googleLoading={googleLoading}
         fieldLabelStyle={fieldLabelStyle}
         inputRowStyle={inputRowStyle}
         inputStyle={inputStyle}
@@ -435,6 +506,9 @@ export default function RegisterScreen() {
           setRoleSelected(false);
         }}
         onChangeEmail={setEmail}
+        onGoogleRegister={() => {
+          void handleGoogleRegister();
+        }}
         onContinue={() => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!email) {
