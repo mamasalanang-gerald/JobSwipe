@@ -199,8 +199,10 @@ export default function CompanyHomeTab() {
 
   const actionsBottom = tabBarHeight + 20;
   const overlayBottom = actionsBottom + ACTIONS_HEIGHT + 8;
+  const MAX_SWIPES = 15;
 
   const [index, setIndex]           = useState(0);
+  const [swipesUsed, setSwipesUsed] = useState(0);
   const indexRef = useRef(0);
   const growingApplicantRef = useRef<(typeof filteredApplicants)[number] | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -233,13 +235,22 @@ export default function CompanyHomeTab() {
     setSelectedReason(null);
   };
 
+  const advanceDeck = () => {
+    const total = filteredApplicantRef.current.length;
+    setIndex(i => {
+      const next = total > 0 ? (i + 1) % total : 0;
+      indexRef.current = next;
+      return next;
+    });
+  };
+
   const afterConfirm = () => {
     closeModal();
     // Skip to next card
     collapsePanel();
     position.setValue({ x: 0, y: 0 });
     setPhotoIndex(0);
-    setIndex(i => i + 1);
+    advanceDeck();
   };
 
   // ── Settings ──────────────────────────────────────────────────────────────
@@ -282,6 +293,7 @@ export default function CompanyHomeTab() {
   const filteredApplicants = APPLICANTS.filter(a => a.distanceKm <= maxDistanceKm && !blockedIds.includes(a.id));
   const filteredApplicantRef = useRef(filteredApplicants);
   filteredApplicantRef.current = filteredApplicants;
+  const remainingSwipes = Math.max(MAX_SWIPES - swipesUsed, 0);
 
   const position       = useRef(new Animated.ValueXY()).current;
   const cardOpacity    = useRef(new Animated.Value(1)).current;
@@ -370,8 +382,11 @@ export default function CompanyHomeTab() {
   ).current;
 
   const commitSwipe = (dir: number) => {
+    if (swipesUsed >= MAX_SWIPES) return;
     collapsePanel();
-    const upcomingApplicant = filteredApplicantRef.current[indexRef.current + 1] ?? null;
+    const deck = filteredApplicantRef.current;
+    const total = deck.length;
+    const upcomingApplicant = total > 1 ? deck[(indexRef.current + 1) % total] : null;
     Animated.timing(position, {
       toValue: { x: dir * SW * 1.5, y: 0 },
       duration: 280,
@@ -384,7 +399,8 @@ export default function CompanyHomeTab() {
       if (currentApplicant) setHistory(prev => [...prev, { id: currentApplicant.id, dir }]);
       setPhotoIndex(0);
       photoScrollRef.current?.scrollTo({ x: 0, animated: false });
-      setIndex(i => { indexRef.current = i + 1; return i + 1; });
+      advanceDeck();
+      setSwipesUsed(s => s + 1);
       growingApplicantRef.current = upcomingApplicant;
       requestAnimationFrame(() =>
         requestAnimationFrame(() =>
@@ -413,6 +429,20 @@ export default function CompanyHomeTab() {
   };
 
   const resetCard = () => Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false, bounciness: 10, speed: 8 }).start();
+  const resetDeck = () => {
+    setIndex(0);
+    indexRef.current = 0;
+    setLiked([]);
+    setHistory([]);
+    setPhotoIndex(0);
+    setSwipesUsed(0);
+    growingApplicantRef.current = null;
+    pausedElapsedRef.current = 0;
+    nextCardAnim.setValue(0);
+    cardOpacity.setValue(1);
+    position.setValue({ x: 0, y: 0 });
+    photoScrollRef.current?.scrollTo({ x: 0, animated: false });
+  };
   const collapsePanel = () => {
     expandedRef.current = false;
     setExpanded(false);
@@ -549,27 +579,29 @@ export default function CompanyHomeTab() {
   }
 
   // ── All swiped ────────────────────────────────────────────────────────────
-  if (index >= filteredApplicants.length) {
+  if (swipesUsed >= MAX_SWIPES) {
     return (
       <View style={s.emptyScreen}>
         <StatusBar barStyle="dark-content" />
         <View style={s.emptyIconWrap}>
-          <MaterialCommunityIcons name="account-search-outline" size={40} color={Colors.primary} />
+          <MaterialCommunityIcons name="lightning-bolt" size={40} color={Colors.primary} />
         </View>
-        <Text style={s.emptyTitle}>No more applicants!</Text>
-        <Text style={s.emptySub}>New candidates apply daily — check back soon.</Text>
+        <Text style={s.emptyTitle}>Daily limit reached</Text>
+        <Text style={s.emptySub}>You've used all 15 swipes for today. Upgrade to Pro for unlimited swipes.</Text>
         <TouchableOpacity
           style={s.refreshBtn}
-          onPress={() => { setIndex(0); indexRef.current = 0; setLiked([]); setHistory([]); setPhotoIndex(0); nextCardAnim.setValue(0); cardOpacity.setValue(1); }}
+          onPress={() => navigation.navigate('subscription' as never)}
         >
-          <Text style={s.refreshBtnText}>Refresh deck</Text>
+          <Text style={s.refreshBtnText}>Upgrade to Pro</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
-  const applicant     = filteredApplicants[index];
-  const nextApplicant = growingApplicantRef.current ?? filteredApplicants[index + 1];
+  const applicant = filteredApplicants[index];
+  const nextApplicant =
+    growingApplicantRef.current ??
+    (filteredApplicants.length > 1 ? filteredApplicants[(index + 1) % filteredApplicants.length] : null);
 
   // ── Main render ───────────────────────────────────────────────────────────
   return (
@@ -677,6 +709,20 @@ export default function CompanyHomeTab() {
             <TouchableOpacity style={s.iconPill} onPress={openSettings}>
               <MaterialCommunityIcons name="tune-variant" size={19} color={Colors.white} />
             </TouchableOpacity>
+            {(() => {
+              const accentColor = remainingSwipes > Math.floor(MAX_SWIPES / 2)
+                ? '#10B981'
+                : remainingSwipes > Math.floor(MAX_SWIPES * 0.25)
+                  ? '#F59E0B'
+                  : '#EF4444';
+              return (
+                <View style={[s.swipeCounterPill, { borderColor: accentColor }]}>
+                  <Text style={[s.swipeCounterText, { color: accentColor }]}>
+                    {remainingSwipes}/{MAX_SWIPES} swipes left
+                  </Text>
+                </View>
+              );
+            })()}
             <TouchableOpacity style={s.iconPill} onPress={() => navigation.navigate('subscription' as never)}>
               <MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA" />
             </TouchableOpacity>
@@ -1056,6 +1102,20 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.35)',
     alignItems: 'center', justifyContent: 'center',
     borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)',
+  },
+  swipeCounterPill: {
+    height: 38,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    paddingHorizontal: 14,
+  },
+  swipeCounterText: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    letterSpacing: 0.2,
   },
   dotsRow: { flexDirection: 'row', gap: 5, paddingHorizontal: Spacing['1'] },
   dot:     { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', overflow: 'hidden' },
