@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import RatingModal, { RatingSubmission } from '@/components/ui/RatingModal';
 import LeftSidebar from '@/components/ui/LeftSidebar';
+import { navItems } from '@/data/jobs';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface Message {
@@ -47,6 +48,12 @@ const IconVerified = () => (
     <path d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 0 0 1.946-.806 3.42 3.42 0 0 1 4.438 0 3.42 3.42 0 0 0 1.946.806 3.42 3.42 0 0 1 3.138 3.138 3.42 3.42 0 0 0 .806 1.946 3.42 3.42 0 0 1 0 4.438 3.42 3.42 0 0 0-.806 1.946 3.42 3.42 0 0 1-3.138 3.138 3.42 3.42 0 0 0-1.946.806 3.42 3.42 0 0 1-4.438 0 3.42 3.42 0 0 0-1.946-.806 3.42 3.42 0 0 1-3.138-3.138 3.42 3.42 0 0 0-.806-1.946 3.42 3.42 0 0 1 0-4.438 3.42 3.42 0 0 0 .806-1.946 3.42 3.42 0 0 1 3.138-3.138z" />
   </svg>
 );
+const USER_NAV_ROUTES = {
+  home:     '/user/swipe',
+  messages: '/user/messages',
+  profile:  '/user/profile',
+};
+
 const IconDots = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
     <circle cx="5" cy="12" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="19" cy="12" r="2" />
@@ -482,6 +489,15 @@ export default function MessagesPage() {
         setActiveNav={setActiveNav}
         swipedCount={0}
         swipesLeft={15}
+        navItems={navItems}
+        navRoutes={USER_NAV_ROUTES}
+        accentColor="#FF4E6A"
+        counterLabel="Daily swipes"
+        counterLimit={15}
+        profileName="John Doe"
+        profileEmail="user@jobswipe.com"
+        profileImage="/assets/images/img1.jpg"
+        avatarRadius="50%"
       />
 
       {/* ─── Thread List ────────────────────────────────────────────────────── */}

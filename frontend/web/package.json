@@ -13,16 +13,17 @@
     "test:integration": "echo \"No integration tests configured yet\" && exit 0"
   },
   "dependencies": {
+    "axios": "^1.6",
+    "next": "^14",
+    "next-auth": "^4",
     "react": "^18",
     "react-dom": "^18",
-    "next": "^14",
-    "typescript": "^5",
-    "axios": "^1.6",
-    "zustand": "^4",
     "tailwindcss": "^3",
-    "next-auth": "^4"
+    "typescript": "^5",
+    "zustand": "^4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.40",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
@@ -32,7 +33,6 @@
     "eslint": "^8",
     "eslint-config-next": "^14",
     "postcss": "^8",
-    "prettier": "^3",
-    "@playwright/test": "^1.40"
+    "prettier": "^3"
   }
 }

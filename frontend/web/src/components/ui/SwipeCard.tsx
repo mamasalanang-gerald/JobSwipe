@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Job } from '../../types/job';
 import { IconPrev, IconNext, IconVerified, IconMapPin } from './icons';
 
@@ -13,6 +13,7 @@ interface SwipeCardProps {
 
 export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx }: SwipeCardProps) {
   const [imgIdx, setImgIdx] = useState(0);
+  const [progress, setProgress] = useState(0);
   const startX = useRef(0);
   const currentX = useRef(0);
   const isDragging = useRef(false);
@@ -20,17 +21,109 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
   const [dragRotate, setDragRotate] = useState(0);
   const [hint, setHint] = useState<'like' | 'nope' | null>(null);
   const [flyOut, setFlyOut] = useState<'left' | 'right' | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const startTimeRef = useRef<number | null>(null);
+  const pausedProgressRef = useRef(0);
+  const isPausedRef = useRef(false);
+  const imgIdxRef = useRef(0);
+
+  const DURATION = 3000;
 
   const images = job.images.slice(0, 6);
   const numImgs = images.length;
 
-  const overlayOpacity = Math.min(Math.abs(dragX) / 80, 1) * 0.55;
-  const overlayColor =
-    dragX > 0
-      ? `rgba(34, 197, 94, ${overlayOpacity})`
-      : dragX < 0
-      ? `rgba(239, 68, 68, ${overlayOpacity})`
-      : 'transparent';
+  // Auto-advance logic
+  useEffect(() => {
+    if (!isTop || numImgs <= 1) return;
+
+    pausedProgressRef.current = 0;
+    setProgress(0);
+    startTimeRef.current = null;
+    imgIdxRef.current = 0;
+    setImgIdx(0);
+
+    const tick = (timestamp: number) => {
+      if (isPausedRef.current) {
+        animFrameRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      if (startTimeRef.current === null) {
+        startTimeRef.current = timestamp - pausedProgressRef.current * DURATION;
+      }
+      const elapsed = timestamp - startTimeRef.current;
+      const pct = Math.min(elapsed / DURATION, 1);
+      setProgress(pct);
+
+      if (pct < 1) {
+        animFrameRef.current = requestAnimationFrame(tick);
+      } else {
+        const next = imgIdxRef.current + 1 < numImgs ? imgIdxRef.current + 1 : 0;
+        imgIdxRef.current = next;
+        setImgIdx(next);
+        pausedProgressRef.current = 0;
+        startTimeRef.current = null;
+        setProgress(0);
+        animFrameRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    };
+  }, [isTop, numImgs]);
+
+  // Pause while dragging
+  useEffect(() => {
+    isPausedRef.current = isDragging.current;
+  });
+
+  const goTo = (i: number) => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    pausedProgressRef.current = 0;
+    startTimeRef.current = null;
+    imgIdxRef.current = i;
+    setProgress(0);
+    setImgIdx(i);
+
+    // Restart tick from new index
+    const tick = (timestamp: number) => {
+      if (isPausedRef.current) {
+        animFrameRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      if (startTimeRef.current === null) {
+        startTimeRef.current = timestamp;
+      }
+      const elapsed = timestamp - startTimeRef.current;
+      const pct = Math.min(elapsed / DURATION, 1);
+      setProgress(pct);
+
+      if (pct < 1) {
+        animFrameRef.current = requestAnimationFrame(tick);
+      } else {
+        const next = imgIdxRef.current + 1 < numImgs ? imgIdxRef.current + 1 : 0;
+        imgIdxRef.current = next;
+        setImgIdx(next);
+        pausedProgressRef.current = 0;
+        startTimeRef.current = null;
+        setProgress(0);
+        animFrameRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+  };
+
+  const goNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (imgIdxRef.current < numImgs - 1) goTo(imgIdxRef.current + 1);
+  };
+
+  const goPrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (imgIdxRef.current > 0) goTo(imgIdxRef.current - 1);
+  };
 
   const triggerSwipe = (dir: 'left' | 'right') => {
     setFlyOut(dir);
@@ -40,6 +133,7 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
   const onPointerDown = (e: React.PointerEvent) => {
     if (!isTop) return;
     isDragging.current = true;
+    isPausedRef.current = true;
     startX.current = e.clientX;
     currentX.current = 0;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
@@ -57,6 +151,9 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
   const onPointerUp = () => {
     if (!isDragging.current) return;
     isDragging.current = false;
+    isPausedRef.current = false;
+    pausedProgressRef.current = progress;
+    startTimeRef.current = null;
     const dx = currentX.current;
     if (Math.abs(dx) > 110) triggerSwipe(dx > 0 ? 'right' : 'left');
     else { setDragX(0); setDragRotate(0); setHint(null); }
@@ -74,9 +171,6 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
   } : isTop ? {} : {
     transition: 'top 0.35s cubic-bezier(0.4,0,0.2,1), left 0.35s, right 0.35s, bottom 0.35s',
   };
-
-  const goNext = (e: React.MouseEvent) => { e.stopPropagation(); setImgIdx((i) => Math.min(i + 1, numImgs - 1)); };
-  const goPrev = (e: React.MouseEvent) => { e.stopPropagation(); setImgIdx((i) => Math.max(i - 1, 0)); };
 
   return (
     <div
@@ -110,46 +204,36 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
         />
       ))}
 
-      {/* Swipe colour overlay */}
-      {isTop && (
-        <div
-          className="absolute inset-0"
-          style={{
-            background: 'transparent',
-            transition: isDragging.current ? 'none' : 'background 0.25s ease',
-            zIndex: 2,
-            pointerEvents: 'none',
-            borderRadius: 'inherit',
-          }}
-        />
-      )}
-
       {/* Gradient overlay */}
       <div className="absolute inset-0" style={{
         background: 'linear-gradient(to bottom, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.0) 40%, rgba(5,5,18,0.75) 65%, rgba(5,5,18,0.98) 100%)',
         zIndex: 3,
       }} />
 
-      {/* Image progress bars */}
+      {/* Progress bars */}
       {isTop && numImgs > 1 && (
         <div
           className="absolute top-3 left-3 right-3 flex gap-1.5"
           style={{ zIndex: 10 }}
-          onPointerDown={(e) => e.stopPropagation()}
+          onPointerDown={e => e.stopPropagation()}
         >
           {images.map((_, i) => (
             <div
               key={i}
               className="flex-1 rounded-full overflow-hidden"
               style={{ height: '3px', background: 'rgba(255,255,255,0.25)', cursor: 'pointer' }}
-              onClick={(e) => { e.stopPropagation(); setImgIdx(i); }}
+              onClick={e => { e.stopPropagation(); goTo(i); }}
             >
               <div style={{
                 height: '100%',
-                width: i <= imgIdx ? '100%' : '0%',
-                background: i <= imgIdx ? 'white' : 'transparent',
-                transition: 'width 0.3s',
                 borderRadius: '999px',
+                background: 'white',
+                width: i < imgIdx
+                  ? '100%'
+                  : i === imgIdx
+                  ? `${progress * 100}%`
+                  : '0%',
+                transition: i === imgIdx ? 'none' : 'width 0.3s',
               }} />
             </div>
           ))}
@@ -159,8 +243,8 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
       {/* Tap zones */}
       {isTop && numImgs > 1 && (
         <>
-          <div className="absolute top-0 bottom-0 left-0" style={{ width: '35%', zIndex: 5, cursor: imgIdx > 0 ? 'w-resize' : 'default' }} onPointerDown={(e) => e.stopPropagation()} onClick={goPrev} />
-          <div className="absolute top-0 bottom-0 right-0" style={{ width: '35%', zIndex: 5, cursor: imgIdx < numImgs - 1 ? 'e-resize' : 'default' }} onPointerDown={(e) => e.stopPropagation()} onClick={goNext} />
+          <div className="absolute top-0 bottom-0 left-0" style={{ width: '35%', zIndex: 5, cursor: imgIdx > 0 ? 'w-resize' : 'default' }} onPointerDown={e => e.stopPropagation()} onClick={goPrev} />
+          <div className="absolute top-0 bottom-0 right-0" style={{ width: '35%', zIndex: 5, cursor: imgIdx < numImgs - 1 ? 'e-resize' : 'default' }} onPointerDown={e => e.stopPropagation()} onClick={goNext} />
         </>
       )}
 
@@ -168,10 +252,24 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
       {isTop && numImgs > 1 && (
         <>
           {imgIdx > 0 && (
-            <button className="absolute flex items-center justify-center" style={{ left: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.18)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(6px)' }} onPointerDown={(e) => e.stopPropagation()} onClick={goPrev}><IconPrev /></button>
+            <button
+              className="absolute flex items-center justify-center"
+              style={{ left: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.18)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(6px)' }}
+              onPointerDown={e => e.stopPropagation()}
+              onClick={goPrev}
+            >
+              <IconPrev />
+            </button>
           )}
           {imgIdx < numImgs - 1 && (
-            <button className="absolute flex items-center justify-center" style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.18)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(6px)' }} onPointerDown={(e) => e.stopPropagation()} onClick={goNext}><IconNext /></button>
+            <button
+              className="absolute flex items-center justify-center"
+              style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.18)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(6px)' }}
+              onPointerDown={e => e.stopPropagation()}
+              onClick={goNext}
+            >
+              <IconNext />
+            </button>
           )}
         </>
       )}
