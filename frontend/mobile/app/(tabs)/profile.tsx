@@ -62,7 +62,15 @@ function Sep() {
 }
 
 // ─── SettingsSheet ────────────────────────────────────────────────────────────
-function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function SettingsSheet({
+  visible,
+  onClose,
+  onSignOut,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onSignOut: () => void;
+}) {
   const T = useTheme();
   const [isLight, setIsLight] = useState(getThemeMode() === 'light');
 
@@ -149,6 +157,21 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
             <MaterialCommunityIcons name="chevron-right" size={18} color={T.textHint} />
           </TouchableOpacity>
         ))}
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={[ss.row, ss.signOutRow, { backgroundColor: T.dangerBg, borderColor: T.danger + '26' }]}
+          onPress={onSignOut}
+        >
+          <View style={[ss.iconWrap, { backgroundColor: T.danger + '18' }]}>
+            <MaterialCommunityIcons name="logout" size={18} color={T.danger} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[ss.rowLabel, { color: T.danger }]}>Sign out</Text>
+            <Text style={[ss.rowSub, { color: T.textHint }]}>Log out of your account</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={18} color={T.danger} />
+        </TouchableOpacity>
       </View>
     </Modal>
   );
@@ -162,6 +185,7 @@ const ss = StyleSheet.create({
   sheetTitle:  { fontSize: 17, fontWeight: '800', letterSpacing: -0.3 },
   groupLabel:  { fontSize: 10, fontWeight: '700', letterSpacing: 1.1, textTransform: 'uppercase', marginTop: 20, marginBottom: 10 },
   row:         { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 8 },
+  signOutRow:  { marginTop: 8 },
   iconWrap:    { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowLabel:    { fontSize: 14, fontWeight: '600' },
   rowSub:      { fontSize: 11, marginTop: 1 },
@@ -174,10 +198,17 @@ export default function ProfileTab() {
   const { top: topInset } = useSafeAreaInsets();
 
   const [showSettings, setShowSettings] = useState(false);
+  const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [editMode, setEditMode]         = useState(false);
   const [avatarPhoto, setAvatarPhoto] = useState<string | null>(null);
   const [coverPhoto, setCoverPhoto]   = useState<string | null>(null);
   const [photos, setPhotos]           = useState<(string | null)[]>([null, null, null]);
+  const [profileName, setProfileName] = useState('John Doe');
+  const [profileHeadline, setProfileHeadline] = useState('Full Stack Developer');
+  const [profileLocation, setProfileLocation] = useState('San Francisco, CA');
+  const [profileAbout, setProfileAbout] = useState(
+    'Passionate developer with expertise in building modern web applications. Strong background in React, Node.js, and cloud technologies.'
+  );
   const [experience, setExperience]   = useState<ExperienceItem[]>(INITIAL_EXPERIENCE);
   const [education, setEducation]     = useState<EducationItem[]>(INITIAL_EDUCATION);
   const [prefs, setPrefs]             = useState<PrefItem[]>(INITIAL_PREFS);
@@ -240,7 +271,44 @@ export default function ProfileTab() {
     <View style={[s.screen, { backgroundColor: T.bg }]}>
       <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} translucent backgroundColor="transparent" />
 
-      <SettingsSheet visible={showSettings} onClose={() => setShowSettings(false)} />
+      <SettingsSheet
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        onSignOut={() => {
+          setShowSettings(false);
+          setShowSignOutModal(true);
+        }}
+      />
+
+      {showSignOutModal && (
+        <View style={modal.overlay}>
+          <TouchableOpacity style={modal.backdrop} activeOpacity={1} onPress={() => setShowSignOutModal(false)} />
+          <View style={[modal.card, { backgroundColor: T.surface, borderColor: T.border }]}>
+            <View style={[modal.iconWrap, { backgroundColor: T.dangerBg }]}>
+              <MaterialCommunityIcons name="logout" size={28} color={T.danger} />
+            </View>
+            <Text style={[modal.title, { color: T.textPrimary }]}>Sign Out</Text>
+            <Text style={[modal.message, { color: T.textSub }]}>Are you sure you want to sign out?</Text>
+            <View style={modal.btnRow}>
+              <TouchableOpacity
+                style={[modal.cancelBtn, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}
+                onPress={() => setShowSignOutModal(false)}
+              >
+                <Text style={[modal.cancelText, { color: T.textSub }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[modal.confirmBtn, { backgroundColor: T.danger }]}
+                onPress={async () => {
+                  setShowSignOutModal(false);
+                  await handleSignOut();
+                }}
+              >
+                <Text style={modal.confirmText}>Sign Out</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: tabBarHeight + 40 }}>
 
@@ -308,15 +376,54 @@ export default function ProfileTab() {
 
         {/* ── Name / headline / location ───────────────────────────────────── */}
         <View style={s.heroInfo}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <Text style={[s.name, { color: T.textPrimary }]}>John Doe</Text>
-            <MaterialCommunityIcons name="check-decagram" size={15} color={T.primary} />
-          </View>
-          <Text style={[s.headline, { color: T.textSub }]}>Full Stack Developer</Text>
-          <View style={s.locRow}>
-            <MaterialCommunityIcons name="map-marker-outline" size={11} color={T.textHint} />
-            <Text style={[s.loc, { color: T.textHint }]}>San Francisco, CA</Text>
-          </View>
+          {editMode ? (
+            <View style={s.heroForm}>
+              <View>
+                <Text style={[s.fieldLabel, { color: T.textHint }]}>Name</Text>
+                <TextInput
+                  style={[s.heroInput, { backgroundColor: T.surfaceHigh, borderColor: T.border, color: T.textPrimary }]}
+                  value={profileName}
+                  onChangeText={setProfileName}
+                  placeholder="Your name"
+                  placeholderTextColor={T.textHint}
+                />
+              </View>
+
+              <View>
+                <Text style={[s.fieldLabel, { color: T.textHint }]}>Position</Text>
+                <TextInput
+                  style={[s.heroInput, { backgroundColor: T.surfaceHigh, borderColor: T.border, color: T.textPrimary }]}
+                  value={profileHeadline}
+                  onChangeText={setProfileHeadline}
+                  placeholder="Your role"
+                  placeholderTextColor={T.textHint}
+                />
+              </View>
+
+              <View>
+                <Text style={[s.fieldLabel, { color: T.textHint }]}>Location</Text>
+                <TextInput
+                  style={[s.heroInput, { backgroundColor: T.surfaceHigh, borderColor: T.border, color: T.textPrimary }]}
+                  value={profileLocation}
+                  onChangeText={setProfileLocation}
+                  placeholder="Your location"
+                  placeholderTextColor={T.textHint}
+                />
+              </View>
+            </View>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+                <Text style={[s.name, { color: T.textPrimary }]}>{profileName}</Text>
+                <MaterialCommunityIcons name="check-decagram" size={15} color={T.primary} />
+              </View>
+              <Text style={[s.headline, { color: T.textSub }]}>{profileHeadline}</Text>
+              <View style={s.locRow}>
+                <MaterialCommunityIcons name="map-marker-outline" size={11} color={T.textHint} />
+                <Text style={[s.loc, { color: T.textHint }]}>{profileLocation}</Text>
+              </View>
+            </>
+          )}
         </View>
 
         {/* ── Stats ────────────────────────────────────────────────────────── */}
@@ -341,10 +448,19 @@ export default function ProfileTab() {
         {/* ── About ────────────────────────────────────────────────────────── */}
         <View style={s.section}>
           <SectionLabel title="About" />
-          <Text style={[s.aboutText, { color: T.textSub }]}>
-            Passionate developer with expertise in building modern web applications.
-            Strong background in React, Node.js, and cloud technologies.
-          </Text>
+          {editMode ? (
+            <TextInput
+              style={[s.aboutInput, { backgroundColor: T.surfaceHigh, borderColor: T.border, color: T.textPrimary }]}
+              value={profileAbout}
+              onChangeText={setProfileAbout}
+              placeholder="Tell recruiters about yourself"
+              placeholderTextColor={T.textHint}
+              multiline
+              textAlignVertical="top"
+            />
+          ) : (
+            <Text style={[s.aboutText, { color: T.textSub }]}>{profileAbout}</Text>
+          )}
         </View>
 
         <Sep />
@@ -543,14 +659,6 @@ export default function ProfileTab() {
         </View>
 
         {/* ── Sign out ─────────────────────────────────────────────────────── */}
-        <TouchableOpacity 
-          style={[s.signOut, { backgroundColor: T.dangerBg, borderColor: T.danger + '26' }]}
-          onPress={handleSignOut} 
-          activeOpacity={0.8}>
-          <MaterialCommunityIcons name="logout" size={14} color={T.danger} />
-          <Text style={[s.signOutText, { color: T.danger }]}>Sign out</Text>
-        </TouchableOpacity>
-
       </ScrollView>
     </View>
   );
@@ -588,6 +696,7 @@ const s = StyleSheet.create({
 
   heroRow:         { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', paddingHorizontal: 20, marginTop: -38, marginBottom: 10 },
   heroInfo:        { paddingHorizontal: 24, paddingBottom: 16 },
+  heroForm:        { gap: 10 },
 
   avatarWrap:      { position: 'relative' },
   avatar:          { width: 84, height: 84, borderRadius: 42, borderWidth: 3 },
@@ -595,6 +704,8 @@ const s = StyleSheet.create({
   avatarInitials:  { fontSize: 26, fontWeight: '800' },
   camBadge:        { position: 'absolute', bottom: 3, right: 3, width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
 
+  fieldLabel:{ fontSize: 10, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 },
+  heroInput: { borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 11, fontSize: 14 },
   name:     { fontSize: 19, fontWeight: '800', letterSpacing: -0.4 },
   headline: { fontSize: 13, marginBottom: 4 },
   locRow:   { flexDirection: 'row', alignItems: 'center', gap: 3 },
@@ -612,6 +723,7 @@ const s = StyleSheet.create({
 
   section:   { paddingHorizontal: 24 },
   aboutText: { fontSize: 14, lineHeight: 22 },
+  aboutInput:{ minHeight: 120, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, lineHeight: 22 },
 
   photoGrid: { flexDirection: 'row', gap: 8 },
   photoSlot: { flex: 1, aspectRatio: 0.85, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
@@ -632,11 +744,30 @@ const s = StyleSheet.create({
   expRole: { fontSize: 13, fontWeight: '700' },
   expMeta: { fontSize: 11, marginTop: 2 },
 
-  signOut:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, marginHorizontal: 24, marginTop: 28, paddingVertical: 13, borderRadius: 13, borderWidth: 1 },
-  signOutText: { fontSize: 13, fontWeight: '700' },
-
   addForm:       { marginTop: 16, padding: 14, borderRadius: 14, borderWidth: 1, gap: 10 },
   addInput:      { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
   addConfirmBtn: { borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
   addConfirmText:{ fontSize: 13, fontWeight: '700', color: '#fff' },
+});
+
+const modal = StyleSheet.create({
+  overlay: { ...StyleSheet.absoluteFillObject, zIndex: 9999, alignItems: 'center', justifyContent: 'center' },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.75)' },
+  card: {
+    width: SCREEN_W - 48,
+    borderRadius: 24,
+    padding: 28,
+    alignItems: 'center',
+    borderWidth: 1,
+    position: 'absolute',
+    top: '30%',
+  },
+  iconWrap: { width: 64, height: 64, borderRadius: 32, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+  title: { fontSize: 22, fontWeight: '800', marginBottom: 10, letterSpacing: -0.5 },
+  message: { fontSize: 15, textAlign: 'center', marginBottom: 28, lineHeight: 22 },
+  btnRow: { flexDirection: 'row', gap: 14, width: '100%' },
+  cancelBtn: { flex: 1, paddingVertical: 15, borderRadius: 16, borderWidth: 1, alignItems: 'center' },
+  cancelText: { fontSize: 15, fontWeight: '700' },
+  confirmBtn: { flex: 1, paddingVertical: 15, borderRadius: 16, alignItems: 'center' },
+  confirmText: { fontSize: 15, fontWeight: '700', color: '#fff' },
 });

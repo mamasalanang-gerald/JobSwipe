@@ -245,7 +245,19 @@ export const CAROUSEL_JOBS = [BASE_CAROUSEL[BASE_CAROUSEL.length - 1], ...BASE_C
 export const CAROUSEL_START_INDEX = 1;
 export const GRID_JOBS = JOBS.slice(1);
 
-export function filterJobs(jobs: Job[], activeFilter: string, search: string) {
+export type JobFilterOptions = {
+  maxDistanceKm?: number;
+  minSalaryK?: number;
+};
+
+export function parseSalaryMaxK(salary: string) {
+  const matches = salary.match(/\$?(\d+(?:\.\d+)?)k/gi);
+  if (!matches || matches.length === 0) return 0;
+  const values = matches.map(match => Number(match.replace(/[^0-9.]/g, '')));
+  return Math.max(...values);
+}
+
+export function filterJobs(jobs: Job[], activeFilter: string, search: string, options?: JobFilterOptions) {
   const normalizedSearch = search.trim().toLowerCase();
 
   return jobs.filter(job => {
@@ -259,6 +271,12 @@ export function filterJobs(jobs: Job[], activeFilter: string, search: string) {
       job.role.toLowerCase().includes(normalizedSearch) ||
       job.company.toLowerCase().includes(normalizedSearch);
 
-    return matchesFilter && matchesSearch;
+    const matchesDistance =
+      options?.maxDistanceKm === undefined || job.distanceKm <= options.maxDistanceKm;
+
+    const matchesSalary =
+      options?.minSalaryK === undefined || parseSalaryMaxK(job.salary) >= options.minSalaryK;
+
+    return matchesFilter && matchesSearch && matchesDistance && matchesSalary;
   });
 }

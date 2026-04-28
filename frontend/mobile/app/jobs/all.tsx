@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,12 +7,13 @@ import {
   StyleSheet,
   StatusBar,
   ImageBackground,
+  TextInput,
 } from 'react-native';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme';
-import { BASE_CAROUSEL, GRID_JOBS, TAG_STYLES, filterJobs, type Job, type TagVariant } from '../../constants/jobs';
+import { BASE_CAROUSEL, FILTERS, GRID_JOBS, TAG_STYLES, filterJobs, type Job, type TagVariant } from '../../constants/jobs';
 
 function TagPill({ label, variant }: { label: string; variant: TagVariant }) {
   const st = TAG_STYLES[variant];
@@ -32,16 +33,23 @@ function JobListCard({ job, onPress }: { job: Job; onPress: (job: Job) => void }
           <View style={[s.logo, { backgroundColor: job.accentColor }]}>
             <Text style={s.logoText}>{job.abbr}</Text>
           </View>
+          <View style={s.topMeta}>
+            <MaterialCommunityIcons name="clock-outline" size={12} color="rgba(255,255,255,0.68)" />
+            <Text style={s.topMetaText}>{job.posted}</Text>
+          </View>
         </View>
 
         <View style={s.cardBody}>
-          <Text style={s.role} numberOfLines={2}>{job.role}</Text>
+          <Text style={s.role} numberOfLines={1}>{job.role}</Text>
           <Text style={s.company}>{job.company}</Text>
-          <Text style={s.meta}>{job.location}</Text>
-          <Text style={s.salary}>{job.salary}</Text>
+          <View style={s.metaRow}>
+            <MaterialCommunityIcons name="map-marker-outline" size={12} color="rgba(255,255,255,0.6)" />
+            <Text style={s.meta} numberOfLines={1}>{job.location}</Text>
+          </View>
+          <Text style={s.salary} numberOfLines={1}>{job.salary}</Text>
 
           <View style={s.tagRow}>
-            {job.tags.map(tag => (
+            {job.tags.slice(0, 2).map(tag => (
               <TagPill key={`${job.id}-${tag.label}`} label={tag.label} variant={tag.variant} />
             ))}
           </View>
@@ -49,7 +57,7 @@ function JobListCard({ job, onPress }: { job: Job; onPress: (job: Job) => void }
 
         <View style={s.cardFooter}>
           <Text style={s.footerText}>{job.applicants} applied</Text>
-          <Text style={s.footerText}>{job.posted}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={16} color="rgba(255,255,255,0.5)" />
         </View>
       </ImageBackground>
     </TouchableOpacity>
@@ -60,14 +68,25 @@ export default function AllJobsScreen() {
   const T = useTheme();
   const router = useRouter();
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
-  const params = useLocalSearchParams<{ filter?: string; search?: string; source?: string }>();
+  const params = useLocalSearchParams<{ filter?: string; search?: string; source?: string; distance?: string; salary?: string }>();
 
-  const activeFilter = typeof params.filter === 'string' ? params.filter : 'All';
-  const search = typeof params.search === 'string' ? params.search : '';
   const source = typeof params.source === 'string' ? params.source : 'explore';
-  const jobs = source === 'top-matches'
-    ? BASE_CAROUSEL
-    : filterJobs(GRID_JOBS, activeFilter, search);
+  const [activeFilter, setActiveFilter] = useState(
+    typeof params.filter === 'string' ? params.filter : 'All'
+  );
+  const [search, setSearch] = useState(
+    typeof params.search === 'string' ? params.search : ''
+  );
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const maxDistanceKm =
+    typeof params.distance === 'string' ? Number(params.distance) : 50
+  const minSalaryK =
+    typeof params.salary === 'string' ? Number(params.salary) : 100
+
+  const jobs = filterJobs(source === 'top-matches' ? BASE_CAROUSEL : GRID_JOBS, activeFilter, search, {
+    maxDistanceKm,
+    minSalaryK,
+  });
 
   const handleOpenJob = (job: Job) => {
     router.push({ pathname: '/jobs/[id]', params: { id: String(job.id) } });
@@ -93,12 +112,74 @@ export default function AllJobsScreen() {
           <Text style={[s.title, { color: T.textPrimary }]}>{title}</Text>
           <Text style={[s.subtitle, { color: T.textSub }]}>{subtitle}</Text>
         </View>
+        <TouchableOpacity
+          style={[s.settingsBtn, { backgroundColor: T.surface, borderColor: T.borderFaint }]}
+          onPress={() => setFiltersOpen(open => !open)}
+          activeOpacity={0.8}
+        >
+          <MaterialCommunityIcons
+            name={filtersOpen ? 'close' : 'tune-variant'}
+            size={18}
+            color={T.textPrimary}
+          />
+        </TouchableOpacity>
       </View>
 
-      {source !== 'top-matches' && activeFilter !== 'All' && (
-        <View style={[s.filterPill, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-          <MaterialCommunityIcons name="tune-variant" size={14} color={T.primary} />
-          <Text style={[s.filterText, { color: T.textPrimary }]}>{activeFilter}</Text>
+      <View style={s.summaryRow}>
+        <View style={[s.summaryPill, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
+          <MaterialCommunityIcons name="map-marker-radius-outline" size={13} color={T.primary} />
+          <Text style={[s.summaryText, { color: T.textPrimary }]}>{maxDistanceKm} km</Text>
+        </View>
+        <View style={[s.summaryPill, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
+          <MaterialCommunityIcons name="cash-multiple" size={13} color={T.primary} />
+          <Text style={[s.summaryText, { color: T.textPrimary }]}>${minSalaryK}k+</Text>
+        </View>
+      </View>
+
+      {filtersOpen && (
+        <View style={s.controls}>
+          <View style={[s.searchBar, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
+            <MaterialCommunityIcons name="magnify" size={18} color={T.textHint} />
+            <TextInput
+              style={[s.searchInput, { color: T.textPrimary }]}
+              value={search}
+              onChangeText={setSearch}
+              placeholder="Search roles, companies..."
+              placeholderTextColor={T.textHint}
+            />
+            {search.length > 0 && (
+              <TouchableOpacity onPress={() => setSearch('')}>
+                <MaterialCommunityIcons name="close-circle" size={16} color={T.textHint} />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={s.filterRow}
+            style={s.filterScrollView}
+          >
+            {FILTERS.map(f => f === activeFilter ? (
+              <TouchableOpacity
+                key={f}
+                onPress={() => setActiveFilter(f)}
+                activeOpacity={0.8}
+                style={[s.chip, s.chipActive, { backgroundColor: T.primary }]}
+              >
+                <Text style={[s.chipActiveText, { color: '#fff' }]}>{f}</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                key={f}
+                onPress={() => setActiveFilter(f)}
+                activeOpacity={0.75}
+                style={[s.chip, s.chipInactive, { backgroundColor: T.surface, borderColor: T.borderFaint }]}
+              >
+                <Text style={[s.chipInactiveText, { color: T.textSub }]}>{f}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       )}
 
@@ -143,69 +224,107 @@ const s = StyleSheet.create({
   headerCopy: { flex: 1 },
   title: { fontSize: 24, fontWeight: '800' },
   subtitle: { fontSize: 13, marginTop: 2 },
-  filterPill: {
-    marginHorizontal: 20,
-    marginBottom: 12,
+  settingsBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     borderWidth: 1,
-    borderRadius: 18,
-    alignSelf: 'flex-start',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  controls: { paddingBottom: 8 },
+  searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    height: 48,
+    marginHorizontal: 20,
+    marginBottom: 8,
   },
-  filterText: { fontSize: 12, fontWeight: '700' },
+  searchInput: { flex: 1, fontSize: 14 },
+  filterScrollView: { flexGrow: 0, flexShrink: 0, height: 52 },
+  filterRow: { paddingHorizontal: 20, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  chip: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  chipActive: {},
+  chipInactive: { borderWidth: 1 },
+  chipActiveText: { fontSize: 13, fontWeight: '700' },
+  chipInactiveText: { fontSize: 13, fontWeight: '600' },
+  summaryRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 4, flexWrap: 'wrap' },
+  summaryPill: {
+    borderWidth: 1,
+    borderRadius: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  summaryText: { fontSize: 12, fontWeight: '600' },
   scroll: {
     paddingHorizontal: 20,
   },
   cardWrap: {
-    marginBottom: 14,
+    marginBottom: 10,
   },
   card: {
-    minHeight: 180,
-    borderRadius: 24,
+    minHeight: 144,
+    borderRadius: 20,
     overflow: 'hidden',
-    padding: 18,
+    padding: 14,
     justifyContent: 'space-between',
   },
-  cardImg: { borderRadius: 24 },
+  cardImg: { borderRadius: 20 },
   scrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(10,5,30,0.8)',
-    borderRadius: 24,
+    borderRadius: 20,
   },
   cardTop: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
   },
   logo: {
-    width: 44,
-    height: 44,
-    borderRadius: 14,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoText: { color: '#fff', fontSize: 13, fontWeight: '800' },
-  cardBody: { gap: 4 },
-  role: { color: '#fff', fontSize: 19, fontWeight: '800' },
-  company: { color: 'rgba(255,255,255,0.82)', fontSize: 13, fontWeight: '700' },
-  meta: { color: 'rgba(255,255,255,0.6)', fontSize: 12 },
-  salary: { color: '#c084fc', fontSize: 14, fontWeight: '700', marginTop: 2 },
-  tagRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginTop: 8 },
+  logoText: { color: '#fff', fontSize: 12, fontWeight: '800' },
+  topMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  topMetaText: { color: 'rgba(255,255,255,0.72)', fontSize: 10, fontWeight: '700' },
+  cardBody: { gap: 3, marginTop: 2 },
+  role: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  company: { color: 'rgba(255,255,255,0.82)', fontSize: 12, fontWeight: '700' },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  meta: { color: 'rgba(255,255,255,0.6)', fontSize: 11, flex: 1 },
+  salary: { color: '#c084fc', fontSize: 12, fontWeight: '700', marginTop: 1 },
+  tagRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 6 },
   tag: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 7,
     borderWidth: 1,
   },
-  tagText: { fontSize: 11, fontWeight: '700' },
+  tagText: { fontSize: 10, fontWeight: '700' },
   cardFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    marginTop: 4,
   },
   footerText: { color: 'rgba(255,255,255,0.5)', fontSize: 11 },
   empty: {

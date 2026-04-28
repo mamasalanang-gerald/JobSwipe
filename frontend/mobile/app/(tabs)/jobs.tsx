@@ -5,7 +5,7 @@ import { useRouter } from 'expo-router';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, TextInput, ImageBackground,
-  Dimensions, NativeSyntheticEvent, NativeScrollEvent,
+  Dimensions, NativeSyntheticEvent, NativeScrollEvent, Animated, Switch,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme';
@@ -22,8 +22,11 @@ import {
 } from '../../constants/jobs';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
 const CARD_WIDTH = (SCREEN_WIDTH - 40 - 12) / 2;
 const HERO_CARD_WIDTH = SCREEN_WIDTH - 40;
+const MIN_SALARY_K = 80;
+const MAX_SALARY_K = 180;
 
 function TagPill({ label, variant }: { label: string; variant: TagVariant }) {
   const st = TAG_STYLES[variant];
@@ -123,24 +126,67 @@ export default function ExploreTab() {
   const [activeFilter, setActiveFilter] = useState('All');
   const [savedIds, setSavedIds] = useState<number[]>([2, 5]);
   const [dotIndex, setDotIndex] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [useKm, setUseKm] = useState(true);
+  const [maxDistanceKm, setMaxDistanceKm] = useState(50);
+  const [draftDistance, setDraftDistance] = useState(50);
+  const [draftUseKm, setDraftUseKm] = useState(true);
+  const [minSalaryK, setMinSalaryK] = useState(100);
+  const [draftMinSalaryK, setDraftMinSalaryK] = useState(100);
+  const [distanceTrackWidth, setDistanceTrackWidth] = useState(SCREEN_WIDTH - 40);
+  const [salaryTrackWidth, setSalaryTrackWidth] = useState(SCREEN_WIDTH - 40);
   const carouselRef = useRef<ScrollView>(null);
   const isPausedRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rawIndexRef = useRef(CAROUSEL_START_INDEX);
   const isJumpingRef = useRef(false);
   const isAutoScrollingRef = useRef(false);
+  const distanceSliderX = useRef(0);
+  const salarySliderX = useRef(0);
+  const settingsAnim = useRef(new Animated.Value(0)).current;
 
   const toggleSave = (id: number) =>
     setSavedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
 
+  const formatDistanceLabel = (value: number, inKm: boolean) =>
+    `${value} ${inKm ? 'km' : 'mi'}`;
+
   const handleViewDetails = (job: Job) =>
     router.push({ pathname: '/jobs/[id]', params: { id: String(job.id) } });
+
+  const openSettings = () => {
+    setDraftDistance(maxDistanceKm);
+    setDraftUseKm(useKm);
+    setDraftMinSalaryK(minSalaryK);
+    setSettingsOpen(true);
+    Animated.spring(settingsAnim, { toValue: 1, bounciness: 3, useNativeDriver: false }).start();
+  };
+
+  const closeSettings = () => {
+    Animated.timing(settingsAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start(() => setSettingsOpen(false));
+  };
+
+  const applySettings = () => {
+    setMaxDistanceKm(draftDistance);
+    setUseKm(draftUseKm);
+    setMinSalaryK(draftMinSalaryK);
+    closeSettings();
+  };
 
   const handleViewAllTopMatches = () =>
     router.push({ pathname: '/jobs/all', params: { source: 'top-matches' } });
 
   const handleViewAllJobs = () =>
-    router.push({ pathname: '/jobs/all', params: { source: 'explore', filter: activeFilter, search } });
+    router.push({
+      pathname: '/jobs/all',
+      params: {
+        source: 'explore',
+        filter: activeFilter,
+        search,
+        distance: String(maxDistanceKm),
+        salary: String(minSalaryK),
+      },
+    });
 
   const jumpTo = (rawIdx: number) => {
     isJumpingRef.current = true;
@@ -199,7 +245,16 @@ export default function ExploreTab() {
 
   const handleScrollBeginDrag = () => { isPausedRef.current = true; };
 
-  const filteredGrid = filterJobs(GRID_JOBS, activeFilter, search);
+  const filteredGrid = filterJobs(GRID_JOBS, activeFilter, search, {
+    maxDistanceKm,
+    minSalaryK,
+  });
+  const draftFilteredCount = filterJobs(GRID_JOBS, activeFilter, search, {
+    maxDistanceKm: draftDistance,
+    minSalaryK: draftMinSalaryK,
+  }).length;
+  const draftDistanceLabel = formatDistanceLabel(draftDistance, draftUseKm);
+  const salaryFillPct = ((draftMinSalaryK - MIN_SALARY_K) / (MAX_SALARY_K - MIN_SALARY_K)) * 100;
 
   const rows: [Job, Job | null][] = [];
   for (let i = 0; i < filteredGrid.length; i += 2) {
@@ -213,7 +268,7 @@ export default function ExploreTab() {
       <View style={s.header}>
         <View style={s.headerRow}>
           <Text style={[s.pageTitle, { color: T.textPrimary }]}>Discover Jobs</Text>
-          <TouchableOpacity style={[s.filterBtn, { backgroundColor: T.primary }]}>
+          <TouchableOpacity style={[s.filterBtn, { backgroundColor: T.primary }]} onPress={openSettings}>
             <MaterialCommunityIcons name="tune-variant" size={20} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -329,6 +384,137 @@ export default function ExploreTab() {
           ))
         )}
       </ScrollView>
+
+      {settingsOpen && (
+        <TouchableOpacity style={s.settingsBackdrop} activeOpacity={1} onPress={closeSettings} />
+      )}
+      <Animated.View
+        style={[
+          s.settingsPanel,
+          {
+            backgroundColor: T.surface,
+            paddingBottom: tabBarHeight + 16,
+            transform: [{ translateY: settingsAnim.interpolate({ inputRange: [0, 1], outputRange: [SCREEN_HEIGHT, 0] }) }],
+          },
+        ]}
+        pointerEvents={settingsOpen ? 'box-none' : 'none'}
+      >
+        <View style={[s.panelHandle, { backgroundColor: T.borderFaint }]} />
+        <TouchableOpacity style={[s.panelCloseBtn, { backgroundColor: T.surfaceHigh }]} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+          <MaterialCommunityIcons name="chevron-down" size={24} color={T.textSub} />
+        </TouchableOpacity>
+
+        <View style={s.settingsContent}>
+          <Text style={[s.settingsTitle, { color: T.textPrimary }]}>Filters</Text>
+
+          <View style={s.settingsSection}>
+            <View style={s.settingsLabelRow}>
+              <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={T.textSub} />
+              <Text style={[s.settingsLabel, { color: T.textSub }]}>Max Distance</Text>
+              <Text style={[s.settingsValue, { color: T.primary }]}>{draftDistanceLabel}</Text>
+            </View>
+
+            <View
+              style={s.sliderWrapper}
+              onLayout={(e) => setDistanceTrackWidth(e.nativeEvent.layout.width)}
+              ref={(ref) => {
+                if (ref) ref.measure((_x, _y, _w, _h, pageX) => { distanceSliderX.current = pageX; });
+              }}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={(e) => {
+                const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - distanceSliderX.current) / distanceTrackWidth));
+                setDraftDistance(Math.max(1, Math.round(pct * 100)));
+              }}
+              onResponderMove={(e) => {
+                const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - distanceSliderX.current) / distanceTrackWidth));
+                setDraftDistance(Math.max(1, Math.round(pct * 100)));
+              }}
+            >
+              <View style={[s.sliderTrack, { backgroundColor: T.borderFaint }]} pointerEvents="none">
+                <View style={[s.sliderFill, { width: `${draftDistance}%`, backgroundColor: T.primary }]} />
+              </View>
+              <View style={[s.sliderThumb, { left: (draftDistance / 100) * distanceTrackWidth - 10 }]} pointerEvents="none" />
+            </View>
+
+            <View style={s.sliderLabels}>
+              <Text style={[s.sliderMin, { color: T.textHint }]}>1 {draftUseKm ? 'km' : 'mi'}</Text>
+              <Text style={[s.sliderMax, { color: T.textHint }]}>100 {draftUseKm ? 'km' : 'mi'}</Text>
+            </View>
+          </View>
+
+          <View style={[s.settingsDivider, { backgroundColor: T.borderFaint }]} />
+
+          <View style={s.settingsSection}>
+            <View style={s.settingsLabelRow}>
+              <MaterialCommunityIcons name="cash-multiple" size={16} color={T.textSub} />
+              <Text style={[s.settingsLabel, { color: T.textSub }]}>Minimum Salary</Text>
+              <Text style={[s.settingsValue, { color: T.primary }]}>${draftMinSalaryK}k+</Text>
+            </View>
+
+            <View
+              style={s.sliderWrapper}
+              onLayout={(e) => setSalaryTrackWidth(e.nativeEvent.layout.width)}
+              ref={(ref) => {
+                if (ref) ref.measure((_x, _y, _w, _h, pageX) => { salarySliderX.current = pageX; });
+              }}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={(e) => {
+                const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - salarySliderX.current) / salaryTrackWidth));
+                setDraftMinSalaryK(Math.round(MIN_SALARY_K + pct * (MAX_SALARY_K - MIN_SALARY_K)));
+              }}
+              onResponderMove={(e) => {
+                const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - salarySliderX.current) / salaryTrackWidth));
+                setDraftMinSalaryK(Math.round(MIN_SALARY_K + pct * (MAX_SALARY_K - MIN_SALARY_K)));
+              }}
+            >
+              <View style={[s.sliderTrack, { backgroundColor: T.borderFaint }]} pointerEvents="none">
+                <View style={[s.sliderFill, { width: `${salaryFillPct}%`, backgroundColor: T.primary }]} />
+              </View>
+              <View style={[s.sliderThumb, { left: (salaryFillPct / 100) * salaryTrackWidth - 10 }]} pointerEvents="none" />
+            </View>
+
+            <View style={s.sliderLabels}>
+              <Text style={[s.sliderMin, { color: T.textHint }]}>${MIN_SALARY_K}k</Text>
+              <Text style={[s.sliderMax, { color: T.textHint }]}>${MAX_SALARY_K}k+</Text>
+            </View>
+          </View>
+
+          <View style={[s.settingsDivider, { backgroundColor: T.borderFaint }]} />
+
+          <View style={s.settingsSection}>
+            <View style={s.settingsLabelRow}>
+              <MaterialCommunityIcons name="map-outline" size={16} color={T.textSub} />
+              <Text style={[s.settingsLabel, { color: T.textSub }]}>Distance Unit</Text>
+            </View>
+            <View style={s.unitToggleRow}>
+              <Text style={[s.unitLabel, { color: T.textHint }, !draftUseKm && { color: T.textPrimary }]}>Miles</Text>
+              <Switch
+                value={draftUseKm}
+                onValueChange={setDraftUseKm}
+                trackColor={{ false: T.borderFaint, true: T.primary + '88' }}
+                thumbColor={T.primary}
+                ios_backgroundColor={T.borderFaint}
+              />
+              <Text style={[s.unitLabel, { color: T.textHint }, draftUseKm && { color: T.textPrimary }]}>Kilometres</Text>
+            </View>
+          </View>
+
+          <View style={[s.settingsDivider, { backgroundColor: T.borderFaint }]} />
+
+          <View style={s.settingsResultRow}>
+            <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={T.primary} />
+            <Text style={[s.settingsResultText, { color: T.textSub }]}>
+              {draftFilteredCount} job{draftFilteredCount !== 1 ? 's' : ''} within {draftDistanceLabel} and ${draftMinSalaryK}k+
+            </Text>
+          </View>
+
+          <TouchableOpacity style={[s.applyFiltersBtn, { backgroundColor: T.primary }]} onPress={applySettings} activeOpacity={0.85}>
+            <Text style={s.applyFiltersBtnText}>Apply Filters</Text>
+          </TouchableOpacity>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -404,4 +590,58 @@ const s = StyleSheet.create({
 
   empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
+
+  settingsBackdrop: { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 65, backgroundColor: 'rgba(0,0,0,0.5)' },
+  settingsPanel: {
+    position: 'absolute', bottom: 0, left: 0, right: 0,
+    zIndex: 70,
+    borderTopLeftRadius: 22, borderTopRightRadius: 22,
+    overflow: 'hidden',
+  },
+  panelHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginTop: 12, marginBottom: 6 },
+  panelCloseBtn: { alignSelf: 'flex-end', marginRight: 20, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  settingsContent: { paddingHorizontal: 20, paddingTop: 8 },
+  settingsTitle: { fontSize: 24, fontWeight: '800', marginBottom: 20, marginTop: 8 },
+  settingsSection: { marginBottom: 16 },
+  settingsLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 },
+  settingsLabel: { flex: 1, fontSize: 15, fontWeight: '600' },
+  settingsValue: { fontSize: 15, fontWeight: '700' },
+  sliderWrapper: {
+    height: 32,
+    justifyContent: 'center',
+    position: 'relative',
+    marginBottom: 16,
+  },
+  sliderTrack: {
+    height: 4,
+    borderRadius: 2,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  sliderFill: {
+    position: 'absolute', left: 0, top: 0, bottom: 0,
+    borderRadius: 2,
+  },
+  sliderThumb: {
+    position: 'absolute', top: 6,
+    width: 20, height: 20, borderRadius: 10,
+    backgroundColor: '#fff',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
+  },
+  sliderLabels: { flexDirection: 'row', justifyContent: 'space-between' },
+  sliderMin: { fontSize: 12 },
+  sliderMax: { fontSize: 12 },
+  settingsDivider: { height: 1, marginBottom: 16 },
+  unitToggleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  unitLabel: { fontSize: 15, fontWeight: '500' },
+  settingsResultRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
+  settingsResultText: { fontSize: 12 },
+  applyFiltersBtn: {
+    marginTop: 16,
+    borderRadius: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  applyFiltersBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
 });
