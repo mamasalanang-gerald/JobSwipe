@@ -29,7 +29,7 @@ const statusDotStyles: Record<StatusVariant, string> = {
 };
 
 function getStatusVariant(status: string): StatusVariant {
-  const lowerStatus = status.toLowerCase();
+  const lowerStatus = status?.toLowerCase();
   if (['active', 'verified', 'published', 'completed', 'paid', 'delivered', 'accepted', 'high'].includes(lowerStatus)) {
     return 'success';
   }
@@ -57,7 +57,7 @@ export function StatusBadge({ status, variant, className, children }: StatusBadg
       )}
     >
       <span className={cn('h-1.5 w-1.5 rounded-full', statusDotStyles[computedVariant])} />
-      {children ?? status.charAt(0).toUpperCase() + status.slice(1)}
+      {children ?? status?.charAt(0).toUpperCase() + status?.slice(1)}
     </span>
   );
 }

@@ -8,12 +8,17 @@ use App\Http\Requests\Company\CreateJobPostingRequest;
 use App\Models\PostgreSQL\CompanyProfile;
 use App\Models\PostgreSQL\JobPosting;
 use App\Models\PostgreSQL\JobSkill;
+use App\Services\CompanyMembershipService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class JobPostingController extends Controller
 {
+    public function __construct(
+        private CompanyMembershipService $memberships,
+    ) {}
+
     /**
      * GET /api/v1/company/jobs
      *
@@ -318,14 +323,11 @@ class JobPostingController extends Controller
 
     /**
      * Resolve the authenticated user's company profile.
-     * Uses loadMissing so repeated calls within the same request
-     * only hit the database once.
+     * Membership-aware: supports both company owners and invited HR/admin members.
      */
     private function getCompany(Request $request): ?CompanyProfile
     {
-        $request->user()->loadMissing('companyProfile');
-
-        return $request->user()->companyProfile;
+        return $this->memberships->getPrimaryCompanyForUser($request->user()->id);
     }
 
     /**

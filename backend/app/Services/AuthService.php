@@ -29,7 +29,7 @@ class AuthService
         string $role,
         ?string $companyInviteToken = null,
         bool $magicLinkVerified = false
-    ): string {
+    ): string|array {
         Log::info('AuthService: Starting registration', [
             'email' => $email,
             'role' => $role,
@@ -88,7 +88,8 @@ class AuthService
             // Directly complete registration without OTP round-trip
             $result = $this->completeRegistrationDirect($email, $passwordHash, $role, $companyInviteToken);
 
-            return $result['status'] === 'verified' ? 'web_magic_link_registered' : $result['status'];
+            // Return the full result array for magic link registration
+            return $result;
         }
 
         $passwordHash = Hash::make($password, ['rounds' => config('hashing.bcrypt.rounds', 10)]);
@@ -223,7 +224,9 @@ class AuthService
             $token = $this->tokens->generateToken($user);
         });
 
-        SendWelcomeEmail::dispatch($user->id)->onQueue('emails');
+        if ($user) {
+            SendWelcomeEmail::dispatch($user->id)->onQueue('emails');
+        }
 
         return [
             'status' => 'verified',

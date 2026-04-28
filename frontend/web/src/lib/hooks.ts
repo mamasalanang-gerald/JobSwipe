@@ -2,6 +2,16 @@
 
 import { useQuery, useMutation, useQueryClient, UseQueryOptions, UseMutationOptions } from '@tanstack/react-query';
 import api from './api';
+import {
+  dashboardService,
+  companyService,
+  userService,
+  jobService,
+  subscriptionService,
+  iapService,
+  trustService,
+  matchService,
+} from '@/services';
 import type {
   User,
   Company,
@@ -83,40 +93,28 @@ export const queryKeys = {
 export function useDashboardStats() {
   return useQuery<DashboardStats>({
     queryKey: queryKeys.dashboard.stats,
-    queryFn: async () => {
-      const { data } = await api.get<DashboardStats>('/admin/stats');
-      return data;
-    },
+    queryFn: ({ signal }) => dashboardService.stats(signal),
   });
 }
 
-export function useUserGrowthData() {
+export function useUserGrowthData(days: number = 30) {
   return useQuery<UserGrowthData[]>({
-    queryKey: queryKeys.dashboard.userGrowth,
-    queryFn: async () => {
-      const { data } = await api.get<UserGrowthData[]>('/admin/user-growth');
-      return data;
-    },
+    queryKey: [...queryKeys.dashboard.userGrowth, days],
+    queryFn: ({ signal }) => dashboardService.userGrowth(days, signal),
   });
 }
 
-export function useRevenueData() {
+export function useRevenueData(months: number = 12) {
   return useQuery<RevenueData[]>({
-    queryKey: queryKeys.dashboard.revenue,
-    queryFn: async () => {
-      const { data } = await api.get<RevenueData[]>('/admin/revenue');
-      return data;
-    },
+    queryKey: [...queryKeys.dashboard.revenue, months],
+    queryFn: ({ signal }) => dashboardService.revenue(months, signal),
   });
 }
 
-export function useDashboardActivity() {
+export function useDashboardActivity(limit: number = 50) {
   return useQuery<Array<{ id: string; type: string; description: string; createdAt: string }>>({
-    queryKey: queryKeys.dashboard.activity,
-    queryFn: async () => {
-      const { data } = await api.get<Array<{ id: string; type: string; description: string; createdAt: string }>>('/admin/activity');
-      return data;
-    },
+    queryKey: [...queryKeys.dashboard.activity, limit],
+    queryFn: ({ signal }) => dashboardService.activity(limit, signal),
   });
 }
 
@@ -124,28 +122,14 @@ export function useDashboardActivity() {
 export function useUsers(filters: UserFilters, page: number = 1, pageSize: number = 20) {
   return useQuery<PaginatedResponse<User>>({
     queryKey: queryKeys.users.list({ ...filters, page, pageSize }),
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-        ...Object.entries(filters).reduce((acc, [key, value]) => {
-          if (value) acc[key] = value;
-          return acc;
-        }, {} as Record<string, string>),
-      });
-      const { data } = await api.get<PaginatedResponse<User>>(`/admin/users?${params}`);
-      return data;
-    },
+    queryFn: ({ signal }) => userService.list(filters, page, pageSize, signal),
   });
 }
 
 export function useUser(id: string) {
   return useQuery<User>({
     queryKey: queryKeys.users.detail(id),
-    queryFn: async () => {
-      const { data } = await api.get<User>(`/admin/users/${id}`);
-      return data;
-    },
+    queryFn: ({ signal }) => userService.get(id, signal),
     enabled: !!id,
   });
 }
@@ -153,10 +137,8 @@ export function useUser(id: string) {
 export function useBanUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ userId, reason }: { userId: string; reason: string }) => {
-      const { data } = await api.post<{ message: string }>(`/admin/users/${userId}/ban`, { reason });
-      return data;
-    },
+    mutationFn: ({ userId, reason }: { userId: string; reason: string }) =>
+      userService.ban(userId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
@@ -166,10 +148,7 @@ export function useBanUser() {
 export function useUnbanUser() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (userId: string) => {
-      const { data } = await api.post<{ message: string }>(`/admin/users/${userId}/unban`);
-      return data;
-    },
+    mutationFn: (userId: string) => userService.unban(userId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     },
@@ -180,28 +159,14 @@ export function useUnbanUser() {
 export function useCompanies(filters: CompanyFilters, page: number = 1, pageSize: number = 20) {
   return useQuery<PaginatedResponse<Company>>({
     queryKey: queryKeys.companies.list({ ...filters, page, pageSize }),
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-        ...Object.entries(filters).reduce((acc, [key, value]) => {
-          if (value) acc[key] = value;
-          return acc;
-        }, {} as Record<string, string>),
-      });
-      const { data } = await api.get<PaginatedResponse<Company>>(`/admin/companies?${params}`);
-      return data;
-    },
+    queryFn: ({ signal }) => companyService.list(filters, page, pageSize, signal),
   });
 }
 
 export function useCompany(id: string) {
   return useQuery<Company>({
     queryKey: queryKeys.companies.detail(id),
-    queryFn: async () => {
-      const { data } = await api.get<Company>(`/admin/companies/${id}`);
-      return data;
-    },
+    queryFn: ({ signal }) => companyService.get(id, signal),
     enabled: !!id,
   });
 }
@@ -209,20 +174,14 @@ export function useCompany(id: string) {
 export function useCompanyVerifications() {
   return useQuery<PaginatedResponse<CompanyVerification>>({
     queryKey: queryKeys.companies.verifications(),
-    queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<CompanyVerification>>('/admin/companies/verifications');
-      return data;
-    },
+    queryFn: ({ signal }) => companyService.verifications(signal),
   });
 }
 
 export function useApproveVerification() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (verificationId: string) => {
-      const { data } = await api.post<{ message: string }>(`/admin/verifications/${verificationId}/approve`);
-      return data;
-    },
+    mutationFn: (verificationId: string) => companyService.approveVerification(verificationId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     },
@@ -232,10 +191,8 @@ export function useApproveVerification() {
 export function useRejectVerification() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ verificationId, reason }: { verificationId: string; reason: string }) => {
-      const { data } = await api.post<{ message: string }>(`/admin/verifications/${verificationId}/reject`, { reason });
-      return data;
-    },
+    mutationFn: ({ verificationId, reason }: { verificationId: string; reason: string }) =>
+      companyService.rejectVerification(verificationId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     },
@@ -245,10 +202,8 @@ export function useRejectVerification() {
 export function useSuspendCompany() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ companyId, reason }: { companyId: string; reason: string }) => {
-      const { data } = await api.post<{ message: string }>(`/admin/companies/${companyId}/suspend`, { reason });
-      return data;
-    },
+    mutationFn: ({ companyId, reason }: { companyId: string; reason: string }) =>
+      companyService.suspend(companyId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     },
@@ -258,10 +213,7 @@ export function useSuspendCompany() {
 export function useUnsuspendCompany() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (companyId: string) => {
-      const { data } = await api.post<{ message: string }>(`/admin/companies/${companyId}/unsuspend`);
-      return data;
-    },
+    mutationFn: (companyId: string) => companyService.unsuspend(companyId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     },
@@ -272,28 +224,14 @@ export function useUnsuspendCompany() {
 export function useJobs(filters: JobFilters, page: number = 1, pageSize: number = 20) {
   return useQuery<PaginatedResponse<JobPosting>>({
     queryKey: queryKeys.jobs.list({ ...filters, page, pageSize }),
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-        ...Object.entries(filters).reduce((acc, [key, value]) => {
-          if (value) acc[key] = value;
-          return acc;
-        }, {} as Record<string, string>),
-      });
-      const { data } = await api.get<PaginatedResponse<JobPosting>>(`/admin/jobs?${params}`);
-      return data;
-    },
+    queryFn: ({ signal }) => jobService.list(filters, page, pageSize, signal),
   });
 }
 
 export function useJob(id: string) {
   return useQuery<JobPosting>({
     queryKey: queryKeys.jobs.detail(id),
-    queryFn: async () => {
-      const { data } = await api.get<JobPosting>(`/admin/jobs/${id}`);
-      return data;
-    },
+    queryFn: ({ signal }) => jobService.get(id, signal),
     enabled: !!id,
   });
 }
@@ -301,10 +239,18 @@ export function useJob(id: string) {
 export function useFlagJob() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ jobId, reason }: { jobId: string; reason: string }) => {
-      const { data } = await api.post<{ message: string }>(`/admin/jobs/${jobId}/flag`, { reason });
-      return data;
+    mutationFn: ({ jobId, reason }: { jobId: string; reason: string }) =>
+      jobService.flag(jobId, reason),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
     },
+  });
+}
+
+export function useUnflagJob() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (jobId: string) => jobService.unflag(jobId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
     },
@@ -314,10 +260,7 @@ export function useFlagJob() {
 export function useCloseJob() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (jobId: string) => {
-      const { data } = await api.post<{ message: string }>(`/admin/jobs/${jobId}/close`);
-      return data;
-    },
+    mutationFn: (jobId: string) => jobService.close(jobId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.jobs.all });
     },
@@ -386,28 +329,14 @@ export function useRemoveReview() {
 export function useSubscriptions(filters: { status?: string; tier?: string }, page: number = 1, pageSize: number = 20) {
   return useQuery<PaginatedResponse<Subscription>>({
     queryKey: queryKeys.subscriptions.list({ ...filters, page, pageSize }),
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-        ...Object.entries(filters).reduce((acc, [key, value]) => {
-          if (value) acc[key] = value;
-          return acc;
-        }, {} as Record<string, string>),
-      });
-      const { data } = await api.get<PaginatedResponse<Subscription>>(`/admin/subscriptions?${params}`);
-      return data;
-    },
+    queryFn: ({ signal }) => subscriptionService.list(filters, page, pageSize, signal),
   });
 }
 
 export function useSubscription(id: string) {
   return useQuery<Subscription>({
     queryKey: queryKeys.subscriptions.detail(id),
-    queryFn: async () => {
-      const { data } = await api.get<Subscription>(`/admin/subscriptions/${id}`);
-      return data;
-    },
+    queryFn: ({ signal }) => subscriptionService.get(id, signal),
     enabled: !!id,
   });
 }
@@ -415,52 +344,55 @@ export function useSubscription(id: string) {
 export function useCancelSubscription() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ subscriptionId, reason }: { subscriptionId: string; reason: string }) => {
-      const { data } = await api.post<{ message: string }>(`/admin/subscriptions/${subscriptionId}/cancel`, { reason });
-      return data;
-    },
+    mutationFn: ({ subscriptionId, reason }: { subscriptionId: string; reason: string }) =>
+      subscriptionService.cancel(subscriptionId, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.subscriptions.all });
     },
   });
 }
 
+export function useRevenueStats() {
+  return useQuery({
+    queryKey: ['subscriptions', 'revenue-stats'],
+    queryFn: ({ signal }) => subscriptionService.revenueStats(signal),
+  });
+}
+
 // IAP hooks
-export function useIAPTransactions(filters: { status?: string; type?: string }, page: number = 1, pageSize: number = 20) {
+export function useIAPTransactions(filters: { status?: string; type?: string; provider?: string }, page: number = 1, pageSize: number = 20) {
   return useQuery<PaginatedResponse<IAPTransaction>>({
     queryKey: [...queryKeys.iap.transactions, filters, page, pageSize],
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-        ...Object.entries(filters).reduce((acc, [key, value]) => {
-          if (value) acc[key] = value;
-          return acc;
-        }, {} as Record<string, string>),
-      });
-      const { data } = await api.get<PaginatedResponse<IAPTransaction>>(`/admin/iap/transactions?${params}`);
-      return data;
-    },
+    queryFn: ({ signal }) => iapService.transactions(filters, page, pageSize, signal),
+  });
+}
+
+export function useIAPTransaction(transactionId: string) {
+  return useQuery<IAPTransaction>({
+    queryKey: [...queryKeys.iap.transactions, transactionId],
+    queryFn: ({ signal }) => iapService.transactionDetail(transactionId, signal),
+    enabled: !!transactionId,
   });
 }
 
 export function useWebhookEvents(page: number = 1, pageSize: number = 20) {
   return useQuery<PaginatedResponse<WebhookEventType>>({
     queryKey: [...queryKeys.iap.webhooks, page, pageSize],
-    queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<WebhookEventType>>(`/admin/iap/webhooks?page=${page}&pageSize=${pageSize}`);
-      return data;
-    },
+    queryFn: ({ signal }) => iapService.webhookEvents(page, pageSize, signal),
+  });
+}
+
+export function useWebhookMetrics() {
+  return useQuery({
+    queryKey: [...queryKeys.iap.webhooks, 'metrics'],
+    queryFn: ({ signal }) => iapService.webhookMetrics(signal),
   });
 }
 
 export function useRetryWebhook() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (webhookId: string) => {
-      const { data } = await api.post<{ message: string }>(`/admin/iap/webhooks/${webhookId}/retry`);
-      return data;
-    },
+    mutationFn: (webhookId: string) => iapService.retryWebhook(webhookId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.iap.webhooks });
     },
@@ -471,30 +403,41 @@ export function useRetryWebhook() {
 export function useTrustEvents(page: number = 1, pageSize: number = 20) {
   return useQuery<PaginatedResponse<TrustEvent>>({
     queryKey: [...queryKeys.trust.events, page, pageSize],
-    queryFn: async () => {
-      const { data } = await api.get<PaginatedResponse<TrustEvent>>(`/admin/trust/events?page=${page}&pageSize=${pageSize}`);
-      return data;
-    },
+    queryFn: ({ signal }) => trustService.events(page, pageSize, signal),
   });
 }
 
 export function useLowTrustCompanies() {
   return useQuery<LowTrustCompany[]>({
     queryKey: queryKeys.trust.lowTrust,
-    queryFn: async () => {
-      const { data } = await api.get<LowTrustCompany[]>('/admin/trust/low-trust');
-      return data;
-    },
+    queryFn: ({ signal }) => trustService.lowTrustCompanies(signal),
+  });
+}
+
+export function useCompanyTrustHistory(companyId: string) {
+  return useQuery<TrustEvent[]>({
+    queryKey: [...queryKeys.trust.all, 'history', companyId],
+    queryFn: ({ signal }) => trustService.companyHistory(companyId, signal),
+    enabled: !!companyId,
   });
 }
 
 export function useRecalculateTrustScore() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (companyId: string) => {
-      const { data } = await api.post<{ message: string; score: number }>(`/admin/trust/${companyId}/recalculate`);
-      return data;
+    mutationFn: (companyId: string) => trustService.recalculateTrustScore(companyId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.trust.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
     },
+  });
+}
+
+export function useAdjustTrustScore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ companyId, score, reason }: { companyId: string; score: number; reason: string }) =>
+      trustService.adjustTrustScore(companyId, score, reason),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.trust.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.companies.all });
@@ -506,39 +449,27 @@ export function useRecalculateTrustScore() {
 export function useMatches(filters: { status?: string }, page: number = 1, pageSize: number = 20) {
   return useQuery<PaginatedResponse<Match>>({
     queryKey: queryKeys.matches.list({ ...filters, page, pageSize }),
-    queryFn: async () => {
-      const params = new URLSearchParams({
-        page: page.toString(),
-        pageSize: pageSize.toString(),
-        ...Object.entries(filters).reduce((acc, [key, value]) => {
-          if (value) acc[key] = value;
-          return acc;
-        }, {} as Record<string, string>),
-      });
-      const { data } = await api.get<PaginatedResponse<Match>>(`/admin/matches?${params}`);
-      return data;
-    },
+    queryFn: ({ signal }) => matchService.list(filters, page, pageSize, signal),
   });
 }
 
 export function useMatchStats() {
-  return useQuery<{
-    totalMatches: number;
-    pendingMatches: number;
-    acceptedMatches: number;
-    rejectedMatches: number;
-    averageMatchScore: number;
-  }>({
+  return useQuery({
     queryKey: ['matches', 'stats'],
-    queryFn: async () => {
-      const { data } = await api.get<{
-        totalMatches: number;
-        pendingMatches: number;
-        acceptedMatches: number;
-        rejectedMatches: number;
-        averageMatchScore: number;
-      }>('/admin/matches/stats');
-      return data;
-    },
+    queryFn: ({ signal }) => matchService.stats(signal),
+  });
+}
+
+export function useApplications(filters: { status?: string; companyId?: string }, page: number = 1, pageSize: number = 20) {
+  return useQuery({
+    queryKey: ['applications', 'list', filters, page, pageSize],
+    queryFn: ({ signal }) => matchService.applications(filters, page, pageSize, signal),
+  });
+}
+
+export function useApplicationStats() {
+  return useQuery({
+    queryKey: ['applications', 'stats'],
+    queryFn: ({ signal }) => matchService.applicationStats(signal),
   });
 }

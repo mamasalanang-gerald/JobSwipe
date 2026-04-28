@@ -20,9 +20,15 @@ class MembershipActiveMiddlewareTest extends TestCase
     {
         parent::setUp();
 
-        $this->hr = User::factory()->create(['role' => 'hr']);
+        $this->hr = User::factory()->create([
+            'role' => 'hr',
+            'email_verified_at' => now(),
+        ]);
         // Need an owner for the company profile factory valid creation
-        $owner = User::factory()->create(['role' => 'company_admin']);
+        $owner = User::factory()->create([
+            'role' => 'company_admin',
+            'email_verified_at' => now(),
+        ]);
         $this->company = CompanyProfile::factory()->create(['owner_user_id' => $owner->id]);
     }
 

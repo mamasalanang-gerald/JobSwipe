@@ -62,7 +62,8 @@ class MagicLinkValidationTest extends TestCase
         $response->assertJsonPath('data.inviter_name', 'admin@company.com');
 
         // Verify click tracking
-        $this->assertNotNull($invite->fresh()->magic_link_clicked_at);
+        $updatedInvite = CompanyInvite::find($invite->id);
+        $this->assertNotNull($updatedInvite->magic_link_clicked_at);
     }
 
     public function test_expired_magic_link()

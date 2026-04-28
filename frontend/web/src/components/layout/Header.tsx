@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useAuthStore } from '@/lib/authStore';
 import { usePathname } from 'next/navigation';
 import { Menu, ChevronDown, LogOut, User, Search } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatRole } from '@/lib/utils';
 import { Button } from '@/components/shared/Button';
 
 interface HeaderProps {
@@ -74,7 +74,7 @@ export function Header({ onMenuClick }: HeaderProps) {
             </div>
             <div className="hidden text-left md:block">
               <p className="text-sm font-medium text-zinc-200">{user?.name || 'User'}</p>
-              <p className="text-xs text-zinc-500 capitalize">{user?.role}</p>
+              <p className="text-xs text-zinc-500">{formatRole(user?.role || '')}</p>
             </div>
             <ChevronDown className="h-4 w-4 text-zinc-500" />
           </button>

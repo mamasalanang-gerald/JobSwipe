@@ -39,7 +39,7 @@ class CompanyMembershipService
         $membership->joined_at = $membership->exists ? $membership->joined_at : now();
         $membership->save();
 
-        return $membership->fresh();
+        return $membership;
     }
 
     /**

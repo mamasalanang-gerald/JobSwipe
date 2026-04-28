@@ -37,6 +37,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             BlockedEmailDomainSeeder::class,
+            AdminUserSeeder::class,
         ]);
     }
 }

@@ -1,8 +1,13 @@
 <?php
 
+use App\Http\Controllers\Admin\AdminAnalyticsController;
 use App\Http\Controllers\Admin\AdminCompanyVerificationController;
 use App\Http\Controllers\Admin\AdminDashboardController;
+use App\Http\Controllers\Admin\AdminIAPController;
+use App\Http\Controllers\Admin\AdminJobController;
 use App\Http\Controllers\Admin\AdminReviewController;
+use App\Http\Controllers\Admin\AdminSubscriptionController;
+use App\Http\Controllers\Admin\AdminTrustController;
 use App\Http\Controllers\Admin\AdminUserController;
 use App\Http\Controllers\Applicant\ApplicationController;
 use App\Http\Controllers\Applicant\MatchController as ApplicantMatchController;
@@ -11,7 +16,6 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Auth\OAuthController;
 use App\Http\Controllers\Company\ApplicantReviewController;
 use App\Http\Controllers\Company\CompanyInviteController;
-use App\Http\Controllers\Company\CompanyMemberController;
 use App\Http\Controllers\Company\JobPostingController;
 use App\Http\Controllers\Company\MatchController as CompanyMatchController;
 use App\Http\Controllers\File\FileUploadController;
@@ -151,11 +155,19 @@ Route::middleware('throttle:api-tiered')->group(function () {
 
                 // ── Company Invites (company_admin only) ──────────────────────────
                 Route::middleware('role:company_admin')->prefix('invites')->group(function () {
-                    Route::post('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'store']);
-                    Route::post('bulk', [\App\Http\Controllers\Company\CompanyInviteController::class, 'bulkStore']);
+                    Route::post('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'store'])
+                        ->middleware('throttle:invite-create');
+                    Route::post('bulk', [\App\Http\Controllers\Company\CompanyInviteController::class, 'bulkStore'])
+                        ->middleware('throttle:invite-create');
                     Route::get('/', [\App\Http\Controllers\Company\CompanyInviteController::class, 'index']);
                     Route::delete('{inviteId}', [\App\Http\Controllers\Company\CompanyInviteController::class, 'destroy']);
                     Route::post('{inviteId}/resend', [\App\Http\Controllers\Company\CompanyInviteController::class, 'resend']);
+                });
+
+                // ── Company Members (company_admin only) ──────────────────────────
+                Route::middleware('role:company_admin')->prefix('members')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Company\CompanyMemberController::class, 'index']);
+                    Route::delete('{userId}/revoke', [\App\Http\Controllers\Company\CompanyMemberController::class, 'revoke']);
                 });
             });
 
@@ -214,26 +226,81 @@ Route::middleware('throttle:api-tiered')->group(function () {
 
             // ── Admin Job Posting Management ──────────────────────────────────
             Route::middleware('role:moderator,super_admin')->prefix('admin/jobs')->group(function () {
+                Route::get('/', [AdminJobController::class, 'index']);
+                Route::get('{id}', [AdminJobController::class, 'show']);
+                Route::post('{id}/flag', [AdminJobController::class, 'flag']);
+                Route::post('{id}/unflag', [AdminJobController::class, 'unflag']);
+                Route::post('{id}/close', [AdminJobController::class, 'close']);
                 Route::delete('{id}/force', [JobPostingController::class, 'forceDestroy']);
-                // ── Admin: Verification, User lookup, Dashboard (moderator + super_admin) ──
-                Route::middleware('role:moderator,super_admin')->prefix('admin')->group(function () {
-                    Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
+            });
 
-                    Route::prefix('companies/verifications')->group(function () {
-                        Route::get('/', [AdminCompanyVerificationController::class, 'index']);
-                        Route::get('{companyId}', [AdminCompanyVerificationController::class, 'show']);
-                        Route::post('{companyId}/approve', [AdminCompanyVerificationController::class, 'approve']);
-                        Route::post('{companyId}/reject', [AdminCompanyVerificationController::class, 'reject']);
-                    });
+            // ── Admin: Verification, User lookup, Dashboard (moderator + super_admin) ──
+            Route::middleware('role:moderator,super_admin')->prefix('admin')->group(function () {
+                Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
 
-                    Route::get('users', [AdminUserController::class, 'index']);
-                    Route::get('users/{id}', [AdminUserController::class, 'show']);
+                // ── Admin Analytics Endpoints ──────────────────────────────────
+                Route::prefix('dashboard')->group(function () {
+                    Route::get('user-growth', [AdminAnalyticsController::class, 'userGrowthData']);
+                    Route::get('revenue', [AdminAnalyticsController::class, 'revenueData']);
+                    Route::get('activity', [AdminAnalyticsController::class, 'recentActivity']);
                 });
 
-                // ── Admin: Destructive user actions (super_admin only) ────────────
-                Route::middleware('role:super_admin')->prefix('admin')->group(function () {
-                    Route::post('users/{id}/ban', [AdminUserController::class, 'ban']);
-                    Route::post('users/{id}/unban', [AdminUserController::class, 'unban']);
+                Route::prefix('companies/verifications')->group(function () {
+                    Route::get('/', [AdminCompanyVerificationController::class, 'index']);
+                    Route::get('{companyId}', [AdminCompanyVerificationController::class, 'show']);
+                    Route::post('{companyId}/approve', [AdminCompanyVerificationController::class, 'approve']);
+                    Route::post('{companyId}/reject', [AdminCompanyVerificationController::class, 'reject']);
+                });
+
+                // ── Admin Company Management Endpoints ─────────────────────────
+                Route::prefix('companies')->group(function () {
+                    Route::get('/', [\App\Http\Controllers\Admin\AdminCompanyController::class, 'index']);
+                    Route::get('{id}', [\App\Http\Controllers\Admin\AdminCompanyController::class, 'show']);
+                });
+
+                // ── Admin Subscription Management Endpoints ────────────────────
+                Route::prefix('subscriptions')->group(function () {
+                    Route::get('/', [AdminSubscriptionController::class, 'index']);
+                    Route::get('revenue-stats', [AdminSubscriptionController::class, 'revenueStats']);
+                    Route::get('{id}', [AdminSubscriptionController::class, 'show']);
+                });
+
+                // ── Admin IAP Transaction Management Endpoints ─────────────────
+                Route::prefix('iap')->group(function () {
+                    Route::get('transactions', [AdminIAPController::class, 'transactions']);
+                    Route::get('transactions/{transactionId}', [AdminIAPController::class, 'transactionDetail']);
+                    Route::get('webhooks', [AdminIAPController::class, 'webhookEvents']);
+                    Route::get('webhooks/metrics', [AdminIAPController::class, 'webhookMetrics']);
+                    Route::post('webhooks/{eventId}/retry', [AdminIAPController::class, 'retryWebhook']);
+                });
+
+                // ── Admin Trust System Management Endpoints ────────────────────
+                Route::prefix('trust')->group(function () {
+                    Route::get('events', [AdminTrustController::class, 'trustEvents']);
+                    Route::get('low-trust-companies', [AdminTrustController::class, 'lowTrustCompanies']);
+                    Route::get('companies/{companyId}/history', [AdminTrustController::class, 'companyTrustHistory']);
+                    Route::post('companies/{companyId}/recalculate', [AdminTrustController::class, 'recalculateTrustScore']);
+                    Route::post('companies/{companyId}/adjust', [AdminTrustController::class, 'adjustTrustScore']);
+                });
+
+                Route::get('users', [AdminUserController::class, 'index']);
+                Route::get('users/{id}', [AdminUserController::class, 'show']);
+            });
+
+            // ── Admin: Destructive user actions (super_admin only) ────────────
+            Route::middleware('role:super_admin')->prefix('admin')->group(function () {
+                Route::post('users/{id}/ban', [AdminUserController::class, 'ban']);
+                Route::post('users/{id}/unban', [AdminUserController::class, 'unban']);
+
+                // ── Admin Company Destructive Actions ──────────────────────────
+                Route::prefix('companies')->group(function () {
+                    Route::post('{id}/suspend', [\App\Http\Controllers\Admin\AdminCompanyController::class, 'suspend']);
+                    Route::post('{id}/unsuspend', [\App\Http\Controllers\Admin\AdminCompanyController::class, 'unsuspend']);
+                });
+
+                // ── Admin Subscription Destructive Actions ─────────────────────
+                Route::prefix('subscriptions')->group(function () {
+                    Route::post('{id}/cancel', [AdminSubscriptionController::class, 'cancel']);
                 });
             });
         });

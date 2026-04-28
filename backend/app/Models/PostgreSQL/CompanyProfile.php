@@ -29,6 +29,7 @@ class CompanyProfile extends Model
         'user_id', 'owner_user_id', 'company_name', 'company_domain', 'is_free_email_domain',
         'is_verified', 'verification_status',
         'subscription_tier', 'subscription_status',
+        'status', 'suspension_reason', 'suspended_at',
         'trust_score', 'trust_level', 'listing_cap',
         'active_listings_count',
     ];
@@ -39,6 +40,7 @@ class CompanyProfile extends Model
         'active_listings_count' => 'integer',
         'trust_score' => 'integer',
         'listing_cap' => 'integer',
+        'suspended_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -87,7 +89,18 @@ class CompanyProfile extends Model
     public function canPostJobs(): bool
     {
         return $this->isApproved()
+            && $this->status === 'active'
             && $this->listing_cap > 0
             && $this->active_listings_count < $this->listing_cap;
+    }
+
+    public function isSuspended(): bool
+    {
+        return $this->status === 'suspended';
+    }
+
+    public function isActive(): bool
+    {
+        return $this->status === 'active';
     }
 }
