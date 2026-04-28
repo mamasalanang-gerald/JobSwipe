@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import api from './api';
 
-export type UserRole = 'super_admin' | 'moderator';
+export type UserRole = 'super_admin' | 'admin' | 'moderator';
 
 export interface AuthUser {
   id: string;
@@ -10,6 +10,7 @@ export interface AuthUser {
   email: string;
   role: UserRole;
   avatarUrl?: string;
+  is_active: boolean;
 }
 
 interface AuthState {

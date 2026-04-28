@@ -192,4 +192,97 @@ class MatchRepository
             ->whereNull('read_at')
             ->count();
     }
+
+    /**
+     * Search matches for admin with filters
+     */
+    public function searchAdmin(array $filters, int $perPage = 20): LengthAwarePaginator
+    {
+        $query = MatchRecord::with(['applicant.user', 'jobPosting.company', 'hrUser']);
+
+        if (!empty($filters['status'])) {
+            $query->where('status', $filters['status']);
+        }
+
+        if (!empty($filters['applicant_id'])) {
+            $query->where('applicant_id', $filters['applicant_id']);
+        }
+
+        if (!empty($filters['job_posting_id'])) {
+            $query->where('job_posting_id', $filters['job_posting_id']);
+        }
+
+        if (!empty($filters['company_id'])) {
+            $query->whereHas('jobPosting', function ($q) use ($filters) {
+                $q->where('company_id', $filters['company_id']);
+            });
+        }
+
+        if (!empty($filters['date_from'])) {
+            $query->where('matched_at', '>=', $filters['date_from']);
+        }
+
+        if (!empty($filters['date_to'])) {
+            $query->where('matched_at', '<=', $filters['date_to']);
+        }
+
+        return $query->orderBy('matched_at', 'desc')->paginate($perPage);
+    }
+
+    /**
+     * Count all matches
+     */
+    public function countAll(): int
+    {
+        return MatchRecord::count();
+    }
+
+    /**
+     * Count matches by status
+     */
+    public function countByStatus(string $status): int
+    {
+        return MatchRecord::where('status', $status)->count();
+    }
+
+    /**
+     * Count matches created today
+     */
+    public function countCreatedToday(): int
+    {
+        return MatchRecord::whereDate('matched_at', today())->count();
+    }
+
+    /**
+     * Count matches created this week
+     */
+    public function countCreatedThisWeek(): int
+    {
+        return MatchRecord::whereBetween('matched_at', [
+            now()->startOfWeek(),
+            now()->endOfWeek(),
+        ])->count();
+    }
+
+    /**
+     * Count matches created this month
+     */
+    public function countCreatedThisMonth(): int
+    {
+        return MatchRecord::whereYear('matched_at', now()->year)
+            ->whereMonth('matched_at', now()->month)
+            ->count();
+    }
+
+    /**
+     * Calculate average response time in hours
+     */
+    public function averageResponseTime(): float
+    {
+        $avg = MatchRecord::whereNotNull('responded_at')
+            ->selectRaw('AVG(EXTRACT(EPOCH FROM (responded_at - matched_at)) / 3600) as avg_hours')
+            ->value('avg_hours');
+
+        return round((float) $avg, 2);
+    }
 }

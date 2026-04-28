@@ -31,6 +31,7 @@ class AdminService
         private AdminAnalyticsRepository $analytics,
         private TrustEventRepository $trustEvents,
         private TrustScoreService $trustScoreService,
+        private AuditService $auditService,
     ) {}
 
     public function approveCompanyVerification(string $companyId, string $moderatorId): CompanyProfile
@@ -45,10 +46,34 @@ class AdminService
             throw new RuntimeException('Company already approved');
         }
 
+        $beforeState = [
+            'is_verified' => $company->is_verified,
+            'verification_status' => $company->verification_status,
+        ];
+
         $updated = $this->companies->update($company, [
             'is_verified' => true,
             'verification_status' => 'approved',
         ]);
+
+        $afterState = [
+            'is_verified' => $updated->is_verified,
+            'verification_status' => $updated->verification_status,
+        ];
+
+        // Log audit
+        $moderator = $this->users->findById($moderatorId);
+        if ($moderator) {
+            $this->auditService->log(
+                'company_verification_approve',
+                'company',
+                $companyId,
+                $moderator,
+                null,
+                $beforeState,
+                $afterState
+            );
+        }
 
         if ($updated->owner_user_id) {
             $this->notifications->create(
@@ -75,16 +100,40 @@ class AdminService
             throw new RuntimeException('Company already rejected');
         }
 
+        $beforeState = [
+            'is_verified' => $company->is_verified,
+            'verification_status' => $company->verification_status,
+        ];
+
         $updated = $this->companies->update($company, [
             'is_verified' => false,
             'verification_status' => 'rejected',
         ]);
+
+        $afterState = [
+            'is_verified' => $updated->is_verified,
+            'verification_status' => $updated->verification_status,
+        ];
 
         $this->companyDocs->updateFields($companyId, [
             'verification_rejection_reason' => $reason,
             'verification_rejected_at' => now(),
             'verification_rejected_by' => $moderatorId,
         ]);
+
+        // Log audit
+        $moderator = $this->users->findById($moderatorId);
+        if ($moderator) {
+            $this->auditService->log(
+                'company_verification_reject',
+                'company',
+                $companyId,
+                $moderator,
+                ['reason' => $reason],
+                $beforeState,
+                $afterState
+            );
+        }
 
         if ($updated->owner_user_id) {
             $this->notifications->create(
@@ -302,7 +351,23 @@ class AdminService
             throw new RuntimeException('Company is already suspended');
         }
 
+        $beforeState = ['status' => $company->status];
+
         $result = $this->companies->suspendCompany($companyId, $reason);
+
+        // Log audit
+        $actor = $this->users->findById($actorId);
+        if ($actor) {
+            $this->auditService->log(
+                'company_suspend',
+                'company',
+                $companyId,
+                $actor,
+                ['reason' => $reason],
+                $beforeState,
+                ['status' => 'suspended']
+            );
+        }
 
         if ($result && $company->owner_user_id) {
             // Send notification to company owner
@@ -345,7 +410,23 @@ class AdminService
             throw new RuntimeException('Company is not suspended');
         }
 
+        $beforeState = ['status' => $company->status];
+
         $result = $this->companies->unsuspendCompany($companyId);
+
+        // Log audit
+        $actor = $this->users->findById($actorId);
+        if ($actor) {
+            $this->auditService->log(
+                'company_unsuspend',
+                'company',
+                $companyId,
+                $actor,
+                null,
+                $beforeState,
+                ['status' => 'active']
+            );
+        }
 
         if ($result && $company->owner_user_id) {
             // Send notification to company owner
@@ -396,6 +477,20 @@ class AdminService
 
         // Log the recalculation
         $this->trustEvents->logTrustRecalculation($companyId, $oldScore, $newScore, $actorId);
+
+        // Log audit
+        $actor = $this->users->findById($actorId);
+        if ($actor) {
+            $this->auditService->log(
+                'trust_score_recalculate',
+                'company',
+                $companyId,
+                $actor,
+                null,
+                ['trust_score' => $oldScore],
+                ['trust_score' => $newScore]
+            );
+        }
 
         return $newScore;
     }
@@ -449,6 +544,20 @@ class AdminService
 
         // Log the adjustment
         $this->trustEvents->logTrustAdjustment($companyId, $oldScore, $newScore, $reason, $actorId);
+
+        // Log audit
+        $actor = $this->users->findById($actorId);
+        if ($actor) {
+            $this->auditService->log(
+                'trust_score_adjust',
+                'company',
+                $companyId,
+                $actor,
+                ['reason' => $reason],
+                ['trust_score' => $oldScore],
+                ['trust_score' => $newScore]
+            );
+        }
 
         // Notify company owner
         if ($company->owner_user_id) {

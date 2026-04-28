@@ -12,12 +12,14 @@ import { useCompanies, useSuspendCompany, useUnsuspendCompany } from '@/lib/hook
 import { Company, CompanyFilters, CompanyVerificationStatus, CompanyTrustLevel, CompanySubscriptionTier, CompanyStatus } from '@/types';
 import { formatDateTime } from '@/lib/utils';
 import { Eye, Ban, CheckCircle, Building } from 'lucide-react';
+import { usePermissions } from '@/contexts/PermissionContext';
 
 export default function CompaniesPage() {
   const [filters, setFilters] = useState<CompanyFilters>({});
   const [page, setPage] = useState(1);
   const [selectedCompany, setSelectedCompany] = useState<{ company: Company; action: 'suspend' | 'unsuspend' } | null>(null);
 
+  const { hasPermission } = usePermissions();
   const { data, isLoading } = useCompanies(filters, page, 20);
   const suspendCompany = useSuspendCompany();
   const unsuspendCompany = useUnsuspendCompany();
@@ -89,6 +91,9 @@ export default function CompaniesPage() {
       id: 'actions',
       cell: ({ row }) => {
         const company = row.original;
+        const canSuspend = hasPermission('companies.suspend');
+        const canUnsuspend = hasPermission('companies.unsuspend');
+        
         return (
           <div className="flex items-center gap-2">
             <Link href={`/companies/${company.id}`}>
@@ -97,21 +102,45 @@ export default function CompaniesPage() {
               </Button>
             </Link>
             {company.status === 'suspended' ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedCompany({ company, action: 'unsuspend' })}
-              >
-                <CheckCircle className="h-4 w-4 text-emerald-500" />
-              </Button>
+              canUnsuspend ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedCompany({ company, action: 'unsuspend' })}
+                  title="Unsuspend company"
+                >
+                  <CheckCircle className="h-4 w-4 text-emerald-500" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled
+                  title="Requires companies.unsuspend permission"
+                >
+                  <CheckCircle className="h-4 w-4 text-zinc-600" />
+                </Button>
+              )
             ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelectedCompany({ company, action: 'suspend' })}
-              >
-                <Ban className="h-4 w-4 text-red-500" />
-              </Button>
+              canSuspend ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setSelectedCompany({ company, action: 'suspend' })}
+                  title="Suspend company"
+                >
+                  <Ban className="h-4 w-4 text-red-500" />
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  disabled
+                  title="Requires companies.suspend permission"
+                >
+                  <Ban className="h-4 w-4 text-zinc-600" />
+                </Button>
+              )
             )}
           </div>
         );

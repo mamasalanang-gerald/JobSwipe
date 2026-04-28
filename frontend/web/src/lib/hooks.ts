@@ -473,3 +473,137 @@ export function useApplicationStats() {
     queryFn: ({ signal }) => matchService.applicationStats(signal),
   });
 }
+
+// ─── Admin Users Hooks ───────────────────────────────────────────
+import { adminUserService, type AdminUser, type AdminUserFilters, type CreateAdminUserRequest, type UpdateRoleRequest } from '@/services/adminUserService';
+
+export const adminUserKeys = {
+  all: ['admin-users'] as const,
+  lists: () => [...adminUserKeys.all, 'list'] as const,
+  list: (filters: AdminUserFilters & { page?: number; pageSize?: number }) => [...adminUserKeys.lists(), filters] as const,
+  detail: (id: string) => [...adminUserKeys.all, 'detail', id] as const,
+};
+
+export function useAdminUsers(
+  filters: AdminUserFilters = {},
+  page: number = 1,
+  pageSize: number = 20
+) {
+  return useQuery({
+    queryKey: adminUserKeys.list({ ...filters, page, pageSize }),
+    queryFn: ({ signal }) => adminUserService.list(filters, page, pageSize, signal),
+  });
+}
+
+export function useAdminUser(id: string) {
+  return useQuery({
+    queryKey: adminUserKeys.detail(id),
+    queryFn: ({ signal }) => adminUserService.get(id, signal),
+    enabled: !!id,
+  });
+}
+
+export function useCreateAdminUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: CreateAdminUserRequest) => adminUserService.create(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminUserKeys.lists() });
+    },
+  });
+}
+
+export function useUpdateAdminUserRole() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, payload }: { id: string; payload: UpdateRoleRequest }) =>
+      adminUserService.updateRole(id, payload),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: adminUserKeys.lists() });
+      queryClient.invalidateQueries({ queryKey: adminUserKeys.detail(variables.id) });
+    },
+  });
+}
+
+export function useDeactivateAdminUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminUserService.deactivate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminUserKeys.lists() });
+    },
+  });
+}
+
+export function useReactivateAdminUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminUserService.reactivate(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminUserKeys.lists() });
+    },
+  });
+}
+
+export function useResendAdminInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminUserService.resendInvitation(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminUserKeys.lists() });
+    },
+  });
+}
+
+export function useRevokeAdminInvitation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => adminUserService.revokeInvitation(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminUserKeys.lists() });
+    },
+  });
+}
+
+// ─── Audit Logs Hooks ────────────────────────────────────────────
+import { auditService, type AuditLog, type AuditLogFilters } from '@/services/auditService';
+
+export const auditKeys = {
+  all: ['audit'] as const,
+  lists: () => [...auditKeys.all, 'list'] as const,
+  list: (filters: AuditLogFilters & { page?: number; pageSize?: number }) => [...auditKeys.lists(), filters] as const,
+  detail: (id: string) => [...auditKeys.all, 'detail', id] as const,
+  actionTypes: ['audit', 'action-types'] as const,
+};
+
+export function useAuditLogs(
+  filters: AuditLogFilters = {},
+  page: number = 1,
+  pageSize: number = 20
+) {
+  return useQuery({
+    queryKey: auditKeys.list({ ...filters, page, pageSize }),
+    queryFn: ({ signal }) => auditService.list(filters, page, pageSize, signal),
+  });
+}
+
+export function useAuditLog(id: string) {
+  return useQuery({
+    queryKey: auditKeys.detail(id),
+    queryFn: ({ signal }) => auditService.get(id, signal),
+    enabled: !!id,
+  });
+}
+
+export function useAuditActionTypes() {
+  return useQuery({
+    queryKey: auditKeys.actionTypes,
+    queryFn: ({ signal }) => auditService.getActionTypes(signal),
+  });
+}
+
+export function useExportAuditLogs() {
+  return useMutation({
+    mutationFn: (filters: AuditLogFilters) => auditService.export(filters),
+  });
+}

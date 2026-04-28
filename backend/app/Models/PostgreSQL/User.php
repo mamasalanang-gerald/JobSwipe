@@ -106,4 +106,38 @@ class User extends Authenticatable
     {
         return $this->email_verified_at !== null;
     }
+
+    // RBAC Role Checking Methods
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === 'super_admin';
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
+
+    public function isModerator(): bool
+    {
+        return $this->role === 'moderator';
+    }
+
+    public function isAdminUser(): bool
+    {
+        return in_array($this->role, ['super_admin', 'admin', 'moderator'], true);
+    }
+
+    // RBAC Permission Checking Methods
+
+    public function hasPermission(string $permission): bool
+    {
+        return app(\App\Services\PermissionService::class)->hasPermission($this, $permission);
+    }
+
+    public function canPerformAction(string $action, ?\Illuminate\Database\Eloquent\Model $target = null): bool
+    {
+        return app(\App\Services\PermissionService::class)->canPerformAction($this, $action, $target);
+    }
 }

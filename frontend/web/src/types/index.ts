@@ -1,5 +1,5 @@
 // User types
-export type UserRole = 'super_admin' | 'moderator' | 'applicant' | 'hr' | 'company_admin';
+export type UserRole = 'super_admin' | 'admin' | 'moderator' | 'applicant' | 'hr' | 'company_admin';
 export type UserStatus = 'active' | 'banned' | 'suspended' | 'pending';
 
 export interface User {

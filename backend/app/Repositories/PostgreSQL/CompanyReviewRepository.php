@@ -41,7 +41,7 @@ class CompanyReviewRepository
     {
         return CompanyReview::where('company_id', $companyId)
             ->where('is_visible', true)
-            ->pluck('id');
+            ->get(['id']);
     }
 
     public function getFlaggedReviews(int $perPage = 20): LengthAwarePaginator
@@ -50,6 +50,13 @@ class CompanyReviewRepository
             ->where('is_visible', true)
             ->with(['applicant', 'company', 'jobPosting'])
             ->orderBy('updated_at', 'desc')
+            ->paginate($perPage);
+    }
+
+    public function getAllWithPagination(int $perPage = 20): LengthAwarePaginator
+    {
+        return CompanyReview::with(['applicant', 'company', 'jobPosting'])
+            ->orderBy('created_at', 'desc')
             ->paginate($perPage);
     }
 

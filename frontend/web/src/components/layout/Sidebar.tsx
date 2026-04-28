@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { usePermissions } from '@/contexts/PermissionContext';
 import {
   LayoutDashboard,
   Users,
@@ -22,44 +23,59 @@ import {
   ChevronRight,
   ChevronDown,
   ChevronUp,
+  FileText,
+  UsersRound,
 } from 'lucide-react';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
-const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { name: 'Users', href: '/users', icon: Users },
+interface NavItem {
+  name: string;
+  href: string;
+  icon: any;
+  permission: string;
+  children?: { name: string; href: string; permission?: string }[];
+}
+
+const allNavigation: NavItem[] = [
+  { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard, permission: 'dashboard.view' },
+  { name: 'Users', href: '/users', icon: Users, permission: 'users.view' },
   {
     name: 'Companies',
     href: '/companies',
     icon: Building2,
+    permission: 'companies.view',
     children: [
-      { name: 'All Companies', href: '/companies' },
-      { name: 'Verifications', href: '/companies/verifications' },
+      { name: 'All Companies', href: '/companies', permission: 'companies.view' },
+      { name: 'Verifications', href: '/companies/verifications', permission: 'companies.verify' },
     ],
   },
-  { name: 'Jobs', href: '/jobs', icon: Briefcase },
-  { name: 'Reviews', href: '/reviews', icon: MessageSquare },
-  { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard },
+  { name: 'Jobs', href: '/jobs', icon: Briefcase, permission: 'jobs.view' },
+  { name: 'Reviews', href: '/reviews', icon: MessageSquare, permission: 'reviews.view' },
+  { name: 'Subscriptions', href: '/subscriptions', icon: CreditCard, permission: 'subscriptions.view' },
   {
     name: 'IAP',
     href: '/iap/transactions',
     icon: ShoppingCart,
+    permission: 'iap.view',
     children: [
-      { name: 'Transactions', href: '/iap/transactions' },
-      { name: 'Webhooks', href: '/iap/webhooks' },
+      { name: 'Transactions', href: '/iap/transactions', permission: 'iap.view' },
+      { name: 'Webhooks', href: '/iap/webhooks', permission: 'iap.view' },
     ],
   },
   {
     name: 'Trust System',
     href: '/trust/events',
     icon: Shield,
+    permission: 'trust.view',
     children: [
-      { name: 'Events', href: '/trust/events' },
-      { name: 'Low Trust Companies', href: '/trust/low-trust' },
+      { name: 'Events', href: '/trust/events', permission: 'trust.view' },
+      { name: 'Low Trust Companies', href: '/trust/low-trust', permission: 'trust.view' },
     ],
   },
-  { name: 'Matches', href: '/matches', icon: UserCheck },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Matches', href: '/matches', icon: UserCheck, permission: 'matches.view' },
+  { name: 'Admin Users', href: '/admin-users', icon: UsersRound, permission: 'admin_users.view' },
+  { name: 'Audit Logs', href: '/audit', icon: FileText, permission: 'audit.view_all' },
+  { name: 'Settings', href: '/settings', icon: Settings, permission: 'dashboard.view' },
 ];
 
 interface PopoverState {
@@ -69,11 +85,27 @@ interface PopoverState {
 
 export function Sidebar({ onCollapse }: { onCollapse?: (collapsed: boolean) => void }) {
   const pathname = usePathname();
+  const { hasPermission } = usePermissions();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
   const [popoverState, setPopoverState] = useState<PopoverState | null>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout>();
+
+  // Filter navigation based on permissions
+  const navigation = useMemo(() => {
+    return allNavigation
+      .filter((item) => hasPermission(item.permission))
+      .map((item) => {
+        if (item.children) {
+          const filteredChildren = item.children.filter((child) =>
+            child.permission ? hasPermission(child.permission) : true
+          );
+          return { ...item, children: filteredChildren.length > 0 ? filteredChildren : undefined };
+        }
+        return item;
+      });
+  }, [hasPermission]);
 
   // Initialize expanded items based on current path
   useEffect(() => {
@@ -151,7 +183,7 @@ export function Sidebar({ onCollapse }: { onCollapse?: (collapsed: boolean) => v
     setPopoverState(null);
   };
 
-  const isItemActive = (item: typeof navigation[0]) => {
+  const isItemActive = (item: NavItem) => {
     if (item.children) {
       return item.children.some((child) => pathname === child.href);
     }
@@ -174,7 +206,6 @@ export function Sidebar({ onCollapse }: { onCollapse?: (collapsed: boolean) => v
                 <Activity className="h-5 w-5 text-white" />
               </div>
               <span className="text-lg font-bold text-zinc-100">JobSwipe</span>
-              <span className="ml-auto text-xs text-zinc-500">Admin</span>
             </>
           )}
           {isCollapsed && (
