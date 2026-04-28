@@ -54,10 +54,10 @@ export default function LoginScreen() {
       await new Promise((r) => setTimeout(r, 600));
 
       if (email === MOCK_APPLICANT.email && password === MOCK_APPLICANT.password) {
-        setToken(MOCK_TOKEN);
+        await setToken(MOCK_TOKEN, 'applicant');
         router.replace('/(tabs)');
       } else if (email === MOCK_COMPANY.email && password === MOCK_COMPANY.password) {
-        setToken(MOCK_TOKEN);
+        await setToken(MOCK_TOKEN, 'hr');
         router.replace('/(company-tabs)');
       } else {
         setError('Invalid credentials. Use one of the demo accounts shown above.');
@@ -75,7 +75,7 @@ export default function LoginScreen() {
       });
       const data = await response.json();
       if (data.success) {
-        setToken(data.data.token);
+        await setToken(data.data.token, data.data.role === 'hr' ? 'hr' : 'applicant');
         router.replace(data.data.role === 'hr' ? '/(company-tabs)' : '/(tabs)');
       } else {
         setError(data.message || 'Invalid email or password.');

@@ -8,109 +8,23 @@ import {
   Dimensions, NativeSyntheticEvent, NativeScrollEvent,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../theme'; // ← centralized theme
+import { useTheme } from '../../theme';
+import {
+  BASE_CAROUSEL,
+  CAROUSEL_JOBS,
+  CAROUSEL_START_INDEX,
+  FILTERS,
+  GRID_JOBS,
+  TAG_STYLES,
+  filterJobs,
+  type Job,
+  type TagVariant,
+} from '../../constants/jobs';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH      = (SCREEN_WIDTH - 40 - 12) / 2;
+const CARD_WIDTH = (SCREEN_WIDTH - 40 - 12) / 2;
 const HERO_CARD_WIDTH = SCREEN_WIDTH - 40;
 
-// ─── Types & data ─────────────────────────────────────────────────────────────
-type TagVariant = 'remote' | 'full' | 'hybrid' | 'contract' | 'onsite';
-
-// Tag styles that look good on both dark image overlays — kept static.
-const TAG_STYLES: Record<TagVariant, { bg: string; text: string; border: string }> = {
-  remote:   { bg: 'rgba(168,85,247,0.22)', text: '#d8b4fe', border: 'rgba(168,85,247,0.35)' },
-  full:     { bg: 'rgba(34,197,94,0.18)',  text: '#86efac', border: 'rgba(34,197,94,0.28)'  },
-  hybrid:   { bg: 'rgba(56,189,248,0.18)', text: '#7dd3fc', border: 'rgba(56,189,248,0.28)' },
-  contract: { bg: 'rgba(251,191,36,0.18)', text: '#fde68a', border: 'rgba(251,191,36,0.28)' },
-  onsite:   { bg: 'rgba(251,113,133,0.18)',text: '#fda4af', border: 'rgba(251,113,133,0.28)'},
-};
-
-const FILTERS = ['All', 'Remote', 'Hybrid', 'On-site', 'Startup', 'Enterprise'];
-
-const JOBS = [
-  {
-    id: 1, abbr: 'TF', company: 'TechFlow Inc', role: 'Sr. React Native Engineer',
-    salary: '$120k – $150k', location: 'San Francisco · Remote',
-    tags: [
-      { label: 'Remote',    variant: 'remote' as TagVariant },
-      { label: 'Full-time', variant: 'full'   as TagVariant },
-    ],
-    match: 92, posted: '2h ago', applicants: 34,
-    accentColor: '#a855f7',
-    distanceKm: 3.9,
-    image: require('../assets/images/accenture.jpg') as any,
-  },
-  {
-    id: 2, abbr: 'DS', company: 'DataStream', role: 'ML Engineer',
-    salary: '$140k – $180k', location: 'Boston · On-site',
-    tags: [
-      { label: 'On-site',   variant: 'onsite' as TagVariant },
-      { label: 'Full-time', variant: 'full'   as TagVariant },
-    ],
-    match: 85, posted: '1d ago', applicants: 22,
-    accentColor: '#1e40af',
-    distanceKm: 8.2,
-    image: require('../assets/images/socia.png') as any,
-  },
-  {
-    id: 3, abbr: 'IL', company: 'InnovateLabs', role: 'Product Designer',
-    salary: '$100k – $130k', location: 'New York · Hybrid',
-    tags: [
-      { label: 'Hybrid',    variant: 'hybrid' as TagVariant },
-      { label: 'Full-time', variant: 'full'   as TagVariant },
-    ],
-    match: 78, posted: '5h ago', applicants: 61,
-    accentColor: '#9f1239',
-    distanceKm: 15.4,
-    image: require('../assets/images/alorica.jpg') as any,
-  },
-  {
-    id: 4, abbr: 'CP', company: 'CloudPeak', role: 'Backend Engineer',
-    salary: '$110k – $140k', location: 'Austin · Remote',
-    tags: [
-      { label: 'Remote',   variant: 'remote'   as TagVariant },
-      { label: 'Contract', variant: 'contract' as TagVariant },
-    ],
-    match: 88, posted: '3h ago', applicants: 15,
-    accentColor: '#166534',
-    distanceKm: 20.1,
-    image: require('../assets/images/accenture2.jpg') as any,
-  },
-  {
-    id: 5, abbr: 'NA', company: 'Nexus AI', role: 'AI Product Manager',
-    salary: '$130k – $160k', location: 'Seattle · Hybrid',
-    tags: [
-      { label: 'Hybrid',    variant: 'hybrid' as TagVariant },
-      { label: 'Full-time', variant: 'full'   as TagVariant },
-    ],
-    match: 74, posted: '2d ago', applicants: 89,
-    accentColor: '#7c3aed',
-    distanceKm: 32.7,
-    image: require('../assets/images/socia2.jpg') as any,
-  },
-  {
-    id: 6, abbr: 'PW', company: 'Pixel Works', role: 'iOS Engineer',
-    salary: '$115k – $145k', location: 'Los Angeles · Remote',
-    tags: [
-      { label: 'Remote',    variant: 'remote' as TagVariant },
-      { label: 'Full-time', variant: 'full'   as TagVariant },
-    ],
-    match: 81, posted: '6h ago', applicants: 44,
-    accentColor: '#be185d',
-    distanceKm: 44.0,
-    image: require('../assets/images/alorica2.jpg') as any,
-  },
-];
-
-const BASE_CAROUSEL    = JOBS.slice(0, 5);
-const CAROUSEL_JOBS    = [BASE_CAROUSEL[BASE_CAROUSEL.length - 1], ...BASE_CAROUSEL, BASE_CAROUSEL[0]];
-const CAROUSEL_START_INDEX = 1;
-const GRID_JOBS        = JOBS.slice(1);
-
-type Job = typeof JOBS[number];
-
-// ─── Tag pill ─────────────────────────────────────────────────────────────────
 function TagPill({ label, variant }: { label: string; variant: TagVariant }) {
   const st = TAG_STYLES[variant];
   return (
@@ -120,12 +34,10 @@ function TagPill({ label, variant }: { label: string; variant: TagVariant }) {
   );
 }
 
-// ─── Hero Carousel Card ───────────────────────────────────────────────────────
 function HeroCarouselCard({ job, onPress }: { job: Job; onPress: (job: Job) => void }) {
-  const T = useTheme();
   return (
     <TouchableOpacity activeOpacity={0.9} style={{ width: HERO_CARD_WIDTH, marginRight: 12 }} onPress={() => onPress(job)}>
-      <ImageBackground source={job.image} style={[s.heroCard, { borderColor: T.border }]} imageStyle={s.heroCardImg}>
+      <ImageBackground source={job.image} style={s.heroCard} imageStyle={s.heroCardImg}>
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,5,30,0.75)', borderRadius: 24 }]} />
 
         <View style={s.heroTop}>
@@ -135,9 +47,9 @@ function HeroCarouselCard({ job, onPress }: { job: Job; onPress: (job: Job) => v
         </View>
 
         <View style={{ flex: 1 }}>
-          <Text style={[s.heroCompany, { color: 'rgba(255,255,255,0.6)' }]}>{job.company} · {job.location}</Text>
+          <Text style={[s.heroCompany, { color: 'rgba(255,255,255,0.6)' }]}>{job.company} - {job.location}</Text>
           <Text style={s.heroRole} numberOfLines={2}>{job.role}</Text>
-          <Text style={[s.heroSalary, { color: '#c084fc' }]}>{job.salary}</Text>
+          <Text style={[s.heroSalary, { color: '#c084fc' }]}>{job.salary.replace(' / yr', '')}</Text>
 
           <View style={s.heroDistanceRow}>
             <MaterialCommunityIcons name="map-marker-distance" size={12} color="rgba(255,255,255,0.35)" />
@@ -152,7 +64,7 @@ function HeroCarouselCard({ job, onPress }: { job: Job; onPress: (job: Job) => v
         <View style={s.heroFooter}>
           <View style={s.metaRow}>
             <MaterialCommunityIcons name="account-group-outline" size={12} color="rgba(255,255,255,0.35)" />
-            <Text style={[s.metaText, { color: 'rgba(255,255,255,0.35)' }]}>{job.applicants} applied · {job.posted}</Text>
+            <Text style={[s.metaText, { color: 'rgba(255,255,255,0.35)' }]}>{job.applicants} applied - {job.posted}</Text>
           </View>
           <TouchableOpacity activeOpacity={0.85} style={[s.applyBtn, { backgroundColor: job.accentColor }]} onPress={() => onPress(job)}>
             <Text style={s.applyBtnText}>View Details</Text>
@@ -164,11 +76,20 @@ function HeroCarouselCard({ job, onPress }: { job: Job; onPress: (job: Job) => v
   );
 }
 
-// ─── Grid card ────────────────────────────────────────────────────────────────
-function GridCard({ job, saved, onSave, onPress }: { job: Job; saved: boolean; onSave: () => void; onPress: (job: Job) => void }) {
+function GridCard({
+  job,
+  onPress,
+  fullWidth = false,
+}: {
+  job: Job;
+  saved: boolean;
+  onSave: () => void;
+  onPress: (job: Job) => void;
+  fullWidth?: boolean;
+}) {
   return (
-    <TouchableOpacity activeOpacity={0.88} onPress={() => onPress(job)} style={{ width: CARD_WIDTH }}>
-      <ImageBackground source={job.image} style={[s.gridCard, { width: '100%' }]} imageStyle={s.gridCardImg}>
+    <TouchableOpacity activeOpacity={0.88} onPress={() => onPress(job)} style={[s.gridCardWrap, fullWidth && s.gridCardWrapFull]}>
+      <ImageBackground source={job.image} style={s.gridCard} imageStyle={[s.gridCardImg, { width: fullWidth ? HERO_CARD_WIDTH : CARD_WIDTH }]}>
         <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(10,5,30,0.78)', borderRadius: 20 }]} />
 
         <View style={s.gridTop}>
@@ -181,7 +102,6 @@ function GridCard({ job, saved, onSave, onPress }: { job: Job; saved: boolean; o
           </View>
         </View>
 
-        {/* Bottom content */}
         <View>
           <Text style={s.gridRole} numberOfLines={2}>{job.role}</Text>
           <Text style={s.gridCompany} numberOfLines={1}>{job.company}</Text>
@@ -194,21 +114,20 @@ function GridCard({ job, saved, onSave, onPress }: { job: Job; saved: boolean; o
   );
 }
 
-// ─── ExploreTab ───────────────────────────────────────────────────────────────
 export default function ExploreTab() {
-  const T            = useTheme();                     // ← live theme tokens
+  const T = useTheme();
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
   const router = useRouter();
-  const [search, setSearch]             = useState('');
+  const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
-  const [savedIds, setSavedIds]         = useState<number[]>([2, 5]);
-  const [dotIndex, setDotIndex]         = useState(0);
-  const carouselRef        = useRef<ScrollView>(null);
-  const isPausedRef        = useRef(false);
-  const timerRef           = useRef<ReturnType<typeof setInterval> | null>(null);
-  const rawIndexRef        = useRef(CAROUSEL_START_INDEX);
-  const isJumpingRef       = useRef(false);
+  const [savedIds, setSavedIds] = useState<number[]>([2, 5]);
+  const [dotIndex, setDotIndex] = useState(0);
+  const carouselRef = useRef<ScrollView>(null);
+  const isPausedRef = useRef(false);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rawIndexRef = useRef(CAROUSEL_START_INDEX);
+  const isJumpingRef = useRef(false);
   const isAutoScrollingRef = useRef(false);
 
   const toggleSave = (id: number) =>
@@ -216,6 +135,12 @@ export default function ExploreTab() {
 
   const handleViewDetails = (job: Job) =>
     router.push({ pathname: '/jobs/[id]', params: { id: String(job.id) } });
+
+  const handleViewAllTopMatches = () =>
+    router.push({ pathname: '/jobs/all', params: { source: 'top-matches' } });
+
+  const handleViewAllJobs = () =>
+    router.push({ pathname: '/jobs/all', params: { source: 'explore', filter: activeFilter, search } });
 
   const jumpTo = (rawIdx: number) => {
     isJumpingRef.current = true;
@@ -274,16 +199,7 @@ export default function ExploreTab() {
 
   const handleScrollBeginDrag = () => { isPausedRef.current = true; };
 
-  const filteredGrid = GRID_JOBS.filter(j => {
-    const matchesFilter =
-      activeFilter === 'All' ||
-      j.tags.some(t => t.label === activeFilter) ||
-      j.location.includes(activeFilter);
-    const matchesSearch =
-      j.role.toLowerCase().includes(search.toLowerCase()) ||
-      j.company.toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const filteredGrid = filterJobs(GRID_JOBS, activeFilter, search);
 
   const rows: [Job, Job | null][] = [];
   for (let i = 0; i < filteredGrid.length; i += 2) {
@@ -294,7 +210,6 @@ export default function ExploreTab() {
     <View style={[s.screen, { backgroundColor: T.bg, paddingTop: topInset }]}>
       <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
 
-      {/* Header */}
       <View style={s.header}>
         <View style={s.headerRow}>
           <Text style={[s.pageTitle, { color: T.textPrimary }]}>Discover Jobs</Text>
@@ -304,7 +219,6 @@ export default function ExploreTab() {
         </View>
       </View>
 
-      {/* Search */}
       <View style={s.searchWrap}>
         <View style={[s.searchBar, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
           <MaterialCommunityIcons name="magnify" size={18} color={T.textHint} />
@@ -312,7 +226,7 @@ export default function ExploreTab() {
             style={[s.searchInput, { color: T.textPrimary }]}
             value={search}
             onChangeText={setSearch}
-            placeholder="Search roles, companies…"
+            placeholder="Search roles, companies..."
             placeholderTextColor={T.textHint}
           />
           {search.length > 0 && (
@@ -323,7 +237,6 @@ export default function ExploreTab() {
         </View>
       </View>
 
-      {/* Filter chips */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -343,17 +256,17 @@ export default function ExploreTab() {
         ))}
       </ScrollView>
 
-      {/* Main scroll */}
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: tabBarHeight + 24 }]}
       >
         <View style={s.sectionRow}>
           <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Top match for you</Text>
-          <TouchableOpacity><Text style={[s.viewAll, { color: T.primary }]}>View all</Text></TouchableOpacity>
+          <TouchableOpacity onPress={handleViewAllTopMatches}>
+            <Text style={[s.viewAll, { color: T.primary }]}>View all</Text>
+          </TouchableOpacity>
         </View>
 
-        {/* Carousel */}
         <ScrollView
           ref={carouselRef}
           horizontal
@@ -374,23 +287,23 @@ export default function ExploreTab() {
           ))}
         </ScrollView>
 
-        {/* Dots */}
         <View style={s.dotsRow}>
           {BASE_CAROUSEL.map((_, i) => (
             <View
               key={i}
               style={[s.dot, i === dotIndex
-                ? [s.dotActive,   { backgroundColor: T.primary }]
+                ? [s.dotActive, { backgroundColor: T.primary }]
                 : [s.dotInactive, { backgroundColor: T.borderFaint }]
               ]}
             />
           ))}
         </View>
 
-        {/* Grid */}
         <View style={[s.sectionRow, { marginTop: 24 }]}>
-          <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Explore categories</Text>
-          <TouchableOpacity><Text style={[s.viewAll, { color: T.primary }]}>View all</Text></TouchableOpacity>
+          <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Explore jobs</Text>
+          <TouchableOpacity onPress={handleViewAllJobs}>
+            <Text style={[s.viewAll, { color: T.primary }]}>View all</Text>
+          </TouchableOpacity>
         </View>
 
         {filteredGrid.length === 0 ? (
@@ -401,10 +314,16 @@ export default function ExploreTab() {
         ) : (
           rows.map(([left, right], ri) => (
             <View key={ri} style={s.gridRow}>
-              <GridCard job={left} saved={savedIds.includes(left.id)} onSave={() => toggleSave(left.id)} onPress={handleViewDetails} />
+              <GridCard
+                job={left}
+                saved={savedIds.includes(left.id)}
+                onSave={() => toggleSave(left.id)}
+                onPress={handleViewDetails}
+                fullWidth={!right}
+              />
               {right
                 ? <GridCard job={right} saved={savedIds.includes(right.id)} onSave={() => toggleSave(right.id)} onPress={handleViewDetails} />
-                : <View style={[s.gridCard, { opacity: 0 }]} />
+                : null
               }
             </View>
           ))
@@ -414,74 +333,75 @@ export default function ExploreTab() {
   );
 }
 
-// ─── Structural styles (no colours) ──────────────────────────────────────────
 const s = StyleSheet.create({
   screen: { flex: 1 },
 
-  header:    { paddingHorizontal: 20, paddingBottom: 16 },
+  header: { paddingHorizontal: 20, paddingBottom: 16 },
   headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   pageTitle: { fontSize: 28, fontWeight: '800', letterSpacing: -0.5 },
   filterBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
 
   searchWrap: { paddingHorizontal: 20, paddingBottom: 12 },
-  searchBar:  { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, height: 48 },
-  searchInput:{ flex: 1, fontSize: 14 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 16, borderWidth: 1, paddingHorizontal: 14, height: 48 },
+  searchInput: { flex: 1, fontSize: 14 },
 
   filterScrollView: { flexGrow: 0, flexShrink: 0, height: 52 },
-  filterRow:  { paddingHorizontal: 20, paddingVertical: 8, gap: 8, alignItems: 'center' },
-  chip:       { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
-  chipActive:      {},
-  chipInactive:    { borderWidth: 1 },
-  chipActiveText:  { fontSize: 13, fontWeight: '700' },
-  chipInactiveText:{ fontSize: 13, fontWeight: '600' },
+  filterRow: { paddingHorizontal: 20, paddingVertical: 8, gap: 8, alignItems: 'center' },
+  chip: { borderRadius: 20, paddingHorizontal: 16, paddingVertical: 8 },
+  chipActive: {},
+  chipInactive: { borderWidth: 1 },
+  chipActiveText: { fontSize: 13, fontWeight: '700' },
+  chipInactiveText: { fontSize: 13, fontWeight: '600' },
 
-  scroll:     { paddingHorizontal: 20, paddingTop: 4 },
+  scroll: { paddingHorizontal: 20, paddingTop: 4 },
 
-  sectionRow:   { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
   sectionTitle: { fontSize: 17, fontWeight: '700' },
-  viewAll:      { fontSize: 13, fontWeight: '600' },
+  viewAll: { fontSize: 13, fontWeight: '600' },
 
   carouselContainer: { paddingRight: 20 },
 
-  dotsRow:    { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 12 },
-  dot:        { borderRadius: 4 },
-  dotActive:  { width: 20, height: 6 },
-  dotInactive:{ width: 6,  height: 6 },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, marginTop: 12 },
+  dot: { borderRadius: 4 },
+  dotActive: { width: 20, height: 6 },
+  dotInactive: { width: 6, height: 6 },
 
-  heroCard:      { borderRadius: 24, overflow: 'hidden', borderWidth: 1, padding: 20, height: 280, flexDirection: 'column' },
-  heroCardImg:   { borderRadius: 24 },
-  heroTop:       { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
-  heroLogo:      { width: 50, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  heroLogoText:  { fontSize: 15, fontWeight: '800', color: '#fff' },
-  heroCompany:   { fontSize: 12, marginBottom: 4 },
-  heroRole:      { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.4, marginBottom: 4 },
-  heroSalary:    { fontSize: 14, fontWeight: '700', marginBottom: 6 },
-  heroDistanceRow:  { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
+  heroCard: { borderRadius: 24, overflow: 'hidden', borderWidth: 1, padding: 20, height: 280, flexDirection: 'column' },
+  heroCardImg: { borderRadius: 24 },
+  heroTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 14 },
+  heroLogo: { width: 50, height: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  heroLogoText: { fontSize: 15, fontWeight: '800', color: '#fff' },
+  heroCompany: { fontSize: 12, marginBottom: 4 },
+  heroRole: { fontSize: 20, fontWeight: '800', color: '#fff', letterSpacing: -0.4, marginBottom: 4 },
+  heroSalary: { fontSize: 14, fontWeight: '700', marginBottom: 6 },
+  heroDistanceRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 8 },
   heroDistanceText: { fontSize: 11 },
-  heroFooter:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
+  heroFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 8 },
 
-  tagRow:      { flexDirection: 'row', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
-  tagRowSingle:{ flexDirection: 'row', marginTop: 6 },
-  tag:         { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
-  tagText:     { fontSize: 11, fontWeight: '700' },
+  tagRow: { flexDirection: 'row', gap: 6, marginBottom: 10, flexWrap: 'wrap' },
+  tagRowSingle: { flexDirection: 'row', marginTop: 6 },
+  tag: { alignSelf: 'flex-start', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1 },
+  tagText: { fontSize: 11, fontWeight: '700' },
 
-  metaRow:  { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   metaText: { fontSize: 11 },
 
-  applyBtn:     { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 9 },
+  applyBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 22, paddingHorizontal: 16, paddingVertical: 9 },
   applyBtnText: { fontSize: 13, fontWeight: '700', color: '#fff' },
 
-  gridRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
-  gridCard:    { height: 200, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 12, justifyContent: 'space-between' },
-  gridCardImg: { borderRadius: 20 },
-  gridTop:     { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
-  gridLogo:    { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
-  gridLogoText:{ fontSize: 11, fontWeight: '800', color: '#fff' },
-  gridBadge:   { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 3 },
-  gridBadgeText:{ fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
-  gridRole:    { fontSize: 13, fontWeight: '800', color: '#fff', lineHeight: 17, marginBottom: 3 },
+  gridRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
+  gridCardWrap: { width: CARD_WIDTH },
+  gridCardWrapFull: { width: '100%' },
+  gridCard: { width: '100%', height: 200, borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255,255,255,0.07)', padding: 12, justifyContent: 'space-between' },
+  gridCardImg: { borderRadius: 20, width: CARD_WIDTH, height: 200, resizeMode: 'cover' },
+  gridTop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  gridLogo: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)' },
+  gridLogoText: { fontSize: 11, fontWeight: '800', color: '#fff' },
+  gridBadge: { flexDirection: 'row', alignItems: 'center', gap: 3, backgroundColor: 'rgba(0,0,0,0.3)', borderRadius: 10, paddingHorizontal: 7, paddingVertical: 3 },
+  gridBadgeText: { fontSize: 9, fontWeight: '700', color: 'rgba(255,255,255,0.7)' },
+  gridRole: { fontSize: 13, fontWeight: '800', color: '#fff', lineHeight: 17, marginBottom: 3 },
   gridCompany: { fontSize: 11, color: 'rgba(255,255,255,0.6)', marginBottom: 4 },
 
-  empty:     { alignItems: 'center', paddingTop: 60, gap: 12 },
+  empty: { alignItems: 'center', paddingTop: 60, gap: 12 },
   emptyText: { fontSize: 15 },
 });

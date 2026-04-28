@@ -1,12 +1,16 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { Stack, router } from 'expo-router';
+import { Stack, router, useSegments } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
+import { getTheme } from '../theme';
 
 export default function RootLayout() {
   const hydrate  = useAuthStore((s) => s.hydrate);
   const hydrated = useAuthStore((s) => s.hydrated);
   const token    = useAuthStore((s) => s.token);
+  const role     = useAuthStore((s) => s.role);
+  const theme    = getTheme();
+  const segments = useSegments();
 
   // Read persisted token once on mount
   useEffect(() => {
@@ -16,16 +20,25 @@ export default function RootLayout() {
   // Redirect once hydration is done
   useEffect(() => {
     if (!hydrated) return;
-    if (!token) {
-      router.replace('/(auth)/register');
+    const inAuthGroup = segments[0] === '(auth)';
+
+    if (token && role) {
+      if (inAuthGroup || segments[0] === undefined) {
+        router.replace(role === 'hr' ? '/(company-tabs)' : '/(tabs)');
+      }
+      return;
     }
-  }, [hydrated, token]);
+
+    if (!inAuthGroup) {
+      router.replace('/(auth)/login');
+    }
+  }, [hydrated, token, role, segments]);
 
   // Blank screen while AsyncStorage is being read
   if (!hydrated) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0f0a1e' }}>
-        <ActivityIndicator color="#a855f7" />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: theme.bg }}>
+        <ActivityIndicator color={theme.primary} />
       </View>
     );
   }
@@ -36,7 +49,9 @@ export default function RootLayout() {
       <Stack.Screen name="(auth)/register" />
       <Stack.Screen name="(auth)/login" />
       <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="(company-tabs)" />
       <Stack.Screen name="subscription" />
+      <Stack.Screen name="team-management" />
       <Stack.Screen name="jobs/[id]" options={{ headerShown: true, title: 'Job Details' }} />
       <Stack.Screen name="messages/[conversationId]" options={{ headerShown: true }} />
     </Stack>
