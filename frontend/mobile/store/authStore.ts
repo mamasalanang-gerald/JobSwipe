@@ -2,7 +2,7 @@
  * store/authStore.ts
  *
  * Zustand auth store with AsyncStorage persistence.
- * The token survives app restarts — rehydration happens automatically
+ * The token and role survive app restarts; rehydration happens automatically
  * via `hydrate()` which should be called once in your root _layout.tsx.
  */
 
@@ -10,47 +10,66 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const TOKEN_KEY = 'auth_token';
+const ROLE_KEY = 'auth_role';
+
+export type AuthRole = 'applicant' | 'hr';
 
 type AuthState = {
-  token:     string | null;
-  hydrated:  boolean;           // true once AsyncStorage has been read
+  token: string | null;
+  role: AuthRole | null;
+  hydrated: boolean;
 
-  setToken:  (token: string | null) => Promise<void>;
+  setToken: (token: string | null, role?: AuthRole | null) => Promise<void>;
   clearToken: () => Promise<void>;
-  hydrate:   () => Promise<void>;
+  hydrate: () => Promise<void>;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
-  token:    null,
+  token: null,
+  role: null,
   hydrated: false,
 
-  /** Persist a new token (or clear by passing null). */
-  setToken: async (token) => {
+  setToken: async (token, role = null) => {
     if (token) {
       await AsyncStorage.setItem(TOKEN_KEY, token);
+      if (role) {
+        await AsyncStorage.setItem(ROLE_KEY, role);
+      } else {
+        await AsyncStorage.removeItem(ROLE_KEY);
+      }
     } else {
       await AsyncStorage.removeItem(TOKEN_KEY);
+      await AsyncStorage.removeItem(ROLE_KEY);
     }
-    set({ token });
+
+    set({ token, role });
   },
 
-  /** Convenience logout helper — clears storage and resets state. */
   clearToken: async () => {
     await AsyncStorage.removeItem(TOKEN_KEY);
-    set({ token: null });
+    await AsyncStorage.removeItem(ROLE_KEY);
+    set({ token: null, role: null });
   },
 
-  /**
-   * Read the persisted token from AsyncStorage.
-   * Call this ONCE at app startup (root _layout.tsx) before rendering
-   * any protected screens.
-   */
   hydrate: async () => {
     try {
-      const token = await AsyncStorage.getItem(TOKEN_KEY);
-      set({ token: token ?? null, hydrated: true });
+      const [token, role] = await Promise.all([AsyncStorage.getItem(TOKEN_KEY), AsyncStorage.getItem(ROLE_KEY)]);
+
+      // Legacy sessions may still have a token without a stored role.
+      // Clear those so the app doesn't auto-route to the wrong account type.
+      if (token && !role) {
+        await AsyncStorage.removeItem(TOKEN_KEY);
+        set({ token: null, role: null, hydrated: true });
+        return;
+      }
+
+      set({
+        token: token ?? null,
+        role: role === 'hr' || role === 'applicant' ? role : null,
+        hydrated: true,
+      });
     } catch {
-      set({ hydrated: true }); // still mark hydrated so the app doesn't hang
+      set({ token: null, role: null, hydrated: true });
     }
   },
 }));

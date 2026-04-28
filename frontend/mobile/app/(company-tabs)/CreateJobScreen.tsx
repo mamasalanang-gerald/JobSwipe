@@ -602,8 +602,8 @@ export default function CreateJobScreen() {
 
           {!!location && (
             <View style={[s.locationPreview, { backgroundColor: 'rgba(74,222,128,0.07)', borderColor: 'rgba(74,222,128,0.25)' }]}>
-              <MaterialCommunityIcons name="map-marker-check-outline" size={14} color={T.green} />
-              <Text style={[s.locationPreviewText, { color: T.green }]}>{location}</Text>
+              <MaterialCommunityIcons name="map-marker-check-outline" size={14} color={T.success} />
+              <Text style={[s.locationPreviewText, { color: T.success }]}>{location}</Text>
             </View>
           )}
 
@@ -709,8 +709,8 @@ export default function CreateJobScreen() {
           <View style={s.skillSegment}>
             <View style={s.skillSectionHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <MaterialCommunityIcons name="account-heart-outline" size={13} color={T.green} />
-                <Text style={[s.skillSegmentLabel, { color: T.green }]}>Preferred Skills</Text>
+                <MaterialCommunityIcons name="account-heart-outline" size={13} color={T.success} />
+                <Text style={[s.skillSegmentLabel, { color: T.success }]}>Preferred Skills</Text>
               </View>
               <TouchableOpacity
                 style={[s.addBtn, { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' }]}
@@ -720,8 +720,8 @@ export default function CreateJobScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons name={showAddSoft ? 'minus' : 'plus'} size={12} color={T.green} />
-                <Text style={[s.addBtnText, { color: T.green }]}>{showAddSoft ? 'Cancel' : 'Add'}</Text>
+                <MaterialCommunityIcons name={showAddSoft ? 'minus' : 'plus'} size={12} color={T.success} />
+                <Text style={[s.addBtnText, { color: T.success }]}>{showAddSoft ? 'Cancel' : 'Add'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -731,13 +731,13 @@ export default function CreateJobScreen() {
                   key={`soft-${idx}`}
                   style={[s.chip, s.chipSoft, { backgroundColor: 'rgba(74,222,128,0.07)', borderColor: 'rgba(74,222,128,0.3)' }]}
                 >
-                  <Text style={[s.chipText, { color: T.green }]}>{sk.name}</Text>
+                  <Text style={[s.chipText, { color: T.success }]}>{sk.name}</Text>
                   <TouchableOpacity
                     onPress={() => removeSkill(skills.findIndex(s => s.name === sk.name && s.type === sk.type))}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     style={{ marginLeft: 4 }}
                   >
-                    <MaterialCommunityIcons name="close" size={10} color={T.green} />
+                    <MaterialCommunityIcons name="close" size={10} color={T.success} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -764,7 +764,7 @@ export default function CreateJobScreen() {
                   returnKeyType="done"
                 />
                 <TouchableOpacity
-                  style={[s.addBtnPrimary, { backgroundColor: T.green }]}
+                  style={[s.addBtnPrimary, { backgroundColor: T.success }]}
                   onPress={() => addSkill('soft')}
                   activeOpacity={0.8}
                 >

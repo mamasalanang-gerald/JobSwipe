@@ -31,6 +31,7 @@ type TeamMember = {
   name: string;
   role: string;
   avatar: string;
+  email: string;
 };
 
 type Plan = {
@@ -46,10 +47,42 @@ type Plan = {
 };
 
 const INITIAL_TEAM: TeamMember[] = [
-  { id: 1, name: 'Sofia Reyes', role: 'HR Manager', avatar: 'https://randomuser.me/api/portraits/women/44.jpg' },
-  { id: 2, name: 'Marco Cruz', role: 'CTO', avatar: 'https://randomuser.me/api/portraits/men/32.jpg' },
-  { id: 3, name: 'Aisha Santos', role: 'Lead Recruiter', avatar: 'https://randomuser.me/api/portraits/women/65.jpg' },
+  {
+    id: 1,
+    name: 'Sofia Reyes',
+    role: 'HR Manager',
+    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
+    email: 'sofia.reyes@accenture.com',
+  },
+  {
+    id: 2,
+    name: 'Marco Cruz',
+    role: 'Company Admin',
+    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
+    email: 'marco.cruz@accenture.com',
+  },
+  {
+    id: 3,
+    name: 'Aisha Santos',
+    role: 'HR Manager',
+    avatar: 'https://randomuser.me/api/portraits/women/65.jpg',
+    email: 'aisha.santos@accenture.com',
+  },
 ];
+
+const TEAM_ROLE_OPTIONS = [
+  { value: 'hr', label: 'HR Manager', helper: 'Can manage recruiting and applicants' },
+  { value: 'company_admin', label: 'Company Admin', helper: 'Full company access and settings control' },
+] as const;
+
+function formatInviteName(email: string) {
+  return email
+    .split('@')[0]
+    .split(/[._-]/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
 
 function buildPlans(primary: string, gold: string): Plan[] {
   return [
@@ -109,13 +142,82 @@ function Sep() {
   return <View style={{ height: 1, backgroundColor: T.borderFaint, marginVertical: 28, marginHorizontal: 24 }} />;
 }
 
-function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+function SettingsSheet({
+  visible,
+  onClose,
+  team,
+  onInvite,
+  onRevoke,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  team: TeamMember[];
+  onInvite: (payload: { email: string; role: string }) => void;
+  onRevoke: (memberId: number) => void;
+}) {
   const T = useTheme();
   const [isLight, setIsLight] = useState(getThemeMode() === 'light');
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteRole, setInviteRole] = useState<(typeof TEAM_ROLE_OPTIONS)[number]['value']>('hr');
+  const [inviteError, setInviteError] = useState('');
+  const [inviteSent, setInviteSent] = useState(false);
+  const [pendingRevoke, setPendingRevoke] = useState<TeamMember | null>(null);
 
   const handleToggle = (val: boolean) => {
     setIsLight(val);
     setThemeMode(val ? 'light' : 'dark');
+  };
+
+  const resetInviteForm = () => {
+    setInviteEmail('');
+    setInviteRole('hr');
+    setInviteError('');
+    setInviteSent(false);
+  };
+
+  const openInviteModal = () => {
+    resetInviteForm();
+    setShowInviteModal(true);
+  };
+
+  const closeInviteModal = () => {
+    resetInviteForm();
+    setShowInviteModal(false);
+  };
+
+  const handleInvite = () => {
+    if (inviteSent) {
+      resetInviteForm();
+      return;
+    }
+
+    const normalizedEmail = inviteEmail.trim().toLowerCase();
+
+    if (!normalizedEmail) {
+      setInviteError('Enter a team member work email.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      setInviteError('Enter a valid work email address.');
+      return;
+    }
+
+    const domain = normalizedEmail.split('@')[1];
+    if (domain !== 'accenture.com') {
+      setInviteError('Email must match the company domain.');
+      return;
+    }
+
+    if (team.some((member) => member.email.toLowerCase() === normalizedEmail)) {
+      setInviteError('That team member already has access.');
+      return;
+    }
+
+    onInvite({ email: normalizedEmail, role: inviteRole });
+    setInviteError('');
+    setInviteSent(true);
   };
 
   return (
@@ -178,7 +280,183 @@ function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => 
             <MaterialCommunityIcons name="chevron-right" size={18} color={T.textHint} />
           </TouchableOpacity>
         ))}
+
+        <Text style={[ss.groupLabel, { color: T.textHint }]}>Team Management (Admin Only)</Text>
+
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}
+          onPress={() => {
+            onClose();
+            router.push('/team-management');
+          }}
+        >
+          <View style={[ss.iconWrap, { backgroundColor: T.primary + '18' }]}>
+            <MaterialCommunityIcons name="account-group-outline" size={18} color={T.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[ss.rowLabel, { color: T.textPrimary }]}>Team Management</Text>
+            <Text style={[ss.rowSub, { color: T.textHint }]}>Open the admin invite and access form</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={18} color={T.textHint} />
+        </TouchableOpacity>
+
+        <View style={[ss.teamCard, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
+          <View style={ss.teamCardHeader}>
+            <View>
+              <Text style={[ss.teamCardTitle, { color: T.textPrimary }]}>Current Access</Text>
+              <Text style={[ss.teamCardSub, { color: T.textHint }]}>Revoke access for company members instantly</Text>
+            </View>
+            <View style={[ss.teamBadge, { backgroundColor: T.primary + '16', borderColor: T.primary + '2e' }]}>
+              <Text style={[ss.teamBadgeText, { color: T.primary }]}>{team.length} members</Text>
+            </View>
+          </View>
+
+          <View style={ss.teamList}>
+            {team.map((member, index) => (
+              <View
+                key={member.id}
+                style={[
+                  ss.memberRow,
+                  index < team.length - 1 && { borderBottomWidth: 1, borderBottomColor: T.borderFaint },
+                ]}
+              >
+                <Image source={{ uri: member.avatar }} style={[ss.memberAvatar, { borderColor: T.border }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={[ss.memberName, { color: T.textPrimary }]}>{member.name}</Text>
+                  <Text style={[ss.memberMeta, { color: T.textHint }]}>
+                    {member.role} • {member.email}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  activeOpacity={0.8}
+                  style={[ss.revokeBtn, { backgroundColor: T.dangerBg, borderColor: T.danger + '20' }]}
+                  onPress={() => setPendingRevoke(member)}
+                >
+                  <Text style={[ss.revokeBtnText, { color: T.danger }]}>Revoke</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        </View>
       </View>
+
+      <Modal visible={showInviteModal} transparent animationType="fade" onRequestClose={closeInviteModal}>
+        <View style={sheetModal.overlay}>
+          <TouchableOpacity style={sheetModal.backdrop} activeOpacity={1} onPress={closeInviteModal} />
+          <View style={[sheetModal.card, { backgroundColor: T.surface, borderColor: T.border }]}>
+            <Text style={[sheetModal.title, { color: T.textPrimary }]}>Invite Team Member</Text>
+            <Text style={[sheetModal.subtitle, { color: T.textSub }]}>
+              Add HR managers or company admins using their work email.
+            </Text>
+
+            <Text style={[sheetModal.fieldLabel, { color: T.textHint }]}>Work Email</Text>
+            <TextInput
+              style={[sheetModal.input, { backgroundColor: T.surfaceHigh, borderColor: T.border, color: T.textPrimary }]}
+              placeholder="hr@company.com"
+              placeholderTextColor={T.textHint}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={inviteEmail}
+              onChangeText={(text) => {
+                setInviteEmail(text);
+                if (inviteError) setInviteError('');
+              }}
+            />
+
+            <Text style={[sheetModal.helper, { color: T.textHint }]}>Enter team member&apos;s work email</Text>
+
+            <Text style={[sheetModal.fieldLabel, { color: T.textHint }]}>Role</Text>
+            <View style={sheetModal.roleList}>
+              {TEAM_ROLE_OPTIONS.map((role) => {
+                const selected = inviteRole === role.value;
+                return (
+                  <TouchableOpacity
+                    key={role.value}
+                    activeOpacity={0.8}
+                    style={[
+                      sheetModal.roleCard,
+                      {
+                        backgroundColor: selected ? T.primary + '10' : T.surfaceHigh,
+                        borderColor: selected ? T.primary : T.border,
+                      },
+                    ]}
+                    onPress={() => setInviteRole(role.value)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[sheetModal.roleTitle, { color: selected ? T.primary : T.textPrimary }]}>
+                        {role.label}
+                      </Text>
+                      <Text style={[sheetModal.roleHelper, { color: T.textHint }]}>{role.helper}</Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name={selected ? 'radiobox-marked' : 'radiobox-blank'}
+                      size={18}
+                      color={selected ? T.primary : T.textHint}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {!!inviteError && <Text style={[sheetModal.error, { color: T.danger }]}>{inviteError}</Text>}
+
+            {inviteSent && (
+              <View style={[sheetModal.successBox, { backgroundColor: T.primary + '10', borderColor: T.primary + '26' }]}>
+                <Text style={[sheetModal.successTitle, { color: T.primary }]}>Invite sent</Text>
+                <Text style={[sheetModal.successText, { color: T.textSub }]}>
+                  A confirmation link is ready for {inviteEmail.trim().toLowerCase()}.
+                </Text>
+              </View>
+            )}
+
+            <View style={sheetModal.actions}>
+              <TouchableOpacity
+                style={[sheetModal.secondaryBtn, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}
+                onPress={closeInviteModal}
+              >
+                <Text style={[sheetModal.secondaryBtnText, { color: T.textSub }]}>
+                  {inviteSent ? 'Close' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[sheetModal.primaryBtn, { backgroundColor: T.primary }]} onPress={handleInvite}>
+                <Text style={sheetModal.primaryBtnText}>{inviteSent ? 'Send Another' : 'Send Invite'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!pendingRevoke} transparent animationType="fade" onRequestClose={() => setPendingRevoke(null)}>
+        <View style={sheetModal.overlay}>
+          <TouchableOpacity style={sheetModal.backdrop} activeOpacity={1} onPress={() => setPendingRevoke(null)} />
+          <View style={[sheetModal.card, { backgroundColor: T.surface, borderColor: T.border }]}>
+            <Text style={[sheetModal.title, { color: T.textPrimary }]}>Revoke Access</Text>
+            <Text style={[sheetModal.subtitle, { color: T.textSub }]}>
+              Are you sure you want to revoke access for {pendingRevoke?.name}? They will be logged out immediately and
+              lose access to the company account.
+            </Text>
+
+            <View style={sheetModal.actions}>
+              <TouchableOpacity
+                style={[sheetModal.secondaryBtn, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}
+                onPress={() => setPendingRevoke(null)}
+              >
+                <Text style={[sheetModal.secondaryBtnText, { color: T.textSub }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[sheetModal.primaryBtn, { backgroundColor: T.danger }]}
+                onPress={() => {
+                  if (pendingRevoke) onRevoke(pendingRevoke.id);
+                  setPendingRevoke(null);
+                }}
+              >
+                <Text style={sheetModal.primaryBtnText}>Revoke Access</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 }
@@ -221,6 +499,46 @@ const ss = StyleSheet.create({
   iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: 14, fontWeight: '600' },
   rowSub: { fontSize: 11, marginTop: 1 },
+  teamCard: {
+    display: 'none',
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginTop: 4,
+  },
+  teamCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+    marginBottom: 10,
+  },
+  teamCardTitle: { fontSize: 14, fontWeight: '700' },
+  teamCardSub: { fontSize: 11, marginTop: 2 },
+  teamBadge: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  teamBadgeText: { fontSize: 10, fontWeight: '700' },
+  teamList: { gap: 2 },
+  memberRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 10,
+  },
+  memberAvatar: { width: 34, height: 34, borderRadius: 17, borderWidth: 1 },
+  memberName: { fontSize: 13, fontWeight: '700' },
+  memberMeta: { fontSize: 11, marginTop: 2 },
+  revokeBtn: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  revokeBtnText: { fontSize: 11, fontWeight: '700' },
 });
 
 export default function CompanyProfileScreen() {
@@ -277,7 +595,7 @@ export default function CompanyProfileScreen() {
 
   const handleSignOut = async () => {
     await clearToken();
-    router.replace('/(auth)/register');
+    router.replace('/(auth)/login');
   };
 
   const renderPlan = ({ item }: { item: Plan }) => {
@@ -347,7 +665,31 @@ export default function CompanyProfileScreen() {
         backgroundColor="transparent"
       />
 
-      <SettingsSheet visible={showSettings} onClose={() => setShowSettings(false)} />
+      <SettingsSheet
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        team={team}
+        onInvite={({ email, role }) => {
+          const selectedRole = TEAM_ROLE_OPTIONS.find((option) => option.value === role);
+          const inviteName = formatInviteName(email);
+
+          setTeam((prev) => {
+            const nextId = prev.length ? Math.max(...prev.map((member) => member.id)) + 1 : 1;
+
+            return [
+              ...prev,
+              {
+                id: nextId,
+                name: inviteName,
+                role: selectedRole?.label ?? 'HR Manager',
+                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(inviteName)}&background=E2E8F0&color=0F172A`,
+                email,
+              },
+            ];
+          });
+        }}
+        onRevoke={(memberId) => setTeam((prev) => prev.filter((member) => member.id !== memberId))}
+      />
 
       {showSignOutModal && (
         <View style={modal.overlay}>
@@ -823,6 +1165,79 @@ const s = StyleSheet.create({
   addInput: { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
   addConfirmBtn: { borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
   addConfirmText: { fontSize: 13, fontWeight: '700', color: '#fff' },
+});
+
+const sheetModal = StyleSheet.create({
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10000,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  backdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.72)' },
+  card: {
+    width: '100%',
+    borderRadius: 24,
+    borderWidth: 1,
+    padding: 22,
+    gap: 12,
+  },
+  title: { fontSize: 20, fontWeight: '800', letterSpacing: -0.4 },
+  subtitle: { fontSize: 13, lineHeight: 20, marginBottom: 4 },
+  fieldLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 4,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+  },
+  helper: { fontSize: 11, marginTop: -4 },
+  roleList: { gap: 8 },
+  roleCard: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  roleTitle: { fontSize: 14, fontWeight: '700' },
+  roleHelper: { fontSize: 11, marginTop: 2, lineHeight: 16 },
+  error: { fontSize: 12, fontWeight: '600' },
+  successBox: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 4,
+  },
+  successTitle: { fontSize: 13, fontWeight: '800' },
+  successText: { fontSize: 12, lineHeight: 18 },
+  actions: { flexDirection: 'row', gap: 10, marginTop: 6 },
+  secondaryBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  secondaryBtnText: { fontSize: 13, fontWeight: '700' },
+  primaryBtn: {
+    flex: 1,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  primaryBtnText: { fontSize: 13, fontWeight: '800', color: '#fff' },
 });
 
 const modal = StyleSheet.create({
