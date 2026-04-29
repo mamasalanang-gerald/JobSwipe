@@ -13,6 +13,7 @@ import { RegisterInviteCodeScreen } from '../../components/auth/register/Registe
 import { RegisterRoleSplash } from '../../components/auth/register/RegisterRoleSplash';
 import { RegisterStepContent } from '../../components/auth/register/RegisterStepContent';
 import { RegisterStepProgressBar } from '../../components/auth/register/RegisterStepProgressBar';
+import { RegisterOtpVerificationScreen } from '../../components/auth/register/RegisterOtpVerificationScreen';
 import { APPLICANT_STEPS, HARD_SKILL_SUGGESTIONS, HR_STEPS, JOB_TITLE_OPTIONS, Role, SOFT_SKILL_SUGGESTIONS, STEP_LABELS, WorkEntry, EducationEntry } from '../../components/auth/register/types';
 
 const MOCK_COMPANIES: Record<string, { name: string; validCodes: string[] }> = {
@@ -42,6 +43,10 @@ const getInfoFromInviteCode = (code: string): { email: string; company: { name: 
   return company ? { email: entry.email, company } : null;
 };
 
+const MOCK_APPLICANT_OTP = true;
+const MOCK_APPLICANT_OTP_CODE = '123456';
+const MOCK_APPLICANT_OTP_TOKEN = 'mock-applicant-otp-token';
+
 export default function RegisterScreen() {
   const T = useTheme();
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
@@ -59,6 +64,8 @@ export default function RegisterScreen() {
   const [location, setLocation] = useState('');
   const [locationCity, setLocationCity] = useState('');
   const [locationRegion, setLocationRegion] = useState('');
+  const [locationProvince, setLocationProvince] = useState('');
+  const [locationCountry, setLocationCountry] = useState('');
   const [bio, setBio] = useState('');
   const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
   const [hardSkills, setHardSkills] = useState<string[]>([]);
@@ -83,6 +90,7 @@ export default function RegisterScreen() {
   const [addressStreet, setAddressStreet] = useState('');
   const [addressCity, setAddressCity] = useState('');
   const [addressState, setAddressState] = useState('');
+  const [addressProvince, setAddressProvince] = useState('');
   const [addressCountry, setAddressCountry] = useState('');
   const [addressPostal, setAddressPostal] = useState('');
   const [companySocialLinks, setCompanySocialLinks] = useState<string[]>(['']);
@@ -92,10 +100,15 @@ export default function RegisterScreen() {
 
   const [roleSelected, setRoleSelected] = useState(false);
   const [emailDone, setEmailDone] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
   const [error, setError] = useState('');
+  const [errorTimestamp, setErrorTimestamp] = useState<number>(0);
   const [detectedCompany, setDetectedCompany] = useState<{ name: string; validCodes: string[] } | null>(null);
   const [showInvitePrompt, setShowInvitePrompt] = useState(false);
   const [inviteCode, setInviteCode] = useState('');
@@ -169,6 +182,17 @@ export default function RegisterScreen() {
 
   const hardSkillSuggestions = getFilteredSkillSuggestions('hard', hardSkillInput, hardSkills);
   const softSkillSuggestions = getFilteredSkillSuggestions('soft', softSkillInput, softSkills);
+  const normalizedWorkEntries = workEntries.filter((entry) =>
+    [entry.company, entry.position, entry.start_date, entry.end_date, entry.description].some((value) => value.trim() !== '')
+  );
+  const normalizedEducationEntries = educationEntries.filter((entry) =>
+    [entry.school, entry.degree, entry.field_of_study, entry.start_date, entry.end_date].some((value) => value.trim() !== '')
+  );
+  const normalizedSocialLinks = {
+    ...(linkedinUrl.trim().startsWith('https://') ? { linkedin: linkedinUrl.trim() } : {}),
+    ...(githubUrl.trim().startsWith('https://') ? { github: githubUrl.trim() } : {}),
+    ...(portfolioUrl.trim().startsWith('https://') ? { portfolio: portfolioUrl.trim() } : {}),
+  };
 
   useEffect(() => {
     const completeGoogleAuth = async (url: string | null) => {
@@ -218,6 +242,7 @@ export default function RegisterScreen() {
       if (!hasNumber) return setError('Password must contain at least 1 number.'), false;
     }
     if (stepKey === 'basic' && (!firstName || !lastName || !location)) return setError('First name, last name, and location are required.'), false;
+    if (stepKey === 'resume' && !resumeFile) return setError('Please upload your resume before continuing.'), false;
     if (stepKey === 'skills' && hardSkills.length + softSkills.length === 0) return setError('Please add at least one hard or soft skill.'), false;
     if (stepKey === 'company_details') {
       if (!companyName) return setError('Company name is required.'), false;
@@ -236,6 +261,44 @@ export default function RegisterScreen() {
   };
 
   const handleSubmit = async () => {
+    if (role === 'applicant') {
+      if (MOCK_APPLICANT_OTP) {
+        setError('');
+        setOtpCode('');
+        setOtpSent(true);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        const response = await fetch('http://localhost:8000/api/v1/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email,
+            password,
+            role,
+          }),
+        });
+        const data = await response.json();
+
+        if (!data.success) {
+          setError(data.message || 'Registration failed. Please try again.');
+          return;
+        }
+
+        setError('');
+        setOtpCode('');
+        setOtpSent(true);
+        return;
+      } catch {
+        setError('Could not connect to server. Please try again.');
+        return;
+      } finally {
+        setLoading(false);
+      }
+    }
+
     setLoading(true);
     try {
       const response = await fetch('http://localhost:8000/api/v1/auth/register', {
@@ -332,6 +395,160 @@ export default function RegisterScreen() {
     else handleSubmit();
   };
 
+  const completeApplicantOnboarding = async (token: string) => {
+    const headers = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    };
+
+    const stepPayloads = [
+      {
+        step: 1,
+        step_data: {
+          first_name: firstName,
+          last_name: lastName,
+          location,
+          location_city: locationCity || null,
+          location_region: locationRegion || null,
+          bio: bio || null,
+        },
+      },
+      {
+        step: 2,
+        step_data: {
+          resume_url: resumeFile?.uri ?? null,
+        },
+      },
+      {
+        step: 3,
+        step_data: {
+          skills: [...hardSkills, ...softSkills],
+        },
+      },
+      {
+        step: 4,
+        step_data: {
+          work_experience: normalizedWorkEntries,
+          education: normalizedEducationEntries,
+        },
+      },
+      {
+        step: 5,
+        step_data: {
+          profile_photo_url: photoFile?.uri ?? null,
+        },
+      },
+      {
+        step: 6,
+        step_data: {
+          social_links: normalizedSocialLinks,
+        },
+      },
+    ];
+
+    for (const payload of stepPayloads) {
+      const response = await fetch('http://localhost:8000/api/v1/profile/onboarding/complete-step', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || 'Could not complete applicant onboarding.');
+      }
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpCode.trim().length !== 6) {
+      setError('Please enter the 6-digit code sent to your email.');
+      setErrorTimestamp(Date.now());
+      return;
+    }
+
+    if (MOCK_APPLICANT_OTP) {
+      if (otpCode.trim() !== MOCK_APPLICANT_OTP_CODE) {
+        setError('Invalid test OTP. Use the temporary testing code.');
+        setErrorTimestamp(Date.now());
+        return;
+      }
+
+      setError('');
+      await setToken(MOCK_APPLICANT_OTP_TOKEN, 'applicant');
+      router.replace('/(tabs)');
+      return;
+    }
+
+    setOtpLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/auth/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          code: otpCode.trim(),
+        }),
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        setError(data.message || 'Verification failed. Please try again.');
+        setErrorTimestamp(Date.now());
+        return;
+      }
+
+      const token = data?.data?.token;
+      if (!token) {
+        setError('Verification succeeded, but no session token was returned.');
+        setErrorTimestamp(Date.now());
+        return;
+      }
+
+      await setToken(token, 'applicant');
+      try {
+        await completeApplicantOnboarding(token);
+      } catch {
+        // The account is already created and verified at this point.
+      }
+      router.replace('/(tabs)');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Could not complete verification. Please try again.';
+      setError(message);
+      setErrorTimestamp(Date.now());
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (MOCK_APPLICANT_OTP) {
+      setError('');
+      return;
+    }
+
+    setResendLoading(true);
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/auth/resend-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+
+      if (!data.success) {
+        setError(data.message || 'Could not resend the verification code.');
+        return;
+      }
+
+      setError('');
+    } catch {
+      setError('Could not resend the verification code. Please try again.');
+    } finally {
+      setResendLoading(false);
+    }
+  };
+
   const handleGoogleRegister = async () => {
     setError('');
     setGoogleLoading(true);
@@ -362,6 +579,8 @@ export default function RegisterScreen() {
 
   const resetForm = () => {
     setEmailDone(false);
+    setOtpSent(false);
+    setOtpCode('');
     setEmail('');
     setPassword('');
     setConfirmPassword('');
@@ -372,6 +591,8 @@ export default function RegisterScreen() {
     setLocation('');
     setLocationCity('');
     setLocationRegion('');
+    setLocationProvince('');
+    setLocationCountry('');
     setBio('');
     setResumeFile(null);
     setHardSkills([]);
@@ -395,6 +616,7 @@ export default function RegisterScreen() {
     setAddressStreet('');
     setAddressCity('');
     setAddressState('');
+    setAddressProvince('');
     setAddressCountry('');
     setAddressPostal('');
     setCompanySocialLinks(['']);
@@ -403,6 +625,8 @@ export default function RegisterScreen() {
     setOfficeImages([]);
     setCurrentStep(0);
     setGoogleLoading(false);
+    setOtpLoading(false);
+    setResendLoading(false);
     setError('');
     setDetectedCompany(null);
     setShowInvitePrompt(false);
@@ -484,6 +708,37 @@ export default function RegisterScreen() {
           setInviteCode('');
           setInviteError('');
           setShowInvitePrompt(false);
+        }}
+      />
+    );
+  }
+
+  if (role === 'applicant' && otpSent) {
+    return (
+      <RegisterOtpVerificationScreen
+        T={T}
+        topInset={topInset}
+        email={email}
+        code={otpCode}
+        error={error}
+        errorTimestamp={errorTimestamp}
+        helperMessage={MOCK_APPLICANT_OTP ? `Temporary OTP testing mode is enabled. Use code ${MOCK_APPLICANT_OTP_CODE}. No email or verification API call will be made.` : undefined}
+        verifying={otpLoading}
+        resending={resendLoading}
+        fieldLabelStyle={fieldLabelStyle}
+        inputRowStyle={inputRowStyle}
+        inputStyle={inputStyle}
+        onBack={() => {
+          setOtpSent(false);
+          setOtpCode('');
+          setError('');
+        }}
+        onChangeCode={setOtpCode}
+        onVerify={() => {
+          void handleVerifyOtp();
+        }}
+        onResend={() => {
+          void handleResendOtp();
         }}
       />
     );
@@ -593,12 +848,16 @@ export default function RegisterScreen() {
           location={location}
           locationCity={locationCity}
           locationRegion={locationRegion}
+          locationProvince={locationProvince}
+          locationCountry={locationCountry}
           bio={bio}
           setFirstName={setFirstName}
           setLastName={setLastName}
           setLocation={setLocation}
           setLocationCity={setLocationCity}
           setLocationRegion={setLocationRegion}
+          setLocationProvince={setLocationProvince}
+          setLocationCountry={setLocationCountry}
           setBio={setBio}
           resumeFile={resumeFile}
           setResumeFile={setResumeFile}
@@ -636,6 +895,7 @@ export default function RegisterScreen() {
           addressStreet={addressStreet}
           addressCity={addressCity}
           addressState={addressState}
+          addressProvince={addressProvince}
           addressCountry={addressCountry}
           addressPostal={addressPostal}
           companySocialLinks={companySocialLinks}
@@ -649,6 +909,7 @@ export default function RegisterScreen() {
           setAddressStreet={setAddressStreet}
           setAddressCity={setAddressCity}
           setAddressState={setAddressState}
+          setAddressProvince={setAddressProvince}
           setAddressCountry={setAddressCountry}
           setAddressPostal={setAddressPostal}
           setCompanySocialLinks={setCompanySocialLinks}
@@ -681,7 +942,7 @@ export default function RegisterScreen() {
           </TouchableOpacity>
         </View>
 
-        {['resume', 'photo', 'social'].includes(stepKey) && !isLastStep && (
+        {['photo', 'social'].includes(stepKey) && !isLastStep && (
           <TouchableOpacity onPress={() => setCurrentStep((value) => value + 1)} style={{ alignItems: 'center', paddingVertical: Spacing['1'] }}>
             <Text style={{ fontSize: Typography.sm, color: T.textHint }}>Skip for now</Text>
           </TouchableOpacity>

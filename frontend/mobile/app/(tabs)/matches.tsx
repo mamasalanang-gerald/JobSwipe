@@ -1,731 +1,1778 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import {
-  View, Text, ScrollView, TouchableOpacity, StyleSheet, BackHandler,
-  StatusBar, Dimensions, TextInput, Image, Keyboard, KeyboardEvent, Platform,
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  StatusBar,
+  Dimensions,
+  TextInput,
+  Keyboard,
+  KeyboardEvent,
+  Platform,
+  BackHandler,
+  Image,
+  ImageSourcePropType,
 } from 'react-native';
-import {
-  StatusPill, CountBadge, CompanyLogo,
-  Colors, Typography, Spacing, Radii,
-} from '../../components/ui';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useTheme } from '../../theme'; // ← centralized theme
+import Svg, { Circle } from 'react-native-svg';
+import { CompanyLogo, CountBadge, Radii, Spacing, StatusPill } from '../../components/ui';
+import { useTheme } from '../../theme';
+import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-
-// ─── Data ─────────────────────────────────────────────────────────────────────
-const NEW_MATCHES: {
-  id: number; abbr: string; color: string;
-  company: string; role: string; isNew: boolean;
-}[] = [];
+const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type Status = 'applied' | 'screening' | 'interview' | 'offer';
+type MatchState = 'pending' | 'expired' | 'active' | 'closed';
 
-const PIPELINE: {
-  id: number; abbr: string; color: string;
-  company: string; role: string; status: Status;
-  lastMsg: string; time: string; unread: number;
-  expired?: boolean;
-}[] = [
-  { id: 10, abbr: 'IL', color: '#f59e0b', company: 'InnovateLabs', role: 'Product Designer', lastMsg: "Hi Alex! We loved your portfolio — available for a call this week?", time: '2m', unread: 2, status: 'screening' },
-  { id: 11, abbr: 'PW', color: '#ec4899', company: 'Pixel Works',   role: 'iOS Engineer',      lastMsg: "Moving you to the technical interview stage 🎉", time: '1h', unread: 1, status: 'interview' },
-  { id: 12, abbr: 'TF', color: '#a855f7', company: 'TechFlow Inc',  role: 'Sr. RN Engineer',   lastMsg: "Thanks for applying! We'll review and get back to you soon.", time: '3h', unread: 0, status: 'applied', expired: true },
-  { id: 13, abbr: 'DS', color: '#22c55e', company: 'DataStream',    role: 'ML Engineer',        lastMsg: "We'd like to extend a formal offer — congratulations!", time: 'Yesterday', unread: 0, status: 'offer' },
+type MatchCompany = {
+  id: number;
+  abbr: string;
+  color: string;
+  company: string;
+  role: string;
+  status: Status;
+  prompt: string;
+  startedAt?: number;
+  matchCreatedAt: number;
+  badgeCount: number;
+};
+
+type Conversation = {
+  id: number;
+  companyId: number;
+  abbr: string;
+  color: string;
+  company: string;
+  role: string;
+  status: Status;
+  lastMsg: string;
+  time: string;
+  unread: number;
+  state: 'active' | 'closed' | 'expired';
+};
+
+type ChatMessage = {
+  id: number;
+  from: 'me' | 'them';
+  text: string;
+  time: string;
+};
+
+type Review = {
+  id: number;
+  companyId: number;
+  rating: number;
+  title: string;
+  body: string;
+  date: string;
+};
+
+type CompanyReviewDetails = {
+  location: string;
+  about: string;
+  banner: ImageSourcePropType;
+  photos: ImageSourcePropType[];
+};
+
+const now = Date.now();
+
+const MATCH_COMPANIES: MatchCompany[] = [
+  {
+    id: 10,
+    abbr: 'IL',
+    color: '#7c3aed',
+    company: 'InnovateLabs',
+    role: 'Product Designer',
+    status: 'screening',
+    prompt: 'Hi Alex, we matched with your profile. If you are interested, send us a quick intro in the next 24 hours.',
+    matchCreatedAt: now - 4 * 60 * 60 * 1000,
+    badgeCount: 1,
+  },
+  {
+    id: 11,
+    abbr: 'PW',
+    color: '#9333ea',
+    company: 'Pixel Works',
+    role: 'iOS Engineer',
+    status: 'interview',
+    prompt: 'We would love to hear from you today so we can reserve an interview slot for this week.',
+    matchCreatedAt: now - 13 * 60 * 60 * 1000,
+    badgeCount: 1,
+  },
+  {
+    id: 12,
+    abbr: 'TF',
+    color: '#a855f7',
+    company: 'TechFlow Inc',
+    role: 'Senior RN Engineer',
+    status: 'applied',
+    prompt: 'We matched with your application and had a follow-up question, but the 24-hour reply window has passed.',
+    matchCreatedAt: now - 28 * 60 * 60 * 1000,
+    badgeCount: 1,
+  },
 ];
 
-const APPLIED_COMPANIES = [
-  { id: 10, abbr: 'IL', color: '#f59e0b', company: 'InnovateLabs', role: 'Product Designer', salary: '$100k – $130k / yr', location: 'New York, NY · Hybrid', tags: ['Hybrid', 'Full-time', 'Scaleup'], description: 'Design beautiful interfaces for next-gen SaaS products. Work with a world-class design system team. Own end-to-end product design from research to delivery.', photos: [require('../assets/images/alorica.jpg'), require('../assets/images/alorica2.jpg'), require('../assets/images/alorica3.jpg')] },
-  { id: 11, abbr: 'PW', color: '#ec4899', company: 'Pixel Works',   role: 'iOS Engineer',      salary: '$115k – $145k / yr', location: 'Los Angeles · Remote',  tags: ['Remote', 'Full-time', 'Startup'],   description: 'Build polished iOS experiences for millions of creative professionals. Join a small, high-output team shipping major features every sprint.', photos: [require('../assets/images/alorica2.jpg'), require('../assets/images/alorica3.jpg'), require('../assets/images/alorica.jpg')] },
-  { id: 12, abbr: 'TF', color: '#a855f7', company: 'TechFlow Inc',  role: 'Sr. RN Engineer',   salary: '$120k – $150k / yr', location: 'San Francisco, CA · Remote', tags: ['Remote', 'Full-time', 'Startup'], description: 'Build cutting-edge mobile experiences for 2M+ users. Lead a team of 4 engineers shipping weekly releases.', photos: [require('../assets/images/accenture.jpg'), require('../assets/images/accenture2.jpg'), require('../assets/images/accenture3.jpg')] },
-  { id: 13, abbr: 'DS', color: '#22c55e', company: 'DataStream',    role: 'ML Engineer',        salary: '$140k – $180k / yr', location: 'Boston, MA · On-site',    tags: ['On-site', 'Full-time', 'Enterprise'], description: 'Lead machine learning initiatives for Fortune 500 clients. Publish research and own the ML roadmap. Work with petabyte-scale datasets.', photos: [require('../assets/images/socia.png'), require('../assets/images/socia2.jpg'), require('../assets/images/socia3.jpg')] },
+const INITIAL_CONVERSATIONS: Conversation[] = [
+  {
+    id: 201,
+    companyId: 13,
+    abbr: 'DS',
+    color: '#22c55e',
+    company: 'DataStream',
+    role: 'ML Engineer',
+    status: 'offer',
+    lastMsg: "We'd like to extend a formal offer. Congratulations!",
+    time: 'Yesterday',
+    unread: 0,
+    state: 'active',
+  },
+  {
+    id: 202,
+    companyId: 14,
+    abbr: 'NC',
+    color: '#06b6d4',
+    company: 'Northstar Cloud',
+    role: 'Frontend Engineer',
+    status: 'screening',
+    lastMsg: 'This conversation was closed by the company.',
+    time: '2d',
+    unread: 0,
+    state: 'closed',
+  },
 ];
 
-type Review    = { id: number; companyId: number; rating: number; title: string; body: string; date: string };
-type ChatMessage = { id: number; from: 'me' | 'them'; text: string; time: string };
-
-const SEED_MESSAGES: Record<number, ChatMessage[]> = {
+const INITIAL_MESSAGES: Record<number, ChatMessage[]> = {
   10: [
-    { id: 1, from: 'them', text: "Hi Alex! We loved your portfolio 🎨 — are you available for a quick call this week?", time: '10:02 AM' },
-    { id: 2, from: 'me',   text: "Thanks so much! I'd love that. I'm free Thursday or Friday afternoon.", time: '10:15 AM' },
-    { id: 3, from: 'them', text: "Perfect, let's do Friday at 2 PM EST. I'll send a calendar invite shortly.", time: '10:18 AM' },
-    { id: 4, from: 'me',   text: "Sounds great, looking forward to it!", time: '10:20 AM' },
-    { id: 5, from: 'them', text: "Hi Alex! We loved your portfolio — available for a call this week?", time: '2m ago' },
+    { id: 1, from: 'them', text: 'Hi Alex, we matched with your profile.', time: '9:10 AM' },
+    { id: 2, from: 'them', text: 'If you are interested, send us a quick intro in the next 24 hours.', time: '9:11 AM' },
   ],
   11: [
-    { id: 1, from: 'them', text: "Hey Alex, thanks for applying to the iOS Engineer role!", time: 'Yesterday' },
-    { id: 2, from: 'me',   text: "Thanks for considering me. I'm really excited about what Pixel Works is building.", time: 'Yesterday' },
-    { id: 3, from: 'them', text: "Moving you to the technical interview stage 🎉 Our team will reach out to schedule.", time: '1h ago' },
+    { id: 1, from: 'them', text: 'Thanks for applying to Pixel Works.', time: 'Yesterday' },
+    { id: 2, from: 'them', text: 'We would love to hear from you today so we can reserve an interview slot.', time: '1h ago' },
   ],
   12: [
-    { id: 1, from: 'me',   text: "Hi, I just submitted my application for the Sr. RN Engineer role. Looking forward to hearing from you!", time: '3h ago' },
-    { id: 2, from: 'them', text: "Thanks for applying! We'll review your profile and get back to you soon.", time: '3h ago' },
+    { id: 1, from: 'them', text: 'We matched with your application and had a follow-up question.', time: 'Yesterday' },
+    { id: 2, from: 'them', text: 'This match expired because no message was sent within the 24-hour reply window.', time: 'Yesterday' },
   ],
   13: [
-    { id: 1, from: 'me',   text: "Hi, I'm very interested in the ML Engineer position at DataStream.", time: 'Mon' },
-    { id: 2, from: 'them', text: "Great to meet you, Alex! Your background in ML is impressive.", time: 'Mon' },
-    { id: 3, from: 'me',   text: "Thank you! I've been following DataStream's research publications closely.", time: 'Tue' },
-    { id: 4, from: 'them', text: "We'd like to extend a formal offer — congratulations! 🎉 Details incoming.", time: 'Yesterday' },
+    { id: 1, from: 'them', text: 'Your background looks strong for our ML team.', time: 'Mon' },
+    { id: 2, from: 'me', text: 'Thank you. I would love to learn more about the role.', time: 'Tue' },
+    { id: 3, from: 'them', text: "We'd like to extend a formal offer. Congratulations!", time: 'Yesterday' },
+  ],
+  14: [
+    { id: 1, from: 'them', text: 'Thanks for interviewing with us this week.', time: 'Fri' },
+    { id: 2, from: 'me', text: 'Thank you for the update and the time with the team.', time: 'Fri' },
+    { id: 3, from: 'them', text: 'This conversation has now been closed by the company.', time: 'Sat' },
   ],
 };
 
 const AUTO_REPLIES: Record<number, string[]> = {
-  10: ["Sounds great, we'll confirm the time shortly!", "Looking forward to connecting with you 😊", "Feel free to ask any questions before the call."],
-  11: ["Our engineering team will reach out within 24 hours.", "Excited to have you move forward in the process!", "Let us know if you have any questions in the meantime."],
-  12: ["We appreciate your patience while we review.", "Our team carefully reviews every application.", "We'll be in touch soon!"],
-  13: ["Congratulations again — we're thrilled to have you!", "HR will send over the formal offer letter shortly.", "Feel free to reach out with any questions about the offer."],
+  10: [
+    'Perfect. Thanks for reaching out first. We will follow up with time slots shortly.',
+    'Thanks, Alex. Our recruiter will send next steps today.',
+  ],
+  11: [
+    'Great, we can keep that interview slot open for you.',
+    'Thanks for the quick intro. The team will reply with scheduling details.',
+  ],
+  13: [
+    'Amazing. HR will send the formal offer packet soon.',
+    'Happy to answer any questions you have about the offer.',
+  ],
 };
 
-// ─── Status helpers ───────────────────────────────────────────────────────────
-function statusBg(status: Status) {
-  const map: Record<Status, string> = { applied: 'rgba(255,255,255,0.07)', screening: 'rgba(245,158,11,0.12)', interview: 'rgba(168,85,247,0.15)', offer: 'rgba(34,197,94,0.12)' };
-  return map[status];
-}
-function statusColor(status: Status) {
-  const map: Record<Status, string> = { applied: 'rgba(255,255,255,0.5)', screening: '#fbbf24', interview: '#c084fc', offer: '#4ade80' };
-  return map[status];
-}
+const COMPANY_REVIEW_DETAILS: Record<number, CompanyReviewDetails> = {
+  10: {
+    location: 'New York, NY · Hybrid',
+    about: 'InnovateLabs builds product experiences for fast-moving teams and gives designers space to shape the customer journey from research to release. The company culture is collaborative, visual, and deeply focused on craft.',
+    banner: require('../assets/images/alorica.jpg'),
+    photos: [
+      require('../assets/images/alorica.jpg'),
+      require('../assets/images/alorica2.jpg'),
+      require('../assets/images/alorica3.jpg'),
+    ],
+  },
+  11: {
+    location: 'Los Angeles, CA · Remote',
+    about: 'Pixel Works is a mobile-first company that values polished user experiences, clean engineering execution, and fast feedback between design, product, and development. Teams move quickly without losing attention to detail.',
+    banner: require('../assets/images/accenture.jpg'),
+    photos: [
+      require('../assets/images/accenture.jpg'),
+      require('../assets/images/accenture2.jpg'),
+      require('../assets/images/accenture3.jpg'),
+    ],
+  },
+  12: {
+    location: 'San Francisco, CA · Remote',
+    about: 'TechFlow Inc builds large-scale mobile products and invests in a strong engineering foundation, rapid delivery, and dependable customer experiences. Teams work cross-functionally and own features end to end.',
+    banner: require('../assets/images/accenture2.jpg'),
+    photos: [
+      require('../assets/images/accenture2.jpg'),
+      require('../assets/images/accenture.jpg'),
+      require('../assets/images/accenture3.jpg'),
+    ],
+  },
+  13: {
+    location: 'Boston, MA · On-site',
+    about: 'DataStream focuses on machine learning systems and applied research for enterprise use cases. The company is technical, ambitious, and collaborative, with teams that care about experimentation, reliability, and long-term impact.',
+    banner: require('../assets/images/socia.png'),
+    photos: [
+      require('../assets/images/socia.png'),
+      require('../assets/images/socia2.jpg'),
+      require('../assets/images/socia3.jpg'),
+    ],
+  },
+  14: {
+    location: 'Denver, CO · Remote',
+    about: 'Northstar Cloud supports modern digital products through scalable frontend systems, infrastructure, and internal tooling. The team emphasizes dependable execution, straightforward communication, and a thoughtful candidate experience.',
+    banner: require('../assets/images/alorica3.jpg'),
+    photos: [
+      require('../assets/images/alorica3.jpg'),
+      require('../assets/images/alorica.jpg'),
+      require('../assets/images/alorica2.jpg'),
+    ],
+  },
+};
 
-// ─── Conversation Screen ──────────────────────────────────────────────────────
-function ConversationScreen({ conversation, onBack, tabBarHeight }: { conversation: typeof PIPELINE[number]; onBack: () => void; tabBarHeight: number }) {
-  const T = useTheme();
-  const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
-  const [messages, setMessages] = useState<ChatMessage[]>(SEED_MESSAGES[conversation.id] ?? []);
-  const [draft, setDraft]       = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
-  
-useEffect(() => { const sub = BackHandler.addEventListener('hardwareBackPress', () => { 
-  onBack(); return true; }); 
-  return () => sub.remove(); }, [onBack]);
-  
-useEffect(() => {
-  const show = Keyboard.addListener(
-    Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-    (e: KeyboardEvent) => {
-      if (Platform.OS === 'android') {
-        // On Android, use windowHeight (excludes nav bar) not screenHeight
-        const windowHeight = Dimensions.get('window').height;
-        const keyboardTop = e.endCoordinates.screenY;
-        setKeyboardHeight(Math.max(0, windowHeight - keyboardTop));
-      } else {
-        setKeyboardHeight(e.endCoordinates.height);
-      }
-    },
-  );
-  const hide = Keyboard.addListener(
-    Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-    () => setKeyboardHeight(0),
-  );
-  return () => { show.remove(); hide.remove(); };
-}, []);
-  const [isTyping, setIsTyping] = useState(false);
-  const scrollRef    = useRef<ScrollView>(null);
-  const replyIndexRef = useRef(0);
-
-  useEffect(() => {
-    const show = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', (e: KeyboardEvent) => {
-      if (Platform.OS === 'android') {
-        const windowHeight = Dimensions.get('window').height;
-        setKeyboardHeight(Math.max(0, windowHeight - e.endCoordinates.screenY));
-      } else { setKeyboardHeight(e.endCoordinates.height); }
-    });
-    const hide = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardHeight(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
-
-  useEffect(() => { setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 100); }, []);
-
-  const scrollToBottom = (animated = true) => { setTimeout(() => scrollRef.current?.scrollToEnd({ animated }), 100); };
-
-  const sendMessage = () => {
-    const text = draft.trim();
-    if (!text) return;
-    const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    setMessages(prev => [...prev, { id: Date.now(), from: 'me', text, time: now }]);
-    setDraft('');
-    scrollToBottom();
-    const replies = AUTO_REPLIES[conversation.id] ?? ["Thanks for your message!"];
-    const replyText = replies[replyIndexRef.current % replies.length];
-    replyIndexRef.current += 1;
-    setIsTyping(true);
-    scrollToBottom();
-    setTimeout(() => {
-      setIsTyping(false);
-      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setMessages(prev => [...prev, { id: Date.now() + 1, from: 'them', text: replyText, time: replyTime }]);
-      scrollToBottom();
-    }, 1400);
+function getReviewDetails(conversation: Conversation): CompanyReviewDetails {
+  return COMPANY_REVIEW_DETAILS[conversation.companyId] ?? {
+    location: 'Remote',
+    about: `${conversation.company} is hiring for ${conversation.role} and aims to provide a clear, respectful, and well-structured experience for candidates throughout the process.`,
+    banner: require('../assets/images/accenture.jpg'),
+    photos: [
+      require('../assets/images/accenture.jpg'),
+      require('../assets/images/accenture2.jpg'),
+      require('../assets/images/accenture3.jpg'),
+    ],
   };
+}
+
+function statusBg(status: Status) {
+  const map: Record<Status, string> = {
+    applied: 'rgba(255,255,255,0.08)',
+    screening: 'rgba(245,158,11,0.12)',
+    interview: 'rgba(168,85,247,0.16)',
+    offer: 'rgba(34,197,94,0.12)',
+  };
+  return map[status];
+}
+
+function statusColor(status: Status) {
+  const map: Record<Status, string> = {
+    applied: 'rgba(255,255,255,0.55)',
+    screening: '#f59e0b',
+    interview: '#a855f7',
+    offer: '#22c55e',
+  };
+  return map[status];
+}
+
+function getMatchState(match: MatchCompany, currentTime: number): MatchState {
+  if (match.startedAt) return 'active';
+  if (currentTime - match.matchCreatedAt >= REPLY_WINDOW_MS) return 'expired';
+  return 'pending';
+}
+
+function getTimeLeft(match: MatchCompany, currentTime: number) {
+  return Math.max(0, REPLY_WINDOW_MS - (currentTime - match.matchCreatedAt));
+}
+
+function formatRemainingTime(ms: number) {
+  const totalMinutes = Math.max(0, Math.ceil(ms / (60 * 1000)));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+
+  if (hours <= 0) return `${minutes}m left`;
+  if (minutes === 0) return `${hours}h left`;
+  return `${hours}h ${minutes}m left`;
+}
+
+function formatRingValue(ms: number) {
+  const totalHours = ms / (60 * 60 * 1000);
+  if (totalHours >= 1) return `${Math.ceil(totalHours)}h`;
+  return `${Math.max(1, Math.ceil(ms / (60 * 1000)))}m`;
+}
+
+function formatConversationTime() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function CountdownRing({
+  progress,
+  color,
+  label,
+}: {
+  progress: number;
+  color: string;
+  label: string;
+}) {
+  const size = 64;
+  const strokeWidth = 5;
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = circumference * (1 - Math.max(0, Math.min(1, progress)));
 
   return (
-    <View style={[cs.screen, { backgroundColor: T.bg, paddingTop: topInset }]}>
-      <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
-
-      {/* Header */}
-      <View style={[cs.header, { backgroundColor: T.bg }]}>
-        <TouchableOpacity onPress={onBack} style={[cs.backBtn, { backgroundColor: T.surface, borderColor: T.borderFaint }]} activeOpacity={0.7}>
-          <MaterialCommunityIcons name="arrow-left" size={22} color={T.primary} />
-        </TouchableOpacity>
-        <View style={[cs.headerLogo, { backgroundColor: conversation.color }]}>
-          <Text style={cs.headerLogoText}>{conversation.abbr}</Text>
-        </View>
-        <View style={cs.headerInfo}>
-          <Text style={[cs.headerCompany, { color: T.textPrimary }]}>{conversation.company}</Text>
-          {isTyping
-            ? <Text style={[cs.typingLabel, { color: T.primary }]}>typing…</Text>
-            : <Text style={[cs.headerRole, { color: T.textSub }]}>{conversation.role}</Text>
-          }
-        </View>
-        <View style={[cs.statusBadge, { backgroundColor: statusBg(conversation.status) }]}>
-          <Text style={[cs.statusBadgeText, { color: statusColor(conversation.status) }]}>
-            {conversation.status.charAt(0).toUpperCase() + conversation.status.slice(1)}
-          </Text>
-        </View>
+    <View style={styles.ringWrap}>
+      <Svg width={size} height={size}>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke="rgba(255,255,255,0.12)"
+          strokeWidth={strokeWidth}
+          fill="none"
+        />
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          stroke={color}
+          strokeWidth={strokeWidth}
+          fill="none"
+          strokeLinecap="round"
+          strokeDasharray={`${circumference} ${circumference}`}
+          strokeDashoffset={dashOffset}
+          rotation="-90"
+          origin={`${size / 2}, ${size / 2}`}
+        />
+      </Svg>
+      <View style={styles.ringLabel}>
+        <Text style={styles.ringValue}>{label}</Text>
       </View>
-      <View style={[cs.headerDivider, { backgroundColor: T.borderFaint }]} />
+    </View>
+  );
+}
 
-      <View style={[{ flex: 1 }, keyboardHeight > 0 && { marginBottom: keyboardHeight }]}>
-        <ScrollView
-          ref={scrollRef}
-          style={cs.msgScroll}
-          contentContainerStyle={[cs.msgContent, { paddingBottom: keyboardHeight > 0 ? 16 : tabBarHeight + 16 }]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-          onContentSizeChange={() => scrollToBottom(false)}
-        >
-          {messages.map((msg, i) => {
-            const isMe = msg.from === 'me';
-            const prevMsg = messages[i - 1];
-            const isFirstInGroup = i === 0 || prevMsg.from !== msg.from;
-            const isLastInGroup  = i === messages.length - 1 || messages[i + 1].from !== msg.from;
-            const showAvatar = !isMe && isFirstInGroup;
-            const showSpacer = !isMe && !isFirstInGroup;
+function MatchCarousel({
+  matches,
+  currentTime,
+  onOpen,
+}: {
+  matches: MatchCompany[];
+  currentTime: number;
+  onOpen: (matchId: number) => void;
+}) {
+  const T = useTheme();
+
+  return (
+    <>
+      <View style={styles.sectionRow}>
+        <Text style={[styles.sectionTitle, { color: '#191233' }]}>New matches</Text>
+        <Text style={[styles.sectionAction, { color: T.primary }]}>{matches.length}</Text>
+      </View>
+
+      <View style={styles.matchPanel}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.matchPanelRow}>
+          {matches.map((match) => {
+            const state = getMatchState(match, currentTime);
+            const timeLeft = getTimeLeft(match, currentTime);
+            const progress = timeLeft / REPLY_WINDOW_MS;
+            const expired = state === 'expired';
+
             return (
-              <View key={msg.id} style={[cs.bubbleWrap, isMe ? cs.bubbleWrapMe : cs.bubbleWrapThem, isFirstInGroup && { marginTop: 8 }]}>
-                {showAvatar && <View style={[cs.bubbleAvatar, { backgroundColor: conversation.color }]}><Text style={cs.bubbleAvatarText}>{conversation.abbr}</Text></View>}
-                {showSpacer && <View style={cs.bubbleAvatarSpacer} />}
-                <View style={cs.bubbleCol}>
-                  <View style={[
-                    cs.bubble,
-                    isMe ? [cs.bubbleMe, { backgroundColor: T.primary }] : [cs.bubbleThem, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint }],
-                    !isMe && isFirstInGroup && cs.bubbleThemFirst,
-                    !isMe && isLastInGroup  && cs.bubbleThemLast,
-                    isMe  && isFirstInGroup && cs.bubbleMeFirst,
-                    isMe  && isLastInGroup  && cs.bubbleMeLast,
-                  ]}>
-                    <Text style={[cs.bubbleText, { color: isMe ? '#fff' : T.textPrimary }]}>{msg.text}</Text>
+              <TouchableOpacity
+                key={match.id}
+                style={styles.matchCard}
+                activeOpacity={0.85}
+                onPress={() => onOpen(match.id)}
+              >
+                <View style={styles.matchAvatarWrap}>
+                  <CountdownRing
+                    progress={progress}
+                    color={expired ? '#f43f5e' : match.color}
+                    label=""
+                  />
+                  <View style={styles.matchAvatarInner}>
+                    <CompanyLogo abbr={match.abbr} color={expired ? '#d8d1ea' : match.color} size="md" />
                   </View>
-                  {isLastInGroup && (
-                    <Text style={[cs.bubbleTime, { color: T.textHint }, isMe ? cs.bubbleTimeMe : cs.bubbleTimeThem]}>{msg.time}</Text>
-                  )}
+                  <View style={styles.matchBadge}>
+                    <Text style={styles.matchBadgeText}>{match.badgeCount}</Text>
+                  </View>
                 </View>
-              </View>
+
+                <Text style={styles.matchName} numberOfLines={1}>{match.company}</Text>
+                <Text style={styles.matchRole} numberOfLines={1}>{match.role}</Text>
+                <Text style={[styles.matchMeta, expired && styles.matchMetaExpired]}>
+                  {expired ? 'Expired' : formatRingValue(timeLeft)}
+                </Text>
+              </TouchableOpacity>
             );
           })}
-
-          {isTyping && (
-            <View style={[cs.bubbleWrap, cs.bubbleWrapThem, { marginTop: 8 }]}>
-              <View style={[cs.bubbleAvatar, { backgroundColor: conversation.color }]}>
-                <Text style={cs.bubbleAvatarText}>{conversation.abbr}</Text>
-              </View>
-              <View style={[cs.bubble, cs.bubbleThem, cs.typingBubble, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint }]}>
-                <View style={cs.typingDots}>
-                  <View style={[cs.typingDot, cs.typingDot1, { backgroundColor: T.textHint }]} />
-                  <View style={[cs.typingDot, cs.typingDot2, { backgroundColor: T.textHint }]} />
-                  <View style={[cs.typingDot, cs.typingDot3, { backgroundColor: T.textHint }]} />
-                </View>
-              </View>
-            </View>
-          )}
-
-          {conversation.expired && (
-            <View style={[cs.expiredBanner, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-              <MaterialCommunityIcons name="lock-outline" size={13} color={T.textHint} />
-              <Text style={[cs.expiredBannerText, { color: T.textHint }]}>This conversation has closed</Text>
-            </View>
-          )}
         </ScrollView>
-
-        {!conversation.expired && (
-          <View style={[cs.inputBar, { backgroundColor: T.bg, borderTopColor: T.borderFaint, paddingBottom: keyboardHeight > 0 ? 8 : tabBarHeight + 8 }]}>
-            <TextInput
-              style={[cs.input, { backgroundColor: T.surface, borderColor: T.borderFaint, color: T.textPrimary }]}
-              value={draft}
-              onChangeText={setDraft}
-              placeholder="Message…"
-              placeholderTextColor={T.textHint}
-              multiline
-              maxLength={500}
-            />
-            <TouchableOpacity style={[cs.sendBtn, { backgroundColor: T.primary }, !draft.trim() && cs.sendBtnDisabled]} onPress={sendMessage} activeOpacity={0.85} disabled={!draft.trim()}>
-              <MaterialCommunityIcons name="send" size={18} color="#fff" />
-            </TouchableOpacity>
-          </View>
-        )}
       </View>
-    </View>
+    </>
   );
 }
 
-// ─── Ghost card (empty state decoration) ─────────────────────────────────────
-function GhostCard({ avatarColor, rotate, translateX, translateY, blur }: { avatarColor: string; rotate: string; translateX: number; translateY: number; blur?: boolean }) {
+function MessagesList({
+  conversations,
+  onOpenConversation,
+  onOpenReview,
+}: {
+  conversations: Conversation[];
+  onOpenConversation: (conversationId: number) => void;
+  onOpenReview: (companyId: number) => void;
+}) {
   const T = useTheme();
-  return (
-    <View style={[cs2.ghostCard, { backgroundColor: T.surface, borderColor: T.border, transform: [{ rotate }, { translateX }, { translateY }], opacity: blur ? 0.4 : 0.85 }]}>
-      <View style={[cs2.ghostPhoto, { backgroundColor: avatarColor + '25' }]}>
-        <MaterialCommunityIcons name="account" size={48} color={avatarColor + '55'} />
+
+  if (conversations.length === 0) {
+    return (
+      <View style={styles.emptyState}>
+        <MaterialCommunityIcons name="message-text-outline" size={34} color="rgba(124,58,237,0.24)" />
+        <Text style={styles.emptyTitle}>No conversations yet</Text>
+        <Text style={styles.emptyCopy}>
+          Start a conversation from one of your matches and it will show up here.
+        </Text>
       </View>
-      <View style={[cs2.ghostMeta, { backgroundColor: T.surface }]}>
-        <View style={[cs2.ghostLine, { backgroundColor: T.borderFaint, width: 80 }]} />
-        <View style={[cs2.ghostLine, { backgroundColor: T.borderFaint, width: 50, marginTop: 6 }]} />
-      </View>
-    </View>
-  );
-}
-
-// ─── Empty state ──────────────────────────────────────────────────────────────
-function EmptyMatchesState() {
-  const T = useTheme();
-  const navigation = useNavigation();
-  return (
-    <View style={cs2.emptyWrap}>
-      <View style={cs2.ghostStack}>
-        <GhostCard avatarColor="#7c3aed" rotate="8deg"  translateX={40}  translateY={10} blur />
-        <GhostCard avatarColor="#a855f7" rotate="-4deg" translateX={-10} translateY={0} />
-        <View style={cs2.boltBadge}>
-          <MaterialCommunityIcons name="lightning-bolt" size={18} color="#fff" />
-        </View>
-      </View>
-      <Text style={[cs2.emptyTitle, { color: T.textPrimary }]}>Oops! Your profile hasn't{'\n'}received any likes yet.</Text>
-      <Text style={[cs2.emptySub,  { color: T.textSub   }]}>Consider completing it or boosting your profile to attract more attention and likes.</Text>
-      <TouchableOpacity style={[cs2.boostBtn, { backgroundColor: T.primary }]} activeOpacity={0.85} onPress={() => navigation.navigate('subscription' as never)}>
-        <View style={cs2.boostIconWrap}>
-          <MaterialCommunityIcons name="rocket-launch" size={16} color="#fff" />
-        </View>
-        <Text style={cs2.boostBtnText}>Boost Me</Text>
-      </TouchableOpacity>
-      <TouchableOpacity activeOpacity={0.7}>
-        <Text style={[cs2.editProfileText, { color: T.textSub }]}>Edit Profile</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Segment tabs ─────────────────────────────────────────────────────────────
-function SegmentTabs({ tabs, active, onSelect }: { tabs: { key: string; label: string; badge?: number }[]; active: string; onSelect: (key: string) => void }) {
-  const T = useTheme();
-  return (
-    <View style={[cs2.segWrap, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-      {tabs.map(tab => {
-        const isActive = tab.key === active;
-        return (
-          <TouchableOpacity key={tab.key} style={[cs2.segTab, isActive && { backgroundColor: T.primary }]} onPress={() => onSelect(tab.key)} activeOpacity={0.75}>
-            <Text style={[cs2.segTabText, { color: isActive ? '#fff' : T.textSub }, isActive && cs2.segTabTextActive]}>{tab.label}</Text>
-            {!!tab.badge && tab.badge > 0 && (
-              <View style={cs2.segBadge}>
-                <Text style={cs2.segBadgeText}>{tab.badge}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-        );
-      })}
-    </View>
-  );
-}
-
-// ─── MatchesTab ───────────────────────────────────────────────────────────────
-export default function MatchesTab() {
-  const T = useTheme();
-  const navigation = useNavigation();
-  const [activeTab, setActiveTab] = useState('messages');
-  const tabBarHeight = useTabBarHeight();
-  const { top: topInset } = useSafeAreaInsets();
-  const totalUnread = PIPELINE.reduce((a, m) => a + m.unread, 0);
-
-  const [selectedConversation, setSelectedConversation] = useState<typeof PIPELINE[number] | null>(null);
-  const [selectedCompanyId, setSelectedCompanyId]       = useState<number | null>(null);
-  const [reviewRating, setReviewRating]                 = useState(0);
-  const [reviewTitle, setReviewTitle]                   = useState('');
-  const [reviewBody, setReviewBody]                     = useState('');
-  const [submittedReviews, setSubmittedReviews]         = useState<Review[]>([]);
-  const [reviewSubmitted, setReviewSubmitted]           = useState(false);
-
-  const selectedCompany = APPLIED_COMPANIES.find(c => c.id === selectedCompanyId);
-
-  const handleSubmitReview = () => {
-    if (!selectedCompanyId || reviewRating === 0 || !reviewTitle.trim() || !reviewBody.trim()) return;
-    const review: Review = { id: Date.now(), companyId: selectedCompanyId, rating: reviewRating, title: reviewTitle.trim(), body: reviewBody.trim(), date: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) };
-    setSubmittedReviews(prev => [review, ...prev]);
-    setReviewSubmitted(true);
-    setReviewRating(0); setReviewTitle(''); setReviewBody('');
-    setTimeout(() => { setReviewSubmitted(false); setSelectedCompanyId(null); }, 1800);
-  };
-
-  const openCompany = (id: number) => { setSelectedCompanyId(id); setReviewRating(0); setReviewTitle(''); setReviewBody(''); setReviewSubmitted(false); };
-
-  const tabs = [
-    { key: 'messages', label: 'Messages', badge: totalUnread },
-    { key: 'closed',   label: 'Closed Conversations', badge: 0 },
-  ];
-
-  if (selectedConversation) {
-    return <ConversationScreen conversation={selectedConversation} onBack={() => setSelectedConversation(null)} tabBarHeight={tabBarHeight} />;
+    );
   }
 
   return (
-    <View style={[cs2.screen, { backgroundColor: T.bg, paddingTop: topInset }]}>
+    <>
+      <View style={styles.sectionRow}>
+        <Text style={[styles.sectionTitle, { color: '#191233' }]}>Conversations</Text>
+      </View>
+
+      <View style={styles.messagePanel}>
+        {conversations.map((conversation, index) => {
+          const isClosed = conversation.state === 'closed';
+          const isExpired = conversation.state === 'expired';
+          const isInactive = isClosed || isExpired;
+
+          return (
+            <View key={conversation.id}>
+              {index > 0 ? <View style={styles.divider} /> : null}
+              <TouchableOpacity
+                style={[styles.msgRow, isInactive && styles.msgRowClosed]}
+                activeOpacity={0.85}
+                onPress={() => onOpenConversation(conversation.id)}
+              >
+                <View style={{ position: 'relative' }}>
+                  <CompanyLogo
+                    abbr={conversation.abbr}
+                    color={isInactive ? 'rgba(124,58,237,0.18)' : conversation.color}
+                    size="md"
+                  />
+                  {conversation.unread > 0 && !isInactive ? <CountBadge count={conversation.unread} /> : null}
+                </View>
+
+                <View style={styles.msgBody}>
+                  <View style={styles.msgTopRow}>
+                    <Text style={[styles.msgCompany, isInactive && styles.msgFaded]}>{conversation.company}</Text>
+                    <Text style={styles.msgTime}>{conversation.time}</Text>
+                  </View>
+
+                  <Text style={[styles.msgRole, isInactive && styles.msgFaded]}>{conversation.role}</Text>
+                  <Text style={[styles.msgPreview, isInactive && styles.msgFaded]} numberOfLines={1}>
+                    {conversation.lastMsg}
+                  </Text>
+
+                  {isClosed ? (
+                    <View style={styles.messageActions}>
+                      <View style={styles.closedTag}>
+                        <MaterialCommunityIcons name="lock-outline" size={10} color="#8f8aa4" />
+                        <Text style={styles.closedTagText}>Conversation closed</Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[styles.reviewButton, { borderColor: T.primary, backgroundColor: `${T.primary}12` }]}
+                        onPress={() => onOpenReview(conversation.companyId)}
+                        activeOpacity={0.85}
+                      >
+                        <MaterialCommunityIcons name="star-outline" size={12} color={T.primary} />
+                        <Text style={[styles.reviewButtonText, { color: T.primary }]}>Leave a review</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : isExpired ? (
+                    <View style={styles.closedTag}>
+                      <MaterialCommunityIcons name="clock-alert-outline" size={10} color="#8f8aa4" />
+                      <Text style={styles.closedTagText}>Conversation expired</Text>
+                    </View>
+                  ) : null}
+                </View>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+      </View>
+    </>
+  );
+}
+
+function ConversationScreen({
+  company,
+  conversation,
+  currentTime,
+  tabBarHeight,
+  onBack,
+  onSendFirstMessage,
+  onOpenReview,
+}: {
+  company: MatchCompany | null;
+  conversation: Conversation | null;
+  currentTime: number;
+  tabBarHeight: number;
+  onBack: () => void;
+  onSendFirstMessage: (companyId: number, text: string, time: string) => void;
+  onOpenReview: (companyId: number) => void;
+}) {
+  const T = useTheme();
+  const { top: topInset } = useSafeAreaInsets();
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [draft, setDraft] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+  const replyIndexRef = useRef(0);
+
+  const fallbackCompany = company ?? (conversation ? {
+    id: conversation.companyId,
+    abbr: conversation.abbr,
+    color: conversation.color,
+    company: conversation.company,
+    role: conversation.role,
+    status: conversation.status,
+    prompt: conversation.lastMsg,
+    matchCreatedAt: currentTime,
+    badgeCount: conversation.unread,
+  } : null);
+
+  const isPendingMatch = !!company && !company.startedAt && !conversation;
+  const isExpiredMatch = !!company && getMatchState(company, currentTime) === 'expired' && !conversation;
+  const isClosedConversation = conversation?.state === 'closed';
+  const isExpiredConversation = conversation?.state === 'expired';
+  const isReadOnlyConversation = isClosedConversation || isExpiredConversation;
+  const canChat = !isExpiredMatch && !isReadOnlyConversation && !!fallbackCompany;
+
+  useEffect(() => {
+    const targetId = fallbackCompany?.id;
+    setMessages(targetId ? (INITIAL_MESSAGES[targetId] ?? []) : []);
+  }, [fallbackCompany?.id]);
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack();
+      return true;
+    });
+
+    return () => sub.remove();
+  }, [onBack]);
+
+  useEffect(() => {
+    const show = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e: KeyboardEvent) => {
+        if (Platform.OS === 'android') {
+          const windowHeight = Dimensions.get('window').height;
+          setKeyboardHeight(Math.max(0, windowHeight - e.endCoordinates.screenY));
+        } else {
+          setKeyboardHeight(e.endCoordinates.height);
+        }
+      },
+    );
+
+    const hide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardHeight(0),
+    );
+
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => scrollRef.current?.scrollToEnd({ animated: false }), 120);
+    return () => clearTimeout(timeout);
+  }, [messages.length]);
+
+  const scrollToBottom = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
+  };
+
+  const sendMessage = () => {
+    if (!fallbackCompany) return;
+    const text = draft.trim();
+    if (!text || !canChat) return;
+
+    const sentAt = formatConversationTime();
+    setMessages((prev) => [...prev, { id: Date.now(), from: 'me', text, time: sentAt }]);
+    setDraft('');
+    onSendFirstMessage(fallbackCompany.id, text, sentAt);
+    scrollToBottom();
+
+    const replies = AUTO_REPLIES[fallbackCompany.id] ?? ['Thanks for your message.'];
+    const replyText = replies[replyIndexRef.current % replies.length];
+    replyIndexRef.current += 1;
+    setIsTyping(true);
+
+    setTimeout(() => {
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now() + 1, from: 'them', text: replyText, time: formatConversationTime() },
+      ]);
+      scrollToBottom();
+    }, 1200);
+  };
+
+  const bannerText = (() => {
+    if (isPendingMatch && company) return `Send your first message within ${formatRemainingTime(getTimeLeft(company, currentTime))} to keep this conversation active.`;
+    if (isExpiredMatch || isExpiredConversation) return 'This conversation expired because no message was sent within the 24-hour reply window.';
+    if (isClosedConversation) return 'This conversation is closed. You can still leave a review, but you can no longer send messages.';
+    return null;
+  })();
+
+  if (!fallbackCompany) return null;
+
+  return (
+    <View style={[styles.chatScreen, { backgroundColor: T.bg, paddingTop: topInset }]}>
       <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
 
-      <View style={{ height: 50 }} />
-      <SegmentTabs tabs={tabs} active={activeTab} onSelect={setActiveTab} />
+      <View style={styles.chatHeader}>
+        <TouchableOpacity
+          onPress={onBack}
+          style={[styles.backButton, { backgroundColor: '#fff', borderColor: 'rgba(124,58,237,0.12)' }]}
+          activeOpacity={0.7}
+        >
+          <MaterialCommunityIcons name="arrow-left" size={22} color={T.primary} />
+        </TouchableOpacity>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[cs2.scroll, { paddingBottom: tabBarHeight + 24 }]}>
+        <View style={[styles.chatHeaderLogo, { backgroundColor: fallbackCompany.color }]}>
+          <Text style={styles.chatHeaderLogoText}>{fallbackCompany.abbr}</Text>
+        </View>
 
-        {/* ── MESSAGES TAB ── */}
-        {activeTab === 'messages' && (
-          <>
-            <View style={cs2.sectionRow}>
-              <Text style={[cs2.sectionTitle, { color: T.textPrimary }]}>Conversations</Text>
-            </View>
-            <View style={[cs2.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-              {PIPELINE.map((msg, i) => (
-                <View key={msg.id}>
-                  {i > 0 && <View style={[cs2.divider, { backgroundColor: T.borderFaint }]} />}
-                  <TouchableOpacity style={[cs2.msgRow, msg.expired && cs2.msgRowExpired]} activeOpacity={0.85} onPress={() => setSelectedConversation(msg)}>
-                    <View style={{ position: 'relative' }}>
-                      <View style={msg.expired ? cs2.msgLogoExpired : undefined}>
-                        <CompanyLogo abbr={msg.abbr} color={msg.expired ? 'rgba(255,255,255,0.18)' : msg.color} size="md" />
-                      </View>
-                      {msg.unread > 0 && !msg.expired && <CountBadge count={msg.unread} />}
-                    </View>
-                    <View style={cs2.msgBody}>
-                      <View style={cs2.msgTopRow}>
-                        <Text style={[cs2.msgCompany, { color: T.textPrimary }, msg.expired && { color: T.textHint }]}>{msg.company}</Text>
-                        <Text style={[cs2.msgTime, { color: T.textHint }]}>{msg.time}</Text>
-                      </View>
-                      <Text style={[cs2.msgRole, { color: T.textSub }, msg.expired && { color: T.textHint }]}>{msg.role}</Text>
-                      <Text style={[cs2.msgPreview, { color: T.textSub }, msg.expired && { color: T.textHint }]} numberOfLines={1}>{msg.lastMsg}</Text>
+        <View style={styles.chatHeaderInfo}>
+          <Text style={styles.chatHeaderCompany}>{fallbackCompany.company}</Text>
+          <Text style={styles.chatHeaderRole}>{fallbackCompany.role}</Text>
+        </View>
+      </View>
 
-                      {msg.expired ? (
-                        <View style={cs2.expiredRow}>
-                          <View style={[cs2.closedTag, { backgroundColor: T.borderFaint, borderColor: T.borderFaint }]}>
-                            <MaterialCommunityIcons name="lock-outline" size={10} color={T.textHint} />
-                            <Text style={[cs2.closedTagText, { color: T.textHint }]}>Conversation closed</Text>
-                          </View>
-                          <TouchableOpacity style={[cs2.leaveReviewBtn, { backgroundColor: T.primary + '18', borderColor: T.border }]} activeOpacity={0.8} onPress={() => { openCompany(msg.id); setActiveTab('closed'); }}>
-                            <MaterialCommunityIcons name="star-outline" size={11} color={T.primary} />
-                            <Text style={[cs2.leaveReviewBtnText, { color: T.primary }]}>Leave a review</Text>
-                          </TouchableOpacity>
-                        </View>
-                      ) : (
-                        <StatusPill status={msg.status} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
+      <ScrollView
+        ref={scrollRef}
+        style={styles.chatScroll}
+        contentContainerStyle={[styles.chatContent, { paddingBottom: keyboardHeight > 0 ? 16 : tabBarHeight + 20 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {bannerText ? (
+          <View style={styles.chatBanner}>
+            <MaterialCommunityIcons
+              name={isExpiredMatch || isExpiredConversation ? 'clock-alert-outline' : isClosedConversation ? 'lock-outline' : 'message-badge-outline'}
+              size={14}
+              color={T.primary}
+            />
+            <Text style={styles.chatBannerText}>{bannerText}</Text>
+          </View>
+        ) : null}
+
+        {messages.map((message, index) => {
+          const isMe = message.from === 'me';
+          const previous = messages[index - 1];
+          const next = messages[index + 1];
+          const isFirst = index === 0 || previous.from !== message.from;
+          const isLast = index === messages.length - 1 || next.from !== message.from;
+
+          return (
+            <View
+              key={message.id}
+              style={[
+                styles.bubbleWrap,
+                isMe ? styles.bubbleWrapMe : styles.bubbleWrapThem,
+                isFirst && { marginTop: 8 },
+              ]}
+            >
+              {!isMe && isFirst ? (
+                <View style={[styles.chatAvatar, { backgroundColor: fallbackCompany.color }]}>
+                  <Text style={styles.chatAvatarText}>{fallbackCompany.abbr}</Text>
                 </View>
-              ))}
-            </View>
-          </>
-        )}
+              ) : !isMe ? (
+                <View style={styles.chatAvatarSpacer} />
+              ) : null}
 
-        {/* ── CLOSED CONVERSATIONS TAB ── */}
-        {activeTab === 'closed' && (
-          <>
-            {selectedCompany ? (
-              <>
-                <TouchableOpacity style={cs2.backBtn} onPress={() => setSelectedCompanyId(null)} activeOpacity={0.7}>
-                  <MaterialCommunityIcons name="arrow-left" size={18} color={T.primary} />
-                  <Text style={[cs2.backBtnText, { color: T.primary }]}>All companies</Text>
+              <View style={styles.bubbleCol}>
+                <View
+                  style={[
+                    styles.bubble,
+                    isMe ? [styles.bubbleMe, { backgroundColor: T.primary }] : styles.bubbleThem,
+                  ]}
+                >
+                  <Text style={[styles.bubbleText, { color: isMe ? '#fff' : '#1f1838' }]}>{message.text}</Text>
+                </View>
+                {isLast ? (
+                  <Text style={[styles.bubbleTime, isMe ? styles.bubbleTimeMe : styles.bubbleTimeThem]}>
+                    {message.time}
+                  </Text>
+                ) : null}
+              </View>
+            </View>
+          );
+        })}
+
+        {isTyping ? (
+          <View style={[styles.bubbleWrap, styles.bubbleWrapThem, { marginTop: 8 }]}>
+            <View style={[styles.chatAvatar, { backgroundColor: fallbackCompany.color }]}>
+              <Text style={styles.chatAvatarText}>{fallbackCompany.abbr}</Text>
+            </View>
+            <View style={styles.typingBubble}>
+              <View style={styles.typingDot} />
+              <View style={[styles.typingDot, { opacity: 0.65 }]} />
+              <View style={[styles.typingDot, { opacity: 0.35 }]} />
+            </View>
+          </View>
+        ) : null}
+      </ScrollView>
+
+      {isClosedConversation ? (
+        <View style={[styles.chatFooterLocked, { paddingBottom: tabBarHeight + 10 }]}>
+          <TouchableOpacity
+            style={[styles.footerReviewButton, { backgroundColor: T.primary }]}
+            activeOpacity={0.85}
+            onPress={() => onOpenReview(fallbackCompany.id)}
+          >
+            <MaterialCommunityIcons name="star-outline" size={16} color="#fff" />
+            <Text style={styles.footerReviewButtonText}>Leave a review</Text>
+          </TouchableOpacity>
+        </View>
+      ) : canChat ? (
+        <View
+          style={[
+            styles.chatInputBar,
+            {
+              paddingBottom: keyboardHeight > 0 ? 8 : tabBarHeight + 8,
+              borderTopColor: 'rgba(124,58,237,0.12)',
+            },
+          ]}
+        >
+          <TextInput
+            style={styles.chatInput}
+            value={draft}
+            onChangeText={setDraft}
+            placeholder={isPendingMatch ? 'Start the conversation...' : 'Message...'}
+            placeholderTextColor="#9f98b7"
+            multiline
+            maxLength={500}
+          />
+          <TouchableOpacity
+            style={[styles.chatSendButton, { backgroundColor: T.primary }, !draft.trim() && styles.chatSendButtonDisabled]}
+            activeOpacity={0.85}
+            onPress={sendMessage}
+            disabled={!draft.trim()}
+          >
+            <MaterialCommunityIcons name="send" size={18} color="#fff" />
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <View style={[styles.chatFooterLocked, { paddingBottom: tabBarHeight + 10 }]}>
+          <MaterialCommunityIcons name="message-off-outline" size={16} color="#9f98b7" />
+          <Text style={styles.chatFooterLockedText}>
+            {isExpiredMatch || isExpiredConversation ? 'Conversation expired' : 'Messaging locked'}
+          </Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+function ReviewScreen({
+  conversation,
+  reviews,
+  tabBarHeight,
+  onBack,
+  onSubmit,
+}: {
+  conversation: Conversation;
+  reviews: Review[];
+  tabBarHeight: number;
+  onBack: () => void;
+  onSubmit: (rating: number, title: string, body: string) => void;
+}) {
+  const T = useTheme();
+  const { top: topInset } = useSafeAreaInsets();
+  const [rating, setRating] = useState(0);
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
+  const details = getReviewDetails(conversation);
+  const activePhoto = details.photos[selectedPhotoIndex] ?? details.banner;
+
+  return (
+    <View style={[styles.reviewScreen, { backgroundColor: T.bg }]}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.reviewScroll, { paddingBottom: tabBarHeight + 28 }]}>
+        <View style={styles.reviewBannerWrap}>
+          <Image source={details.banner} style={styles.reviewBannerImage} resizeMode="cover" />
+          <View style={styles.reviewBannerOverlay} />
+
+          <View style={[styles.reviewHeader, { paddingTop: topInset + 8 }]}>
+            <TouchableOpacity style={styles.reviewBackButton} activeOpacity={0.7} onPress={onBack}>
+              <MaterialCommunityIcons name="arrow-left" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.reviewHero}>
+            <View style={[styles.reviewHeroLogo, { backgroundColor: conversation.color }]}>
+              <Text style={styles.reviewHeroLogoText}>{conversation.abbr}</Text>
+            </View>
+            <Text style={styles.reviewCompany}>{conversation.company}</Text>
+            <Text style={styles.reviewRoleLabel}>{conversation.role}</Text>
+            <View style={styles.reviewMetaRow}>
+              <MaterialCommunityIcons name="map-marker-outline" size={14} color="rgba(255,255,255,0.88)" />
+              <Text style={styles.reviewMetaText}>{details.location}</Text>
+            </View>
+            <View style={styles.reviewClosedTag}>
+              <MaterialCommunityIcons name="lock-outline" size={12} color="#d9d5e6" />
+              <Text style={styles.reviewClosedTagText}>Closed conversation</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.reviewCardPanel}>
+          <Text style={styles.reviewSectionEyebrow}>About the company</Text>
+          <Text style={styles.reviewAboutTitle}>{conversation.company}</Text>
+          <Text style={styles.reviewAboutLocation}>{details.location}</Text>
+          <Text style={styles.reviewAboutCopy}>{details.about}</Text>
+        </View>
+
+        <View style={styles.reviewCardPanel}>
+          <Text style={styles.reviewSectionEyebrow}>Company photos</Text>
+          <Image source={activePhoto} style={styles.reviewGalleryMain} resizeMode="cover" />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.reviewThumbRow}>
+            {details.photos.map((photo, index) => {
+              const selected = index === selectedPhotoIndex;
+              return (
+                <TouchableOpacity
+                  key={index}
+                  activeOpacity={0.85}
+                  onPress={() => setSelectedPhotoIndex(index)}
+                  style={[styles.reviewThumbWrap, selected && { borderColor: conversation.color }]}
+                >
+                  <Image source={photo} style={styles.reviewThumb} resizeMode="cover" />
                 </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-                <View style={[cs2.detailCard, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-                  <Image source={selectedCompany.photos[0]} style={cs2.detailHeroImg} resizeMode="cover" />
-                  <View style={cs2.detailHeroScrim} />
-                  <View style={cs2.detailContent}>
-                    <Text style={[cs2.detailRole,   { color: T.textPrimary }]}>{selectedCompany.role}</Text>
-                    <Text style={[cs2.detailSalary, { color: T.primary     }]}>{selectedCompany.salary}</Text>
-                    <View style={cs2.detailLocationRow}>
-                      <MaterialCommunityIcons name="map-marker-outline" size={13} color={T.textSub} />
-                      <Text style={[cs2.detailLocation, { color: T.textSub }]}>{selectedCompany.location}</Text>
-                    </View>
-                    <View style={cs2.detailTagsRow}>
-                      {selectedCompany.tags.map(tag => (
-                        <View key={tag} style={[cs2.detailTag, { borderColor: T.border, backgroundColor: T.primary + '14' }]}>
-                          <Text style={[cs2.detailTagText, { color: T.textPrimary }]}>{tag}</Text>
-                        </View>
-                      ))}
-                    </View>
+        <View style={styles.reviewCardPanel}>
+          <Text style={styles.reviewSectionEyebrow}>Write a review</Text>
+          <Text style={styles.reviewSectionTitle}>Rate your experience</Text>
 
-                    <View style={[cs2.detailDivider, { backgroundColor: T.borderFaint }]} />
-                    <Text style={[cs2.detailSectionLabel, { color: T.textHint }]}>ABOUT THE ROLE</Text>
-                    <Text style={[cs2.detailDescription, { color: T.textSub }]}>{selectedCompany.description}</Text>
+          <View style={styles.reviewStars}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity key={star} activeOpacity={0.75} onPress={() => setRating(star)}>
+                <MaterialCommunityIcons
+                  name={star <= rating ? 'star' : 'star-outline'}
+                  size={34}
+                  color={star <= rating ? '#f59e0b' : '#d2c8ef'}
+                />
+              </TouchableOpacity>
+            ))}
+          </View>
 
-                    <View style={[cs2.detailDivider, { backgroundColor: T.borderFaint }]} />
-                    <Text style={[cs2.detailSectionLabel, { color: T.textHint }]}>COMPANY PHOTOS</Text>
-                    <View style={cs2.detailGalleryMain}>
-                      <Image source={selectedCompany.photos[0]} style={cs2.detailGalleryMainImg} resizeMode="cover" />
-                    </View>
-                    <View style={cs2.detailThumbRow}>
-                      {selectedCompany.photos.map((p, i) => <Image key={i} source={p} style={cs2.detailThumb} resizeMode="cover" />)}
-                    </View>
+          <Text style={styles.reviewLabel}>Review title</Text>
+          <TextInput
+            style={styles.reviewInput}
+            value={title}
+            onChangeText={setTitle}
+            placeholder="Summarise your experience..."
+            placeholderTextColor="#9f98b7"
+            maxLength={80}
+          />
 
-                    <View style={[cs2.detailDivider, { backgroundColor: T.borderFaint }]} />
-                    <Text style={[cs2.detailSectionLabel, { color: T.textHint }]}>COMPANY RATING</Text>
+          <Text style={styles.reviewLabel}>Your review</Text>
+          <TextInput
+            style={[styles.reviewInput, styles.reviewTextArea]}
+            value={body}
+            onChangeText={setBody}
+            placeholder="Share details about communication, interview flow, and overall experience..."
+            placeholderTextColor="#9f98b7"
+            multiline
+            numberOfLines={5}
+            maxLength={500}
+            textAlignVertical="top"
+          />
 
-                    {reviewSubmitted ? (
-                      <View style={cs2.successCard}>
-                        <MaterialCommunityIcons name="check-circle" size={40} color={T.success} />
-                        <Text style={[cs2.successCardTitle, { color: T.success }]}>Review submitted!</Text>
-                        <Text style={[cs2.successCardSub,   { color: T.success + '99' }]}>Thank you for sharing your experience.</Text>
-                      </View>
-                    ) : (
-                      <>
-                        <View style={cs2.starsRow}>
-                          {[1, 2, 3, 4, 5].map(star => (
-                            <TouchableOpacity key={star} onPress={() => setReviewRating(star)} activeOpacity={0.7}>
-                              <MaterialCommunityIcons name={star <= reviewRating ? 'star' : 'star-outline'} size={36} color={star <= reviewRating ? T.warning : T.borderFaint} />
-                            </TouchableOpacity>
-                          ))}
-                        </View>
-                        {reviewRating > 0 && <Text style={[cs2.ratingLabel, { color: T.warning }]}>{['', 'Poor', 'Fair', 'Good', 'Great', 'Excellent'][reviewRating]}</Text>}
-                        <Text style={[cs2.fieldLabel, { color: T.textSub }]}>Review title</Text>
-                        <TextInput style={[cs2.textField, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint, color: T.textPrimary }]} value={reviewTitle} onChangeText={setReviewTitle} placeholder="Summarise your experience…" placeholderTextColor={T.textHint} maxLength={80} />
-                        <Text style={[cs2.fieldLabel, { color: T.textSub }]}>Your review</Text>
-                        <TextInput style={[cs2.textField, cs2.textArea, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint, color: T.textPrimary }]} value={reviewBody} onChangeText={setReviewBody} placeholder="Share details about the interview process, culture, communication…" placeholderTextColor={T.textHint} multiline numberOfLines={4} maxLength={500} textAlignVertical="top" />
-                        <TouchableOpacity style={[cs2.submitBtn, { backgroundColor: T.primary }, (!reviewRating || !reviewTitle.trim() || !reviewBody.trim()) && cs2.submitBtnDisabled]} onPress={handleSubmitReview} activeOpacity={0.85}>
-                          <MaterialCommunityIcons name="send" size={16} color="#fff" />
-                          <Text style={cs2.submitBtnText}>Submit Review</Text>
-                        </TouchableOpacity>
-                      </>
-                    )}
+          <TouchableOpacity
+            style={[styles.submitReviewButton, { backgroundColor: T.primary }, (!rating || !title.trim() || !body.trim()) && styles.submitReviewButtonDisabled]}
+            activeOpacity={0.85}
+            onPress={() => onSubmit(rating, title.trim(), body.trim())}
+            disabled={!rating || !title.trim() || !body.trim()}
+          >
+            <MaterialCommunityIcons name="send" size={16} color="#fff" />
+            <Text style={styles.submitReviewButtonText}>Submit review</Text>
+          </TouchableOpacity>
+        </View>
 
-                    {submittedReviews.filter(r => r.companyId === selectedCompany.id).length > 0 && (
-                      <>
-                        <View style={[cs2.detailDivider, { backgroundColor: T.borderFaint }]} />
-                        <Text style={[cs2.detailSectionLabel, { color: T.textHint }]}>YOUR PREVIOUS REVIEWS</Text>
-                        {submittedReviews.filter(r => r.companyId === selectedCompany.id).map((rev, i) => (
-                          <View key={rev.id} style={[cs2.reviewCard, i > 0 && { marginTop: 12 }]}>
-                            <View style={cs2.reviewStarsRow}>
-                              {[1, 2, 3, 4, 5].map(s2 => <MaterialCommunityIcons key={s2} name={s2 <= rev.rating ? 'star' : 'star-outline'} size={13} color={s2 <= rev.rating ? T.warning : T.borderFaint} />)}
-                              <Text style={[cs2.reviewDate, { color: T.textHint }]}>{rev.date}</Text>
-                            </View>
-                            <Text style={[cs2.reviewTitle, { color: T.textPrimary }]}>{rev.title}</Text>
-                            <Text style={[cs2.reviewBody,  { color: T.textSub   }]}>{rev.body}</Text>
-                          </View>
-                        ))}
-                      </>
-                    )}
+        {reviews.length > 0 ? (
+          <View style={styles.reviewHistory}>
+            <Text style={styles.reviewSectionTitle}>Your previous reviews</Text>
+            {reviews.map((review) => (
+              <View key={review.id} style={styles.reviewHistoryCard}>
+                <View style={styles.reviewHistoryTop}>
+                  <View style={styles.reviewHistoryStars}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <MaterialCommunityIcons
+                        key={star}
+                        name={star <= review.rating ? 'star' : 'star-outline'}
+                        size={13}
+                        color={star <= review.rating ? '#f59e0b' : '#d2c8ef'}
+                      />
+                    ))}
                   </View>
+                  <Text style={styles.reviewHistoryDate}>{review.date}</Text>
                 </View>
-              </>
-            ) : (
-              (() => {
-                const expiredIds = new Set(PIPELINE.filter(p => p.expired).map(p => p.id));
-                const reviewableCompanies = APPLIED_COMPANIES.filter(c => expiredIds.has(c.id));
-                return reviewableCompanies.length === 0 ? (
-                  <View style={cs2.reviewsEmptyWrap}>
-                    <MaterialCommunityIcons name="star-off-outline" size={40} color={T.borderFaint} />
-                    <Text style={[cs2.reviewsEmptyTitle, { color: T.textSub  }]}>No closed conversations yet</Text>
-                    <Text style={[cs2.reviewsEmptySub,   { color: T.textHint }]}>You can leave a review once a conversation has closed.</Text>
-                  </View>
-                ) : (
-                  <>
-                    <View style={cs2.sectionRow}>
-                      <Text style={[cs2.sectionTitle, { color: T.textPrimary }]}>Closed conversations</Text>
-                    </View>
-                    <View style={[cs2.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-                      {reviewableCompanies.map((co, i) => {
-                        const coReviews = submittedReviews.filter(r => r.companyId === co.id);
-                        return (
-                          <View key={co.id}>
-                            {i > 0 && <View style={[cs2.divider, { backgroundColor: T.borderFaint }]} />}
-                            <TouchableOpacity style={cs2.companyListRow} onPress={() => openCompany(co.id)} activeOpacity={0.8}>
-                              <CompanyLogo abbr={co.abbr} color={co.color} size="md" />
-                              <View style={cs2.companyListInfo}>
-                                <Text style={[cs2.companyListName, { color: T.textPrimary }]}>{co.company}</Text>
-                                <Text style={[cs2.companyListRole, { color: T.textSub    }]}>{co.role}</Text>
-                                {coReviews.length > 0 ? (
-                                  <View style={cs2.companyListReviewedRow}>
-                                    <MaterialCommunityIcons name="check-circle" size={12} color={T.success} />
-                                    <Text style={[cs2.companyListReviewedText, { color: T.success }]}>Reviewed</Text>
-                                  </View>
-                                ) : (
-                                  <Text style={[cs2.companyListReviewHint, { color: T.primary }]}>Tap to leave a review</Text>
-                                )}
-                              </View>
-                              <MaterialCommunityIcons name="chevron-right" size={20} color={T.textHint} />
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  </>
-                );
-              })()
-            )}
-          </>
-        )}
-
-        <View style={{ height: Spacing['4'] }} />
+                <Text style={styles.reviewHistoryTitle}>{review.title}</Text>
+                <Text style={styles.reviewHistoryBody}>{review.body}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
 }
 
-// ─── Structural styles — conversation screen ──────────────────────────────────
-const cs = StyleSheet.create({
-  screen:           { flex: 1 },
-  header:           { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 10 },
-  backBtn:          { width: 38, height: 38, borderRadius: 19, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  headerLogo:       { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  headerLogoText:   { fontSize: 13, fontWeight: '800', color: '#fff' },
-  headerInfo:       { flex: 1 },
-  headerCompany:    { fontSize: 15, fontWeight: '700' },
-  headerRole:       { fontSize: 12, marginTop: 1 },
-  statusBadge:      { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
-  statusBadgeText:  { fontSize: 11, fontWeight: '700' },
-  headerDivider:    { height: StyleSheet.hairlineWidth },
-  typingLabel:      { fontSize: 12, fontStyle: 'italic', marginTop: 1 },
+export default function MatchesTab() {
+  const T = useTheme();
+  const tabBarHeight = useTabBarHeight();
+  const { top: topInset } = useSafeAreaInsets();
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  const [matchCompanies, setMatchCompanies] = useState(MATCH_COMPANIES);
+  const [conversations, setConversations] = useState(INITIAL_CONVERSATIONS);
+  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
+  const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
+  const [reviewCompanyId, setReviewCompanyId] = useState<number | null>(null);
+  const [submittedReviews, setSubmittedReviews] = useState<Review[]>([]);
 
-  msgScroll:        { flex: 1 },
-  msgContent:       { paddingHorizontal: 16, paddingTop: 16, gap: 4 },
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(Date.now()), 60 * 1000);
+    return () => clearInterval(timer);
+  }, []);
 
-  bubbleWrap:       { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 2 },
-  bubbleWrapMe:     { justifyContent: 'flex-end' },
-  bubbleWrapThem:   { justifyContent: 'flex-start' },
-  bubbleAvatar:     { width: 28, height: 28, borderRadius: 9, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
-  bubbleAvatarText: { fontSize: 9, fontWeight: '800', color: '#fff' },
-  bubbleAvatarSpacer:{ width: 28 },
-  bubbleCol:        { maxWidth: SCREEN_WIDTH * 0.72, gap: 3 },
-  bubble:           { borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10 },
-  bubbleMe:         { borderBottomRightRadius: 4 },
-  bubbleThem:       { borderWidth: 1, borderBottomLeftRadius: 4 },
-  bubbleText:       { fontSize: 14, lineHeight: 20 },
-  bubbleTime:       { fontSize: 10 },
-  bubbleTimeMe:     { textAlign: 'right' },
-  bubbleTimeThem:   { textAlign: 'left' },
+  const unreadMessages = conversations.reduce((sum, conversation) => sum + conversation.unread, 0);
+  const reviewConversation = reviewCompanyId ? conversations.find((item) => item.companyId === reviewCompanyId) ?? null : null;
+  const selectedMatch = selectedMatchId
+    ? matchCompanies.find((item) => item.id === selectedMatchId) ?? null
+    : null;
 
-  bubbleMeFirst:   { borderTopRightRadius: 18 },
-  bubbleMeLast:    { borderBottomRightRadius: 4 },
-  bubbleThemFirst: { borderTopLeftRadius: 18 },
-  bubbleThemLast:  { borderBottomLeftRadius: 4 },
+  const visibleMatches = matchCompanies.filter((match) => !match.startedAt && getMatchState(match, currentTime) !== 'expired');
+  const expiredConversations: Conversation[] = matchCompanies
+    .filter((match) => !match.startedAt && getMatchState(match, currentTime) === 'expired')
+    .map((match) => ({
+      id: -match.id,
+      companyId: match.id,
+      abbr: match.abbr,
+      color: match.color,
+      company: match.company,
+      role: match.role,
+      status: match.status,
+      lastMsg: 'This conversation expired because no message was sent in time.',
+      time: 'Expired',
+      unread: 0,
+      state: 'expired',
+    }));
+  const visibleConversations = [...expiredConversations, ...conversations];
+  const selectedConversation = selectedConversationId
+    ? visibleConversations.find((item) => item.id === selectedConversationId) ?? null
+    : null;
 
-  expiredBanner:     { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, marginTop: 16, marginBottom: 8, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12, borderWidth: 1, alignSelf: 'center' },
-  expiredBannerText: { fontSize: 12, fontWeight: '600' },
+  const openPendingMatch = (matchId: number) => {
+    setSelectedMatchId(matchId);
+  };
 
-  inputBar:  { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
-  input:     { flex: 1, minHeight: 44, maxHeight: 120, borderRadius: 22, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 11, fontSize: 14 },
-  sendBtn:   { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  sendBtnDisabled: { opacity: 0.35 },
+  const openConversation = (conversationId: number) => {
+    setConversations((prev) =>
+      prev.map((item) => (item.id === conversationId ? { ...item, unread: 0 } : item)),
+    );
+    setSelectedConversationId(conversationId);
+  };
 
-  typingBubble: { paddingVertical: 12, paddingHorizontal: 16 },
-  typingDots:   { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  typingDot:    { width: 7, height: 7, borderRadius: 4 },
-  typingDot1:   {},
-  typingDot2:   { opacity: 0.65 },
-  typingDot3:   { opacity: 0.35 },
-});
+  const handleSendFirstMessage = (companyId: number, text: string, time: string) => {
+    const existingConversation = conversations.find((item) => item.companyId === companyId);
 
-// ─── Structural styles — main screen ─────────────────────────────────────────
-const cs2 = StyleSheet.create({
+    if (existingConversation) {
+      setConversations((prev) =>
+        prev.map((item) =>
+          item.companyId === companyId
+            ? { ...item, lastMsg: text, time, unread: 0 }
+            : item,
+        ),
+      );
+      return;
+    }
+
+    const match = matchCompanies.find((item) => item.id === companyId);
+    if (!match) return;
+
+    const newConversation: Conversation = {
+      id: Date.now(),
+      companyId: match.id,
+      abbr: match.abbr,
+      color: match.color,
+      company: match.company,
+      role: match.role,
+      status: match.status,
+      lastMsg: text,
+      time,
+      unread: 0,
+      state: 'active',
+    };
+
+    setMatchCompanies((prev) =>
+      prev.map((item) =>
+        item.id === companyId ? { ...item, startedAt: Date.now() } : item,
+      ),
+    );
+    setConversations((prev) => [newConversation, ...prev]);
+    setSelectedConversationId(newConversation.id);
+    setSelectedMatchId(null);
+  };
+
+  const handleSubmitReview = (rating: number, title: string, body: string) => {
+    if (!reviewConversation) return;
+
+    setSubmittedReviews((prev) => [
+      {
+        id: Date.now(),
+        companyId: reviewConversation.companyId,
+        rating,
+        title,
+        body,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      },
+      ...prev,
+    ]);
+    setReviewCompanyId(null);
+  };
+
+  if (reviewConversation) {
+    return (
+      <ReviewScreen
+        conversation={reviewConversation}
+        reviews={submittedReviews.filter((review) => review.companyId === reviewConversation.companyId)}
+        tabBarHeight={tabBarHeight}
+        onBack={() => setReviewCompanyId(null)}
+        onSubmit={handleSubmitReview}
+      />
+    );
+  }
+
+  if (selectedMatch || selectedConversation) {
+    return (
+      <ConversationScreen
+        company={selectedMatch}
+        conversation={selectedConversation}
+        currentTime={currentTime}
+        tabBarHeight={tabBarHeight}
+        onBack={() => {
+          setSelectedMatchId(null);
+          setSelectedConversationId(null);
+        }}
+        onSendFirstMessage={handleSendFirstMessage}
+        onOpenReview={setReviewCompanyId}
+      />
+    );
+  }
+
+  return (
+    <View style={[styles.screen, { backgroundColor: '#f6f2ff', paddingTop: topInset }]}>
+      <StatusBar barStyle="dark-content" />
+
+      <View style={styles.header}>
+        <Text style={styles.pageTitle}>Matches</Text>
+      </View>
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.pageScroll, { paddingBottom: tabBarHeight + 28 }]}
+      >
+        <MatchCarousel matches={visibleMatches} currentTime={currentTime} onOpen={openPendingMatch} />
+        <MessagesList
+          conversations={visibleConversations}
+          onOpenConversation={openConversation}
+          onOpenReview={setReviewCompanyId}
+        />
+      </ScrollView>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
   screen: { flex: 1 },
-
-  segWrap:          { flexDirection: 'row', marginHorizontal: 20, marginBottom: 16, borderRadius: 14, borderWidth: 1, padding: 4 },
-  segTab:           { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 9, borderRadius: 10, gap: 6 },
-  segTabText:       { fontSize: 13, fontWeight: '600' },
-  segTabTextActive: { fontWeight: '700' },
-  segBadge:         { backgroundColor: 'rgba(255,255,255,0.25)', borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, minWidth: 18, alignItems: 'center' },
-  segBadgeText:     { fontSize: 10, fontWeight: '700', color: '#fff' },
-
-  scroll:        { paddingHorizontal: 20 },
-  sectionRow:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  sectionTitle:  { fontSize: 17, fontWeight: '700' },
-  viewAll:       { fontSize: 13, fontWeight: '600' },
-  card:          { borderRadius: 20, borderWidth: 1, padding: Spacing['4'], marginBottom: 16 },
-  divider:       { height: StyleSheet.hairlineWidth, marginVertical: Spacing['2'] },
-
-  // Empty state
-  emptyWrap:     { alignItems: 'center', paddingTop: 24, paddingHorizontal: 32 },
-  ghostStack:    { width: SCREEN_WIDTH - 64, height: 220, marginBottom: 32, position: 'relative', alignItems: 'center', justifyContent: 'center' },
-  ghostCard:     { position: 'absolute', width: 140, height: 190, borderRadius: 20, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.3, shadowRadius: 20, elevation: 6, overflow: 'hidden' },
-  ghostPhoto:    { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  ghostMeta:     { padding: 12 },
-  ghostLine:     { height: 8, borderRadius: 4 },
-  boltBadge:     { position: 'absolute', top: 14, left: '28%' as any, width: 36, height: 36, borderRadius: 18, backgroundColor: '#f97316', alignItems: 'center', justifyContent: 'center', shadowColor: '#f97316', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.4, shadowRadius: 8, elevation: 6, zIndex: 10 },
-  emptyTitle:    { fontSize: 22, fontWeight: '800', textAlign: 'center', lineHeight: 30, marginBottom: 12, letterSpacing: -0.3 },
-  emptySub:      { fontSize: 14, textAlign: 'center', lineHeight: 21, marginBottom: 32 },
-  boostBtn:      { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 50, paddingVertical: 16, paddingHorizontal: 40, marginBottom: 16, width: '100%' as any, justifyContent: 'center' },
-  boostIconWrap: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' },
-  boostBtnText:  { fontSize: 16, fontWeight: '700', color: '#fff' },
-  editProfileText:{ fontSize: 15, fontWeight: '600', textDecorationLine: 'underline' },
-
-  // Messages list
-  msgRow:        { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing['3'], paddingVertical: Spacing['2'] },
-  msgRowExpired: { opacity: 0.5 },
-  msgLogoExpired:{ opacity: 0.4 },
-  msgBody:       { flex: 1 },
-  msgTopRow:     { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 1 },
-  msgCompany:    { fontSize: 15, fontWeight: '700' },
-  msgTime:       { fontSize: 11 },
-  msgRole:       { fontSize: 13, marginBottom: 4 },
-  msgPreview:    { fontSize: 13, lineHeight: 18, marginBottom: Spacing['2'] },
-  expiredRow:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' },
-  closedTag:     { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: Radii.full, paddingHorizontal: 8, paddingVertical: 4, borderWidth: 1 },
-  closedTagText: { fontSize: 11, fontWeight: '600' },
-  leaveReviewBtn:    { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: Radii.full, paddingHorizontal: 10, paddingVertical: 4, borderWidth: 1 },
-  leaveReviewBtnText:{ fontSize: 11, fontWeight: '700' },
-
-  // Company/review detail
-  backBtn:       { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: Spacing['2'], marginBottom: Spacing['2'] },
-  backBtnText:   { fontSize: 14, fontWeight: '600' },
-  detailCard:    { borderRadius: 20, overflow: 'hidden', borderWidth: 1, marginBottom: 16 },
-  detailHeroImg: { width: '100%', height: 220 },
-  detailHeroScrim:{ position: 'absolute', top: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(10,5,25,0.45)' },
-  detailContent: { padding: Spacing['5'] },
-  detailRole:    { fontSize: 22, fontWeight: '800', letterSpacing: -0.4, marginBottom: 4 },
-  detailSalary:  { fontSize: 14, fontWeight: '700', marginBottom: 6 },
-  detailLocationRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 12 },
-  detailLocation:{ fontSize: 13 },
-  detailTagsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 4 },
-  detailTag:     { paddingHorizontal: 12, paddingVertical: 6, borderRadius: Radii.full, borderWidth: 1 },
-  detailTagText: { fontSize: 11, fontWeight: '700' },
-  detailDivider: { height: StyleSheet.hairlineWidth, marginVertical: Spacing['4'] },
-  detailSectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.2, marginBottom: Spacing['3'] },
-  detailDescription:  { fontSize: 14, lineHeight: 22 },
-  detailGalleryMain:  { borderRadius: 14, overflow: 'hidden', marginBottom: 10 },
-  detailGalleryMainImg: { width: '100%', height: 200, borderRadius: 14 },
-  detailThumbRow:{ flexDirection: 'row', gap: 8 },
-  detailThumb:   { width: (SCREEN_WIDTH - 80) / 3, height: 80, borderRadius: 10 },
-
-  successCard:      { alignItems: 'center', paddingVertical: Spacing['6'], borderRadius: 16, borderWidth: 1, borderColor: 'rgba(34,197,94,0.2)', backgroundColor: 'rgba(34,197,94,0.08)', gap: Spacing['2'], marginBottom: Spacing['3'] },
-  successCardTitle: { fontSize: 18, fontWeight: '700' },
-  successCardSub:   { fontSize: 14 },
-
-  fieldLabel:   { fontSize: 13, fontWeight: '600', marginBottom: Spacing['2'], marginTop: Spacing['3'] },
-  starsRow:     { flexDirection: 'row', gap: 6, marginBottom: Spacing['2'] },
-  ratingLabel:  { fontSize: 13, fontWeight: '600', marginBottom: Spacing['3'] },
-  textField:    { borderRadius: 14, borderWidth: 1, paddingHorizontal: Spacing['4'], paddingVertical: Spacing['3'], fontSize: 14, marginBottom: Spacing['3'] },
-  textArea:     { minHeight: 100, paddingTop: Spacing['3'] },
-  submitBtn:    { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: Radii.full, paddingVertical: 14, marginTop: Spacing['2'] },
-  submitBtnDisabled: { opacity: 0.4 },
-  submitBtnText:{ fontSize: 15, fontWeight: '700', color: '#fff' },
-
-  companyListRow:         { flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['3'] },
-  companyListInfo:        { flex: 1 },
-  companyListName:        { fontSize: 15, fontWeight: '600' },
-  companyListRole:        { fontSize: 13, marginTop: 1 },
-  companyListReviewedRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  companyListReviewedText:{ fontSize: 11, fontWeight: '600' },
-  companyListReviewHint:  { fontSize: 11, marginTop: 4 },
-
-  reviewsEmptyWrap:  { alignItems: 'center', paddingVertical: 60, gap: 12 },
-  reviewsEmptyTitle: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  reviewsEmptySub:   { fontSize: 13, textAlign: 'center', lineHeight: 20, paddingHorizontal: 24 },
-
-  reviewCard:      { gap: 6 },
-  reviewStarsRow:  { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  reviewDate:      { fontSize: 11, marginLeft: 6 },
-  reviewTitle:     { fontSize: 14, fontWeight: '600' },
-  reviewBody:      { fontSize: 13, lineHeight: 20 },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 8,
+    paddingBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#1b1438',
+    letterSpacing: -0.6,
+  },
+  filterButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#7c3aed',
+    shadowOpacity: 0.18,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+  },
+  pageScroll: { paddingHorizontal: 20 },
+  sectionRow: {
+    marginBottom: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    letterSpacing: -0.25,
+  },
+  sectionAction: { fontSize: 14, fontWeight: '800' },
+  matchPanel: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    marginBottom: 18,
+    shadowColor: '#1a1233',
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  matchPanelRow: {
+    paddingRight: 8,
+    gap: 12,
+  },
+  matchCard: {
+    width: 86,
+    alignItems: 'center',
+  },
+  matchAvatarWrap: {
+    width: 68,
+    height: 68,
+    marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchAvatarInner: {
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchBadge: {
+    position: 'absolute',
+    top: -1,
+    right: -1,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#ef4444',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: '#fff',
+  },
+  matchBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  matchName: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#1b1438',
+    textAlign: 'center',
+  },
+  matchRole: {
+    marginTop: 2,
+    fontSize: 11,
+    color: '#9a93b1',
+    textAlign: 'center',
+  },
+  matchMeta: {
+    marginTop: 4,
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#7c3aed',
+  },
+  matchMetaExpired: {
+    color: '#ef4444',
+  },
+  ringWrap: {
+    width: 58,
+    height: 58,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringLabel: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ringValue: {
+    fontSize: 0,
+    fontWeight: '900',
+    color: '#231942',
+  },
+  emptyState: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    paddingHorizontal: 28,
+    paddingVertical: 40,
+    alignItems: 'center',
+    gap: 10,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#1b1438',
+  },
+  emptyCopy: {
+    fontSize: 14,
+    lineHeight: 22,
+    color: '#8f8aa4',
+    textAlign: 'center',
+  },
+  messagePanel: {
+    backgroundColor: '#fff',
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    shadowColor: '#1a1233',
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(26,18,51,0.08)',
+    marginVertical: 8,
+  },
+  msgRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    paddingVertical: 10,
+  },
+  msgRowClosed: {
+    opacity: 0.68,
+  },
+  msgBody: { flex: 1 },
+  msgTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 2,
+  },
+  msgCompany: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#1b1438',
+  },
+  msgTime: {
+    fontSize: 11,
+    color: '#a29ab8',
+  },
+  msgRole: {
+    fontSize: 13,
+    color: '#8f8aa4',
+    marginBottom: 4,
+  },
+  msgPreview: {
+    fontSize: 13,
+    color: '#6a6480',
+    marginBottom: 6,
+  },
+  msgFaded: {
+    color: '#9e99af',
+  },
+  messageActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  closedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(143,138,164,0.12)',
+  },
+  closedTagText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#8f8aa4',
+  },
+  reviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Radii.full,
+    borderWidth: 1,
+  },
+  reviewButtonText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  chatScreen: { flex: 1 },
+  chatHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatHeaderLogo: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatHeaderLogoText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  chatHeaderInfo: {
+    flex: 1,
+  },
+  chatHeaderCompany: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#1b1438',
+  },
+  chatHeaderRole: {
+    fontSize: 12,
+    color: '#8f8aa4',
+    marginTop: 2,
+  },
+  chatStatus: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+  },
+  chatStatusText: {
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  chatScroll: { flex: 1 },
+  chatContent: {
+    paddingHorizontal: 16,
+    paddingTop: 10,
+  },
+  chatBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(124,58,237,0.1)',
+  },
+  chatBannerText: {
+    flex: 1,
+    color: '#6a6480',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  bubbleWrap: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 8,
+    marginBottom: 2,
+  },
+  bubbleWrapMe: { justifyContent: 'flex-end' },
+  bubbleWrapThem: { justifyContent: 'flex-start' },
+  chatAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+  chatAvatarText: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  chatAvatarSpacer: {
+    width: 28,
+  },
+  bubbleCol: {
+    maxWidth: SCREEN_WIDTH * 0.72,
+  },
+  bubble: {
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  bubbleMe: {
+    borderBottomRightRadius: 4,
+  },
+  bubbleThem: {
+    backgroundColor: '#fff',
+    borderBottomLeftRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(124,58,237,0.08)',
+  },
+  bubbleText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  bubbleTime: {
+    fontSize: 10,
+    color: '#a29ab8',
+    marginTop: 3,
+  },
+  bubbleTimeMe: {
+    textAlign: 'right',
+  },
+  bubbleTimeThem: {
+    textAlign: 'left',
+  },
+  typingBubble: {
+    flexDirection: 'row',
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 18,
+    borderBottomLeftRadius: 4,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(124,58,237,0.08)',
+  },
+  typingDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#a29ab8',
+  },
+  chatInputBar: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  chatInput: {
+    flex: 1,
+    minHeight: 46,
+    maxHeight: 120,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: 'rgba(124,58,237,0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    color: '#1b1438',
+    fontSize: 14,
+  },
+  chatSendButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chatSendButtonDisabled: {
+    opacity: 0.35,
+  },
+  chatFooterLocked: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingTop: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(124,58,237,0.12)',
+  },
+  chatFooterLockedText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#9f98b7',
+  },
+  footerReviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 999,
+  },
+  footerReviewButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  reviewScreen: {
+    flex: 1,
+  },
+  reviewHeader: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 2,
+    paddingHorizontal: 20,
+  },
+  reviewBackButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(15,23,42,0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+  },
+  reviewScroll: {
+    paddingBottom: 36,
+  },
+  reviewBannerWrap: {
+    height: 360,
+    marginBottom: 18,
+    justifyContent: 'flex-end',
+    backgroundColor: '#140f23',
+  },
+  reviewBannerImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: '100%',
+    height: '100%',
+  },
+  reviewBannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(7,5,16,0.56)',
+  },
+  reviewHero: {
+    paddingHorizontal: 20,
+    paddingBottom: 28,
+    gap: 6,
+  },
+  reviewHeroLogo: {
+    width: 78,
+    height: 78,
+    borderRadius: 39,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.22)',
+  },
+  reviewHeroLogoText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  reviewCompany: {
+    fontSize: 34,
+    fontWeight: '900',
+    color: '#fff',
+    letterSpacing: -0.8,
+  },
+  reviewRoleLabel: {
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.78)',
+  },
+  reviewMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  reviewMetaText: {
+    color: 'rgba(255,255,255,0.88)',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  reviewClosedTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  reviewClosedTagText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#f5f3ff',
+  },
+  reviewCardPanel: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 18,
+    marginBottom: 18,
+    marginHorizontal: 20,
+  },
+  reviewSectionEyebrow: {
+    fontSize: 12,
+    fontWeight: '900',
+    letterSpacing: 1.4,
+    textTransform: 'uppercase',
+    color: '#8f8aa4',
+    marginBottom: 12,
+  },
+  reviewAboutTitle: {
+    fontSize: 26,
+    fontWeight: '900',
+    color: '#1b1438',
+    letterSpacing: -0.6,
+    marginBottom: 6,
+  },
+  reviewAboutLocation: {
+    fontSize: 15,
+    color: '#7a7392',
+    fontWeight: '700',
+    marginBottom: 14,
+  },
+  reviewAboutCopy: {
+    fontSize: 16,
+    lineHeight: 28,
+    color: '#2c2445',
+  },
+  reviewGalleryMain: {
+    width: '100%',
+    height: 240,
+    borderRadius: 24,
+    marginBottom: 14,
+  },
+  reviewThumbRow: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  reviewThumbWrap: {
+    width: 94,
+    height: 94,
+    borderRadius: 22,
+    overflow: 'hidden',
+    borderWidth: 3,
+    borderColor: 'transparent',
+    backgroundColor: '#ede9fe',
+  },
+  reviewThumb: {
+    width: '100%',
+    height: '100%',
+  },
+  reviewSectionTitle: {
+    fontSize: 17,
+    fontWeight: '900',
+    color: '#1b1438',
+    marginBottom: 14,
+  },
+  reviewStars: {
+    flexDirection: 'row',
+    gap: 4,
+    marginBottom: 14,
+  },
+  reviewLabel: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#615a78',
+    marginBottom: 8,
+  },
+  reviewInput: {
+    borderWidth: 1,
+    borderColor: 'rgba(124,58,237,0.1)',
+    backgroundColor: '#faf8ff',
+    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#1b1438',
+    marginBottom: 14,
+  },
+  reviewTextArea: {
+    minHeight: 120,
+  },
+  submitReviewButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 999,
+    paddingVertical: 14,
+  },
+  submitReviewButtonDisabled: {
+    opacity: 0.4,
+  },
+  submitReviewButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  reviewHistory: {
+    backgroundColor: '#fff',
+    borderRadius: 24,
+    padding: 18,
+    marginHorizontal: 20,
+  },
+  reviewHistoryCard: {
+    paddingTop: 14,
+  },
+  reviewHistoryTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  reviewHistoryStars: {
+    flexDirection: 'row',
+    gap: 2,
+  },
+  reviewHistoryDate: {
+    fontSize: 11,
+    color: '#a29ab8',
+  },
+  reviewHistoryTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#1b1438',
+    marginBottom: 4,
+  },
+  reviewHistoryBody: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#6a6480',
+  },
 });

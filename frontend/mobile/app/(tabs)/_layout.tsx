@@ -6,14 +6,12 @@ import { useTheme } from '../../theme'; // ← centralised theme
 
 type IconName =
   | 'home-outline'
-  | 'compass-outline'
   | 'heart-outline'
   | 'chat-outline'
   | 'account-circle-outline';
 
 const TABS: { name: string; label: string; icon: IconName }[] = [
   { name: 'index',   label: 'Home',     icon: 'home-outline'           },
-  { name: 'jobs',    label: 'Explore',  icon: 'compass-outline'        },
   { name: 'matches', label: 'Messages', icon: 'chat-outline'           },
   { name: 'profile', label: 'Profile',  icon: 'account-circle-outline' },
 ];
@@ -63,7 +61,6 @@ export default function TabLayout() {
       tabBar={props => <CustomTabBar {...props} />}
     >
       <Tabs.Screen name="index"   options={{ title: 'Home'     }} />
-      <Tabs.Screen name="jobs"    options={{ title: 'Explore'  }} />
       <Tabs.Screen name="matches" options={{ title: 'Messages' }} />
       <Tabs.Screen name="profile" options={{ title: 'Profile'  }} />
     </Tabs>
