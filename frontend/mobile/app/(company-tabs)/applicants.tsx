@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useRouter } from 'expo-router';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useTheme } from '../../theme';
 
@@ -17,6 +17,13 @@ export type JobPost = {
   color: string;
   applicants: number;
   status: 'open' | 'paused';
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  salaryHidden?: boolean;
+  workType?: 'remote' | 'onsite' | 'hybrid';
+  location?: string;
+  skills?: { name: string; type: 'hard' | 'soft' }[];
+  interviewMessage?: string;
 };
 
 export const INITIAL_JOBS: JobPost[] = [
@@ -29,6 +36,17 @@ export const INITIAL_JOBS: JobPost[] = [
     color: SEED_PRIMARY,
     applicants: 24,
     status: 'open',
+    workType: 'remote',
+    salaryMin: 50000,
+    salaryMax: 80000,
+    salaryHidden: false,
+    location: 'Quezon City, Metro Manila, Philippines',
+    skills: [
+      { name: 'React', type: 'hard' },
+      { name: 'TypeScript', type: 'hard' },
+      { name: 'Communication', type: 'soft' },
+    ],
+    interviewMessage: "Hi! We're excited about your profile. We'd love to set up a quick screening call.",
   },
   {
     id: 2,
@@ -39,6 +57,16 @@ export const INITIAL_JOBS: JobPost[] = [
     color: '#4ade80',
     applicants: 18,
     status: 'open',
+    workType: 'hybrid',
+    salaryMin: 45000,
+    salaryMax: 70000,
+    salaryHidden: false,
+    location: 'Makati, Metro Manila, Philippines',
+    skills: [
+      { name: 'Figma', type: 'hard' },
+      { name: 'Creativity', type: 'soft' },
+    ],
+    interviewMessage: "Thanks for applying! Let's chat about your design process.",
   },
   {
     id: 3,
@@ -49,16 +77,31 @@ export const INITIAL_JOBS: JobPost[] = [
     color: '#60a5fa',
     applicants: 11,
     status: 'paused',
+    workType: 'onsite',
+    salaryMin: 55000,
+    salaryMax: 90000,
+    salaryHidden: true,
+    location: 'Taguig, Metro Manila, Philippines',
+    skills: [
+      { name: 'Laravel', type: 'hard' },
+      { name: 'Node.js', type: 'hard' },
+      { name: 'Problem Solving', type: 'soft' },
+    ],
   },
 ];
 
 type Filter = 'all' | 'open' | 'paused';
 
+// ─── Shared job store (so matches.tsx can read updated jobs) ──────────────────
+// In a real app this would be a context/store. For now we export a mutable ref.
+export let SHARED_JOBS: JobPost[] = [...INITIAL_JOBS];
+export const setSharedJobs = (jobs: JobPost[]) => { SHARED_JOBS = jobs; };
+
 export default function JobPostingsScreen() {
   const T = useTheme();
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
-  const navigation = useNavigation<any>();
+  const router = useRouter();
 
   const [jobs, setJobs] = useState<JobPost[]>(INITIAL_JOBS);
   const [filter, setFilter] = useState<Filter>('all');
@@ -66,28 +109,22 @@ export default function JobPostingsScreen() {
 
   const filtered = jobs.filter((j) => (filter === 'all' ? true : j.status === filter));
 
-  const handleJobCreated = (incoming: { title: string; dept: string; description: string; icon: any; color: string }) => {
-    setJobs((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        title: incoming.title,
-        dept: incoming.dept || 'General',
-        description: incoming.description || '',
-        icon: incoming.icon ?? 'briefcase-outline',
-        color: incoming.color ?? T.primary,
-        applicants: 0,
-        status: 'open',
-      },
-    ]);
+  const updateJobs = (updater: (prev: JobPost[]) => JobPost[]) => {
+    setJobs((prev) => {
+      const next = updater(prev);
+      setSharedJobs(next);
+      return next;
+    });
   };
 
   const toggleStatus = (id: number) => {
-    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: j.status === 'open' ? 'paused' : 'open' } : j)));
+    updateJobs((prev) =>
+      prev.map((j) => (j.id === id ? { ...j, status: j.status === 'open' ? 'paused' : 'open' } : j))
+    );
   };
 
   const removeJob = (id: number) => {
-    setJobs((prev) => prev.filter((j) => j.id !== id));
+    updateJobs((prev) => prev.filter((j) => j.id !== id));
     if (selected === id) setSelected(null);
   };
 
@@ -105,7 +142,7 @@ export default function JobPostingsScreen() {
         </View>
         <TouchableOpacity
           style={[s.addBtn, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}
-          onPress={() => navigation.navigate('CreateJobScreen', { onJobCreated: handleJobCreated })}
+          onPress={() => router.push('/(company-tabs)/CreateJobScreen' as any)}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="plus" size={14} color={T.primary} />
@@ -184,15 +221,45 @@ export default function JobPostingsScreen() {
                   <MaterialCommunityIcons name="briefcase-outline" size={13} color={T.textHint} />
                   <Text style={[s.statText, { color: T.textHint }]}>{item.dept}</Text>
                 </View>
+                {item.workType && (
+                  <>
+                    <View style={[s.statDot, { backgroundColor: T.textHint }]} />
+                    <View style={s.statItem}>
+                      <MaterialCommunityIcons
+                        name={item.workType === 'remote' ? 'home-outline' : item.workType === 'hybrid' ? 'office-building-outline' : 'map-marker-outline'}
+                        size={13}
+                        color={T.textHint}
+                      />
+                      <Text style={[s.statText, { color: T.textHint }]}>
+                        {item.workType.charAt(0).toUpperCase() + item.workType.slice(1)}
+                      </Text>
+                    </View>
+                  </>
+                )}
               </View>
 
               {isSelected && (
                 <View style={s.cardActions}>
                   <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
-                  <Text style={[s.descriptionLabel, { color: T.textSub }]}>Description</Text>
-                  <Text style={[s.descriptionText, { color: T.textPrimary }]}>{item.description}</Text>
-                  <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
+
+                  {/* ── Actions Row ── */}
                   <View style={s.actionsRow}>
+                    {/* View Job Post */}
+                    <TouchableOpacity
+                      style={s.actionBtn}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(company-tabs)/job-applicants' as any,
+                          params: { jobId: String(item.id) },
+                        })
+                      }
+                      activeOpacity={0.8}
+                    >
+                      <MaterialCommunityIcons name="briefcase-eye-outline" size={15} color={T.primary} />
+                      <Text style={[s.actionText, { color: T.primary }]}>View Job Post</Text>
+                    </TouchableOpacity>
+
+                    {/* Pause / Reopen */}
                     <TouchableOpacity style={s.actionBtn} onPress={() => toggleStatus(item.id)} activeOpacity={0.8}>
                       <MaterialCommunityIcons
                         name={item.status === 'open' ? 'pause-circle-outline' : 'play-circle-outline'}
@@ -204,11 +271,7 @@ export default function JobPostingsScreen() {
                       </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={s.actionBtn} activeOpacity={0.8}>
-                      <MaterialCommunityIcons name="account-search-outline" size={15} color={T.primary} />
-                      <Text style={[s.actionText, { color: T.primary }]}>View Applicants</Text>
-                    </TouchableOpacity>
-
+                    {/* Delete */}
                     <TouchableOpacity style={s.actionBtn} onPress={() => removeJob(item.id)} activeOpacity={0.8}>
                       <MaterialCommunityIcons name="trash-can-outline" size={15} color={T.danger} />
                       <Text style={[s.actionText, { color: T.danger }]}>Delete</Text>
@@ -248,8 +311,6 @@ const s = StyleSheet.create({
   statDot: { width: 3, height: 3, borderRadius: 2 },
   cardActions: { marginTop: 12 },
   divider: { height: 1, marginBottom: 12 },
-  descriptionLabel: { fontSize: 12, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
-  descriptionText: { fontSize: 13, lineHeight: 20, marginBottom: 12 },
   actionsRow: { flexDirection: 'row', justifyContent: 'space-around' },
   actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   actionText: { fontSize: 12, fontWeight: '600' },

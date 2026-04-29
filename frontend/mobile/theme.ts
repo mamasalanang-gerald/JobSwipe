@@ -49,13 +49,21 @@ export type ThemeTokens = {
   pink:        string;   // secondary accent (hot-pink / rose)
 
   // Semantic colours  (same in both modes)
-  success:      string;
-  successLight: string;
-  warning:      string;
-  warningLight: string;
-  danger:       string;
-  dangerBg:     string;
-  gold:         string;
+  success:       string;
+  successLight:  string;
+  successBorder: string;
+  warning:       string;
+  warningLight:  string;
+  danger:        string;
+  dangerLight:   string;
+  dangerBorder:  string;
+  dangerBg:      string;
+  gold:          string;
+
+  // Special accents
+  skillChipBg:     string;
+  skillChipBorder: string;
+  statusBar:       'light-content' | 'dark-content';
 
   // Text
   textPrimary: string;
@@ -82,13 +90,19 @@ const dark: ThemeTokens = {
   primaryDark:  '#7c3aed',
   pink:         '#ec4899',
 
-  success:      '#22c55e',
-  successLight: 'rgba(34,197,94,0.12)',
-  warning:      '#f59e0b',
-  warningLight: 'rgba(245,158,11,0.12)',
-  danger:       '#f87171',
-  dangerBg:     'rgba(239,68,68,0.08)',
-  gold:         '#f59e0b',
+  success:       '#22c55e',
+  successLight:  'rgba(34,197,94,0.12)',
+  successBorder: 'rgba(34,197,94,0.2)',
+  warning:       '#f59e0b',
+  warningLight:  'rgba(245,158,11,0.12)',
+  danger:        '#f87171',
+  dangerLight:   'rgba(239,68,68,0.12)',
+  dangerBorder:  'rgba(239,68,68,0.25)',
+  dangerBg:      'rgba(239,68,68,0.08)',
+  gold:          '#f59e0b',
+  skillChipBg:     'rgba(168,85,247,0.15)',
+  skillChipBorder: 'rgba(168,85,247,0.3)',
+  statusBar:       'light-content',
 
   textPrimary:  '#ffffff',
   textSub:      'rgba(255,255,255,0.55)',
@@ -113,13 +127,19 @@ const light: ThemeTokens = {
   primaryDark:  '#5b21b6',
   pink:         '#db2777',
 
-  success:      '#16a34a',
-  successLight: 'rgba(22,163,74,0.10)',
-  warning:      '#d97706',
-  warningLight: 'rgba(217,119,6,0.10)',
-  danger:       '#dc2626',
-  dangerBg:     'rgba(220,38,38,0.07)',
-  gold:         '#d97706',
+  success:       '#16a34a',
+  successLight:  'rgba(22,163,74,0.10)',
+  successBorder: 'rgba(22,163,74,0.2)',
+  warning:       '#d97706',
+  warningLight:  'rgba(217,119,6,0.10)',
+  danger:        '#dc2626',
+  dangerLight:   'rgba(220,38,38,0.12)',
+  dangerBorder:  'rgba(220,38,38,0.25)',
+  dangerBg:      'rgba(220,38,38,0.07)',
+  gold:          '#d97706',
+  skillChipBg:     'rgba(168,85,247,0.08)',
+  skillChipBorder: 'rgba(168,85,247,0.25)',
+  statusBar:       'dark-content',
 
   textPrimary:  '#1e1035',
   textSub:      'rgba(30,16,53,0.55)',

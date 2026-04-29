@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, StatusBar, Switch, KeyboardAvoidingView,
@@ -300,6 +300,7 @@ export default function CreateJobScreen() {
   const navigation      = useNavigation<any>();
   const route           = useRoute<RouteProp<RouteParams, 'CreateJob'>>();
   const { top, bottom } = useSafeAreaInsets();
+  const scrollViewRef   = useRef<ScrollView | null>(null);
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [title,             setTitle]             = useState('');
@@ -341,6 +342,33 @@ export default function CreateJobScreen() {
       setLocationRegion('');
     }
   }, [selectedCity, selectedProvince, selectedRegion]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      setTitle('');
+      setDescription('');
+      setSalaryMin('');
+      setSalaryMax('');
+      setSalaryHidden(false);
+      setWorkType('remote');
+      setSelectedRegion('');
+      setSelectedProvince('');
+      setSelectedCity('');
+      setLocation('');
+      setLocationCity('');
+      setLocationRegion('');
+      setInterviewMessage('');
+      setSkills([]);
+      setSkillInput('');
+      setShowAddHard(false);
+      setShowAddSoft(false);
+      setFocusedField(null);
+      setSubmitting(false);
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   // ── Helpers ─────────────────────────────────────────────────────────────────
   const addSkill = (type: 'hard' | 'soft') => {
@@ -436,6 +464,7 @@ export default function CreateJobScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 24}
       >
         <ScrollView
+          ref={scrollViewRef}
           contentContainerStyle={[s.scroll, { paddingBottom: bottom + 80 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
