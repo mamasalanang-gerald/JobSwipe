@@ -35,8 +35,18 @@
       "bundleIdentifier": "com.jobapp.mobile"
     },
     "android": {
-      "package": "com.jobapp.mobile"
+      "package": "com.jobapp.mobile",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ]
     },
-    "githubUrl": "https://github.com/yourusername/jobapp"
+    "githubUrl": "https://github.com/yourusername/jobapp",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2c27939a-3dd7-4757-8a8f-d91aec8992a4"
+      }
+    }
   }
 }
