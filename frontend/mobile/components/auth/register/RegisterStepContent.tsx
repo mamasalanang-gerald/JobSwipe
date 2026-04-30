@@ -1,11 +1,13 @@
-import React from 'react';
-import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useState } from 'react';
+import { Image, ScrollView, Text, TextInput, TouchableOpacity, View, Modal } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
 import Svg, { Path } from 'react-native-svg';
 import { Divider, Radii, SectionCard, Spacing, Typography } from '../../ui';
 import { COMPANY_SIZE_OPTIONS, INDUSTRY_OPTIONS, Step, WorkEntry, EducationEntry } from './types';
+import { COUNTRIES, getProvincesForCountry, getProvincesForRegion, getCitiesForProvince } from '../../../constants/locations';
 
 type Props = {
   T: any;
@@ -26,12 +28,16 @@ type Props = {
   location: string;
   locationCity: string;
   locationRegion: string;
+  locationProvince: string;
+  locationCountry: string;
   bio: string;
   setFirstName: (value: string) => void;
   setLastName: (value: string) => void;
   setLocation: (value: string) => void;
   setLocationCity: (value: string) => void;
   setLocationRegion: (value: string) => void;
+  setLocationProvince: (value: string) => void;
+  setLocationCountry: (value: string) => void;
   setBio: (value: string) => void;
   resumeFile: { uri: string; name: string } | null;
   setResumeFile: (value: { uri: string; name: string } | null) => void;
@@ -69,6 +75,7 @@ type Props = {
   addressStreet: string;
   addressCity: string;
   addressState: string;
+  addressProvince: string;
   addressCountry: string;
   addressPostal: string;
   companySocialLinks: string[];
@@ -82,6 +89,7 @@ type Props = {
   setAddressStreet: (value: string) => void;
   setAddressCity: (value: string) => void;
   setAddressState: (value: string) => void;
+  setAddressProvince: (value: string) => void;
   setAddressCountry: (value: string) => void;
   setAddressPostal: (value: string) => void;
   setCompanySocialLinks: (value: string[] | ((prev: string[]) => string[])) => void;
@@ -114,12 +122,16 @@ export function RegisterStepContent(props: Props) {
     location,
     locationCity,
     locationRegion,
+    locationProvince,
+    locationCountry,
     bio,
     setFirstName,
     setLastName,
     setLocation,
     setLocationCity,
     setLocationRegion,
+    setLocationProvince,
+    setLocationCountry,
     setBio,
     resumeFile,
     setResumeFile,
@@ -157,6 +169,7 @@ export function RegisterStepContent(props: Props) {
     addressStreet,
     addressCity,
     addressState,
+    addressProvince,
     addressCountry,
     addressPostal,
     companySocialLinks,
@@ -170,6 +183,7 @@ export function RegisterStepContent(props: Props) {
     setAddressStreet,
     setAddressCity,
     setAddressState,
+    setAddressProvince,
     setAddressCountry,
     setAddressPostal,
     setCompanySocialLinks,
@@ -237,6 +251,13 @@ export function RegisterStepContent(props: Props) {
       );
 
     case 'basic':
+      const isPhilippines = locationCountry === 'Philippines';
+      const availableRegionsOrStates = getProvincesForCountry(locationCountry);
+      const availableProvinces = isPhilippines ? getProvincesForRegion(locationRegion) : [];
+      const availableCities = isPhilippines 
+        ? getCitiesForProvince(locationCountry, locationProvince)
+        : getCitiesForProvince(locationCountry, locationRegion);
+      
       return (
         <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Basic Info">
           <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
@@ -256,25 +277,109 @@ export function RegisterStepContent(props: Props) {
 
           <Divider spacing={Spacing['4']} />
 
-          <View style={{ gap: Spacing['2'] }}>
+          <View style={{ gap: Spacing['3'] }}>
             <Text style={fieldLabelStyle}>Location *</Text>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="map-marker-outline" size={16} color={T.textHint} />
-              <TextInput style={inputStyle} placeholder="San Francisco, CA" placeholderTextColor={T.textHint} value={location} onChangeText={setLocation} />
-            </View>
-          </View>
 
-          <View style={{ flexDirection: 'row', gap: Spacing['3'], marginTop: Spacing['3'] }}>
-            <View style={{ flex: 1, gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>City</Text>
-              <View style={inputRowStyle}>
-                <TextInput style={inputStyle} placeholder="San Francisco" placeholderTextColor={T.textHint} value={locationCity} onChangeText={setLocationCity} />
+            <View style={{ gap: Spacing['2'] }}>
+              <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>Country</Text>
+              <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                <Picker
+                  selectedValue={locationCountry}
+                  onValueChange={(value) => {
+                    setLocationCountry(value);
+                    setLocationRegion('');
+                    setLocationProvince('');
+                    setLocationCity('');
+                    setLocation('');
+                  }}
+                  style={{ flex: 1, color: T.textPrimary }}
+                >
+                  <Picker.Item label="Select country..." value="" />
+                  {COUNTRIES.map((country) => (
+                    <Picker.Item key={country} label={country} value={country} />
+                  ))}
+                </Picker>
               </View>
             </View>
-            <View style={{ flex: 1, gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Region / State</Text>
-              <View style={inputRowStyle}>
-                <TextInput style={inputStyle} placeholder="California" placeholderTextColor={T.textHint} value={locationRegion} onChangeText={setLocationRegion} />
+
+            <View style={{ gap: Spacing['2'] }}>
+              <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>
+                {isPhilippines ? 'Region' : locationCountry === 'United States' || locationCountry === 'Australia' ? 'State' : locationCountry === 'Canada' ? 'Province' : 'Region'}
+              </Text>
+              <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                <Picker
+                  selectedValue={locationRegion}
+                  onValueChange={(value) => {
+                    setLocationRegion(value);
+                    setLocationProvince('');
+                    setLocationCity('');
+                    if (!isPhilippines && value && locationCity) {
+                      setLocation(`${locationCity}, ${value}`);
+                    }
+                  }}
+                  style={{ flex: 1, color: T.textPrimary }}
+                  enabled={!!locationCountry}
+                >
+                  <Picker.Item label={locationCountry ? (isPhilippines ? 'Select region...' : locationCountry === 'United States' || locationCountry === 'Australia' ? 'Select state...' : locationCountry === 'Canada' ? 'Select province...' : 'Select region...') : 'Select country first'} value="" />
+                  {availableRegionsOrStates.map((item) => (
+                    <Picker.Item key={item} label={item} value={item} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+
+            {isPhilippines && (
+              <View style={{ gap: Spacing['2'] }}>
+                <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>Province</Text>
+                <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                  <Picker
+                    selectedValue={locationProvince}
+                    onValueChange={(value) => {
+                      setLocationProvince(value);
+                      setLocationCity('');
+                    }}
+                    style={{ flex: 1, color: T.textPrimary }}
+                    enabled={!!locationRegion}
+                  >
+                    <Picker.Item label={locationRegion ? 'Select province...' : 'Select region first'} value="" />
+                    {availableProvinces.map((province) => (
+                      <Picker.Item key={province} label={province} value={province} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+            )}
+
+            <View style={{ gap: Spacing['2'] }}>
+              <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>City</Text>
+              <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                <Picker
+                  selectedValue={locationCity}
+                  onValueChange={(value) => {
+                    setLocationCity(value);
+                    if (value) {
+                      if (isPhilippines && locationProvince) {
+                        setLocation(`${value}, ${locationProvince}`);
+                      } else if (!isPhilippines && locationRegion) {
+                        setLocation(`${value}, ${locationRegion}`);
+                      }
+                    }
+                  }}
+                  style={{ flex: 1, color: T.textPrimary }}
+                  enabled={isPhilippines ? !!locationProvince : !!locationRegion}
+                >
+                  <Picker.Item 
+                    label={
+                      isPhilippines 
+                        ? (locationProvince ? 'Select city...' : 'Select province first')
+                        : (locationRegion ? 'Select city...' : (locationCountry === 'United States' || locationCountry === 'Australia' ? 'Select state first' : locationCountry === 'Canada' ? 'Select province first' : 'Select region first'))
+                    } 
+                    value="" 
+                  />
+                  {availableCities.map((city) => (
+                    <Picker.Item key={city} label={city} value={city} />
+                  ))}
+                </Picker>
               </View>
             </View>
           </View>
@@ -735,8 +840,9 @@ export function RegisterStepContent(props: Props) {
           </SectionCard>
 
           <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Address">
-            <Text style={{ fontSize: Typography.xs, color: T.textHint, marginBottom: Spacing['3'] }}>All address fields are optional</Text>
             <View style={{ gap: Spacing['3'] }}>
+              <Text style={{ fontSize: Typography.xs, color: T.textHint }}>Company address (optional)</Text>
+
               <View style={{ gap: Spacing['2'] }}>
                 <Text style={fieldLabelStyle}>Street</Text>
                 <View style={inputRowStyle}>
@@ -744,32 +850,104 @@ export function RegisterStepContent(props: Props) {
                   <TextInput style={inputStyle} placeholder="123 Main St" placeholderTextColor={T.textHint} value={addressStreet} onChangeText={setAddressStreet} maxLength={200} />
                 </View>
               </View>
-              <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-                <View style={{ flex: 1, gap: Spacing['2'] }}>
-                  <Text style={fieldLabelStyle}>City</Text>
-                  <View style={inputRowStyle}>
-                    <TextInput style={inputStyle} placeholder="San Francisco" placeholderTextColor={T.textHint} value={addressCity} onChangeText={setAddressCity} maxLength={100} />
-                  </View>
-                </View>
-                <View style={{ flex: 1, gap: Spacing['2'] }}>
-                  <Text style={fieldLabelStyle}>State</Text>
-                  <View style={inputRowStyle}>
-                    <TextInput style={inputStyle} placeholder="California" placeholderTextColor={T.textHint} value={addressState} onChangeText={setAddressState} maxLength={100} />
-                  </View>
+
+              <View style={{ gap: Spacing['2'] }}>
+                <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>Country</Text>
+                <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                  <Picker
+                    selectedValue={addressCountry}
+                    onValueChange={(value) => {
+                      setAddressCountry(value);
+                      setAddressState('');
+                      setAddressProvince('');
+                      setAddressCity('');
+                    }}
+                    style={{ flex: 1, color: T.textPrimary }}
+                  >
+                    <Picker.Item label="Select country..." value="" />
+                    {COUNTRIES.map((country) => (
+                      <Picker.Item key={country} label={country} value={country} />
+                    ))}
+                  </Picker>
                 </View>
               </View>
-              <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-                <View style={{ flex: 2, gap: Spacing['2'] }}>
-                  <Text style={fieldLabelStyle}>Country</Text>
-                  <View style={inputRowStyle}>
-                    <TextInput style={inputStyle} placeholder="United States" placeholderTextColor={T.textHint} value={addressCountry} onChangeText={setAddressCountry} maxLength={100} />
+
+              <View style={{ gap: Spacing['2'] }}>
+                <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>
+                  {addressCountry === 'Philippines' ? 'Region' : addressCountry === 'United States' || addressCountry === 'Australia' ? 'State' : addressCountry === 'Canada' ? 'Province' : 'Region'}
+                </Text>
+                <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                  <Picker
+                    selectedValue={addressState}
+                    onValueChange={(value) => {
+                      setAddressState(value);
+                      setAddressProvince('');
+                      setAddressCity('');
+                    }}
+                    style={{ flex: 1, color: T.textPrimary }}
+                    enabled={!!addressCountry}
+                  >
+                    <Picker.Item label={addressCountry ? (addressCountry === 'Philippines' ? 'Select region...' : addressCountry === 'United States' || addressCountry === 'Australia' ? 'Select state...' : addressCountry === 'Canada' ? 'Select province...' : 'Select region...') : 'Select country first'} value="" />
+                    {getProvincesForCountry(addressCountry).map((item) => (
+                      <Picker.Item key={item} label={item} value={item} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              {addressCountry === 'Philippines' && (
+                <View style={{ gap: Spacing['2'] }}>
+                  <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>Province</Text>
+                  <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                    <Picker
+                      selectedValue={addressProvince}
+                      onValueChange={(value) => {
+                        setAddressProvince(value);
+                        setAddressCity('');
+                      }}
+                      style={{ flex: 1, color: T.textPrimary }}
+                      enabled={!!addressState}
+                    >
+                      <Picker.Item label={addressState ? 'Select province...' : 'Select region first'} value="" />
+                      {getProvincesForRegion(addressState).map((province) => (
+                        <Picker.Item key={province} label={province} value={province} />
+                      ))}
+                    </Picker>
                   </View>
                 </View>
-                <View style={{ flex: 1, gap: Spacing['2'] }}>
-                  <Text style={fieldLabelStyle}>Postal Code</Text>
-                  <View style={inputRowStyle}>
-                    <TextInput style={inputStyle} placeholder="94102" placeholderTextColor={T.textHint} value={addressPostal} onChangeText={setAddressPostal} keyboardType="number-pad" maxLength={20} />
-                  </View>
+              )}
+
+              <View style={{ gap: Spacing['2'] }}>
+                <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>City</Text>
+                <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                  <Picker
+                    selectedValue={addressCity}
+                    onValueChange={setAddressCity}
+                    style={{ flex: 1, color: T.textPrimary }}
+                    enabled={addressCountry === 'Philippines' ? !!addressProvince : !!addressState}
+                  >
+                    <Picker.Item 
+                      label={
+                        addressCountry === 'Philippines'
+                          ? (addressProvince ? 'Select city...' : 'Select province first')
+                          : (addressState ? 'Select city...' : (addressCountry === 'United States' || addressCountry === 'Australia' ? 'Select state first' : addressCountry === 'Canada' ? 'Select province first' : 'Select region first'))
+                      } 
+                      value="" 
+                    />
+                    {(addressCountry === 'Philippines' 
+                      ? getCitiesForProvince(addressCountry, addressProvince)
+                      : getCitiesForProvince(addressCountry, addressState)
+                    ).map((city) => (
+                      <Picker.Item key={city} label={city} value={city} />
+                    ))}
+                  </Picker>
+                </View>
+              </View>
+
+              <View style={{ gap: Spacing['2'] }}>
+                <Text style={fieldLabelStyle}>Postal Code</Text>
+                <View style={inputRowStyle}>
+                  <TextInput style={inputStyle} placeholder="94102" placeholderTextColor={T.textHint} value={addressPostal} onChangeText={setAddressPostal} keyboardType="default" maxLength={20} />
                 </View>
               </View>
             </View>

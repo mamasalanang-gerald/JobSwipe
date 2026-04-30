@@ -23,7 +23,7 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === '(auth)';
 
     if (token && role) {
-      if (inAuthGroup || segments.length === 0) {
+      if (inAuthGroup || segments[0] === undefined) {
         router.replace(role === 'hr' ? '/(company-tabs)' : '/(tabs)');
       }
       return;

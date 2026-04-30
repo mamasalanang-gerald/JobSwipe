@@ -25,10 +25,9 @@ interface CompanyLogoProps {
 
 export const CompanyLogo: React.FC<CompanyLogoProps> = ({ abbr, color, size = 'md' }) => {
   const dim = size === 'sm' ? 38 : size === 'md' ? 48 : 80;
-  const radius = size === 'lg' ? Radii.xl : Radii.md;
   const fontSize = size === 'lg' ? Typography['2xl'] : size === 'md' ? Typography.lg : Typography.base;
   return (
-    <View style={[styles.logo, { width: dim, height: dim, borderRadius: radius, backgroundColor: color }]}>
+    <View style={[styles.logo, { width: dim, height: dim, borderRadius: dim / 2, backgroundColor: color }]}>
       <Text style={[styles.logoText, { fontSize }]}>{abbr}</Text>
     </View>
   );
