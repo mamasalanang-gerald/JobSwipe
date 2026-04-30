@@ -10,7 +10,7 @@
     "skipLibCheck": true,
     "strict": true,
     "sourceMap": true,
-    "ignoreDeprecations": "6.0",
+    "ignoreDeprecations": "5.0",
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
