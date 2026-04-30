@@ -1,6 +1,7 @@
 'use client';
 import React, { useState, useRef, useEffect } from 'react';
 import { Candidate } from '../../data/candidates';
+import { IconMapPin, IconVerified } from './icons';
 
 interface CandidateCardProps {
   candidate: Candidate;
@@ -51,7 +52,6 @@ export default function CandidateCard({ candidate, isTop, onSwipe, zIndex, stack
   const images = candidate.images.slice(0, 4);
   const numImgs = images.length;
 
-  // Auto-advance logic
   useEffect(() => {
     if (!isTop || numImgs <= 1) return;
 
@@ -92,10 +92,45 @@ export default function CandidateCard({ candidate, isTop, onSwipe, zIndex, stack
     };
   }, [isTop, numImgs]);
 
-  // Pause while dragging
   useEffect(() => {
     isPausedRef.current = isDragging.current;
   });
+
+  const goTo = (i: number) => {
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    pausedProgressRef.current = 0;
+    startTimeRef.current = null;
+    imgIdxRef.current = i;
+    setProgress(0);
+    setImgIdx(i);
+
+    const tick = (timestamp: number) => {
+      if (isPausedRef.current) {
+        animFrameRef.current = requestAnimationFrame(tick);
+        return;
+      }
+      if (startTimeRef.current === null) {
+        startTimeRef.current = timestamp;
+      }
+      const elapsed = timestamp - startTimeRef.current;
+      const pct = Math.min(elapsed / DURATION, 1);
+      setProgress(pct);
+
+      if (pct < 1) {
+        animFrameRef.current = requestAnimationFrame(tick);
+      } else {
+        const next = imgIdxRef.current + 1 < numImgs ? imgIdxRef.current + 1 : 0;
+        imgIdxRef.current = next;
+        setImgIdx(next);
+        pausedProgressRef.current = 0;
+        startTimeRef.current = null;
+        setProgress(0);
+        animFrameRef.current = requestAnimationFrame(tick);
+      }
+    };
+
+    animFrameRef.current = requestAnimationFrame(tick);
+  };
 
   const triggerSwipe = (dir: 'left' | 'right') => {
     setFlyOut(dir);
@@ -130,6 +165,9 @@ export default function CandidateCard({ candidate, isTop, onSwipe, zIndex, stack
     else { setDragX(0); setDragRotate(0); setHint(null); }
   };
 
+  const goNext = (e: React.MouseEvent) => { e.stopPropagation(); if (imgIdxRef.current < numImgs - 1) goTo(imgIdxRef.current + 1); };
+  const goPrev = (e: React.MouseEvent) => { e.stopPropagation(); if (imgIdxRef.current > 0) goTo(imgIdxRef.current - 1); };
+
   const flyStyle: React.CSSProperties = flyOut ? {
     transform: `translateX(${flyOut === 'right' ? 150 : -150}%) rotate(${flyOut === 'right' ? 18 : -18}deg)`,
     opacity: 0,
@@ -141,46 +179,6 @@ export default function CandidateCard({ candidate, isTop, onSwipe, zIndex, stack
     transition: isDragging.current ? 'none' : 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
   } : isTop ? {} : {
     transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
-  };
-
-  const goNext = (e: React.MouseEvent) => { e.stopPropagation(); if (imgIdxRef.current < numImgs - 1) goTo(imgIdxRef.current + 1); };
-  const goPrev = (e: React.MouseEvent) => { e.stopPropagation(); if (imgIdxRef.current > 0) goTo(imgIdxRef.current - 1); };
-
-  const goTo = (i: number) => {
-    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-    pausedProgressRef.current = 0;
-    startTimeRef.current = null;
-    imgIdxRef.current = i;
-    setProgress(0);
-    setImgIdx(i);
-
-    // Restart tick from new index
-    const tick = (timestamp: number) => {
-      if (isPausedRef.current) {
-        animFrameRef.current = requestAnimationFrame(tick);
-        return;
-      }
-      if (startTimeRef.current === null) {
-        startTimeRef.current = timestamp;
-      }
-      const elapsed = timestamp - startTimeRef.current;
-      const pct = Math.min(elapsed / DURATION, 1);
-      setProgress(pct);
-
-      if (pct < 1) {
-        animFrameRef.current = requestAnimationFrame(tick);
-      } else {
-        const next = imgIdxRef.current + 1 < numImgs ? imgIdxRef.current + 1 : 0;
-        imgIdxRef.current = next;
-        setImgIdx(next);
-        pausedProgressRef.current = 0;
-        startTimeRef.current = null;
-        setProgress(0);
-        animFrameRef.current = requestAnimationFrame(tick);
-      }
-    };
-
-    animFrameRef.current = requestAnimationFrame(tick);
   };
 
   return (
@@ -237,22 +235,23 @@ export default function CandidateCard({ candidate, isTop, onSwipe, zIndex, stack
         zIndex: 3,
       }} />
 
-      {/* Image progress bars */}
+      {/* Progress bars */}
       {isTop && numImgs > 1 && (
         <div className="absolute top-3 left-3 right-3 flex gap-1.5" style={{ zIndex: 10 }} onPointerDown={e => e.stopPropagation()}>
           {images.map((_, i) => (
             <div key={i} style={{ flex: 1, height: '3px', borderRadius: '999px', background: 'rgba(255,255,255,0.22)', overflow: 'hidden', cursor: 'pointer' }} onClick={e => { e.stopPropagation(); goTo(i); }}>
-              <div style={{ height: '100%', width: i < imgIdx
-                  ? '100%'
-                  : i === imgIdx
-                  ? `${progress * 100}%`
-                  : '0%', background: 'white', borderRadius: '999px', transition: i === imgIdx ? 'none' : 'width 0.3s' }} />
+              <div style={{
+                height: '100%',
+                width: i < imgIdx ? '100%' : i === imgIdx ? `${progress * 100}%` : '0%',
+                background: 'white', borderRadius: '999px',
+                transition: i === imgIdx ? 'none' : 'width 0.3s',
+              }} />
             </div>
           ))}
         </div>
       )}
 
-      {/* Photo tap zones */}
+      {/* Tap zones */}
       {isTop && numImgs > 1 && (
         <>
           <div className="absolute top-0 bottom-0 left-0" style={{ width: '35%', zIndex: 5 }} onPointerDown={e => e.stopPropagation()} onClick={goPrev} />
@@ -260,7 +259,7 @@ export default function CandidateCard({ candidate, isTop, onSwipe, zIndex, stack
         </>
       )}
 
-      {/* Match score badge (top-right) */}
+      {/* Match score */}
       {isTop && (
         <div className="absolute" style={{ top: '12px', right: '12px', zIndex: 10 }} onPointerDown={e => e.stopPropagation()}>
           <MatchRing score={candidate.matchScore} />
@@ -270,30 +269,30 @@ export default function CandidateCard({ candidate, isTop, onSwipe, zIndex, stack
       {/* Verified badge */}
       {candidate.verified && isTop && (
         <div style={{ position: 'absolute', top: '14px', left: '14px', zIndex: 10, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: '999px', padding: '3px 9px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="#22C55E"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" strokeWidth="0" /></svg>
+          <IconVerified />
           <span style={{ fontSize: '10px', color: '#22C55E', fontWeight: 700 }}>Verified</span>
         </div>
       )}
 
       {/* Swipe hints */}
       {hint === 'invite' && (
-        <div className="absolute z-20" style={{ top: '26px', left: '18px', border: '2.5px solid #22C55E', color: '#22C55E', fontSize: '17px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(-12deg)', letterSpacing: '0.1em' }}>
-          INVITE
-        </div>
+        <div className="absolute z-20" style={{ top: '26px', left: '18px', border: '2.5px solid #22C55E', color: '#22C55E', fontSize: '17px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(-12deg)', letterSpacing: '0.1em' }}>INVITE</div>
       )}
       {hint === 'skip' && (
-        <div className="absolute z-20" style={{ top: '26px', right: '18px', border: '2.5px solid #FF4E6A', color: '#FF4E6A', fontSize: '17px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(12deg)', letterSpacing: '0.1em' }}>
-          PASS
-        </div>
+        <div className="absolute z-20" style={{ top: '26px', right: '18px', border: '2.5px solid #FF4E6A', color: '#FF4E6A', fontSize: '17px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(12deg)', letterSpacing: '0.1em' }}>PASS</div>
       )}
 
       {/* Card info */}
       <div className="absolute bottom-0 left-0 right-0" style={{ padding: '20px 20px 22px', zIndex: 10 }}>
-        {/* Name + availability */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '2px' }}>
           <span style={{ color: 'white', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.01em' }}>{candidate.name}</span>
         </div>
-        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', marginBottom: '2px' }}>📍 {candidate.distance}</p>
+
+        {/* 📍 replaced with IconMapPin */}
+        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ color: 'rgba(255,255,255,0.45)' }}><IconMapPin /></span>
+          {candidate.distance}
+        </p>
         <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: '11px', marginBottom: '10px' }}>{candidate.availability}</p>
 
         <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', marginBottom: '2px', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Looking for</p>

@@ -3,21 +3,23 @@ import React, { useState, useRef, useEffect } from 'react';
 import { candidates, TOTAL, companyNavItems } from '@/data/candidates';
 import { Candidate } from '@/data/candidates';
 import LeftSidebar from '@/components/ui/LeftSidebar';
-import RightSidebar from '@/components/ui/RightSidebar';
+import RightSidebar, { UserPlan } from '@/components/ui/RightSidebar';
 import TopBar from '@/components/ui/TopBar';
 import SwipeArea from '@/components/ui/SwipeArea';
 import CandidateCard from '@/components/ui/CandidateCard';
 import CandidateDetailPanel from '@/components/ui/CandidateDetailPanel';
 import { IconX } from '@/components/ui/icons';
+import { useRouter } from 'next/router';
 
 const DAILY_LIMIT = 10;
+const FREE_LIMIT = 3;
 
 const COMPANY_NAV_ROUTES = {
-  home:      '/company/swipe',
+  home:       '/company/swipe',
   candidates: '/company/candidates',
-  postings:  '/company/postings',
-  messages:  '/company/messages',
-  analytics: '/company/analytics',
+  postings:   '/company/postings',
+  messages:   '/company/messages',
+  analytics:  '/company/analytics',
 };
 
 const InviteIcon = () => (
@@ -28,8 +30,11 @@ const InviteIcon = () => (
 );
 
 export default function CompanySwipePage() {
+  const router = useRouter();
   const [index, setIndex] = useState(0);
   const [reviewedCount, setReviewedCount] = useState(0);
+  const [viewedCount, setViewedCount] = useState(0);
+  const [plan] = useState<UserPlan>('free'); // swap with real auth/API later
   const [lastAction, setLastAction] = useState<'positive' | 'negative' | null>(null);
   const [activeNav, setActiveNav] = useState('home');
   const [leftOpen, setLeftOpen] = useState(true);
@@ -40,6 +45,13 @@ export default function CompanySwipePage() {
   const currentCandidate = candidates[index] ?? null;
   const visibleCandidates = candidates.slice(index, index + 3);
   const swipesLeft = Math.max(0, DAILY_LIMIT - reviewedCount);
+
+  // Increment viewedCount each time the candidate changes
+  useEffect(() => {
+    if (currentCandidate) {
+      setViewedCount(c => c + 1);
+    }
+  }, [index]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -66,6 +78,7 @@ export default function CompanySwipePage() {
   const handleReset = () => {
     setIndex(0);
     setReviewedCount(0);
+    setViewedCount(0);
   };
 
   return (
@@ -160,6 +173,10 @@ export default function CompanySwipePage() {
         collapsedLabel="Candidate"
         hasItem={!!currentCandidate}
         emptyMessage="No more candidates to review"
+        plan={plan}
+        viewedCount={viewedCount}
+        freeLimit={FREE_LIMIT}
+        onUpgrade={() => router.push('/pricing')}
         detailPanel={
           currentCandidate ? (
             <CandidateDetailPanel

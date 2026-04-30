@@ -3,6 +3,9 @@ import React, { useState, useRef } from 'react';
 import LeftSidebar from '@/components/ui/LeftSidebar';
 import TopBar from '@/components/ui/TopBar';
 import { companyNavItems, candidates } from '@/data/candidates';
+import {
+  IconMail, IconEye, IconFileText, IconX, IconPin,
+} from '@/components/ui/icons';
 
 const DAILY_LIMIT = 10;
 const COMPANY_NAV_ROUTES = {
@@ -13,43 +16,41 @@ const COMPANY_NAV_ROUTES = {
   analytics:  '/company/analytics',
 };
 
-// Mock weekly data
 const WEEKLY_VIEWS = [12, 28, 19, 35, 42, 31, 47];
 const WEEKLY_APPS  = [3,  8,  5,  11, 14, 9,  16];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const DEPT_DATA = [
-  { dept: 'Engineering',   applicants: 58, invited: 14, color: '#6366F1' },
-  { dept: 'Design',        applicants: 31, invited: 8,  color: '#8B5CF6' },
-  { dept: 'Marketing',     applicants: 53, invited: 11, color: '#EC4899' },
-  { dept: 'Infrastructure',applicants: 18, invited: 4,  color: '#22C55E' },
-  { dept: 'Operations',    applicants: 24, invited: 6,  color: '#FACC15' },
+  { dept: 'Engineering',    applicants: 58, invited: 14, color: '#6366F1' },
+  { dept: 'Design',         applicants: 31, invited: 8,  color: '#8B5CF6' },
+  { dept: 'Marketing',      applicants: 53, invited: 11, color: '#EC4899' },
+  { dept: 'Infrastructure', applicants: 18, invited: 4,  color: '#22C55E' },
+  { dept: 'Operations',     applicants: 24, invited: 6,  color: '#FACC15' },
 ];
 
 const FUNNEL = [
-  { label: 'Profile Views',  value: 214, color: '#6366F1' },
-  { label: 'Card Swipes',    value: 138, color: '#8B5CF6' },
-  { label: 'Invites Sent',   value:  43, color: '#22C55E' },
-  { label: 'Interviews',     value:  18, color: '#FACC15' },
-  { label: 'Offers Made',    value:   6, color: '#FF4E6A' },
+  { label: 'Profile Views', value: 214, color: '#6366F1' },
+  { label: 'Card Swipes',   value: 138, color: '#8B5CF6' },
+  { label: 'Invites Sent',  value:  43, color: '#22C55E' },
+  { label: 'Interviews',    value:  18, color: '#FACC15' },
+  { label: 'Offers Made',   value:   6, color: '#FF4E6A' },
 ];
 
 const RANGE_OPTIONS = ['This Week', 'This Month', 'All Time'];
 
-function MiniBarChart({ data, color, label }: { data: number[]; color: string; label: string }) {
-  const max = Math.max(...data);
-  return (
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '52px' }}>
-      {data.map((v, i) => (
-        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', height: '100%', justifyContent: 'flex-end' }}>
-          <div style={{ width: '100%', borderRadius: '4px 4px 2px 2px', background: `${color}${i === data.length - 1 ? 'ff' : '55'}`, height: `${(v / max) * 100}%`, minHeight: '4px', transition: 'height 0.5s ease' }} />
-        </div>
-      ))}
-    </div>
-  );
-}
+// Activity feed items — icon is now a React node
+const ACTIVITY = [
+  { icon: <IconMail />,     color: '#6366F1', bg: 'rgba(99,102,241,0.12)',  text: 'Invite sent to Alex Rivera for Senior Full Stack Developer', time: '2m ago'  },
+  { icon: <IconEye />,      color: '#818CF8', bg: 'rgba(129,140,248,0.12)', text: 'Jamie Santos viewed your company profile',                   time: '18m ago' },
+  { icon: <IconFileText />, color: '#22C55E', bg: 'rgba(34,197,94,0.12)',   text: 'New application from Morgan Lee — Cloud / DevOps Engineer',  time: '1h ago'  },
+  { icon: <IconX />,        color: '#FF4E6A', bg: 'rgba(255,78,106,0.12)',  text: 'Passed on Casey Nguyen',                                     time: '3h ago'  },
+  { icon: <IconPin />,      color: '#FACC15', bg: 'rgba(250,204,21,0.12)',  text: 'Job posting "Mobile Engineer" went live',                    time: 'Today'   },
+];
 
-function StatCard({ label, value, delta, color, bg, border, suffix = '' }: { label: string; value: string | number; delta?: string; color: string; bg: string; border: string; suffix?: string }) {
+function StatCard({ label, value, delta, color, bg, border, suffix = '' }: {
+  label: string; value: string | number; delta?: string;
+  color: string; bg: string; border: string; suffix?: string;
+}) {
   return (
     <div style={{ padding: '18px 20px', borderRadius: '18px', background: bg, border: `1px solid ${border}`, flex: 1 }}>
       <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', margin: '0 0 8px' }}>{label}</p>
@@ -61,13 +62,13 @@ function StatCard({ label, value, delta, color, bg, border, suffix = '' }: { lab
 
 export default function AnalyticsPage() {
   const sidebarRef = useRef<HTMLElement>(null);
-  const [leftOpen, setLeftOpen]   = useState(true);
-  const [range, setRange]         = useState('This Week');
+  const [leftOpen, setLeftOpen] = useState(true);
+  const [range, setRange]       = useState('This Week');
 
-  const totalApps  = DEPT_DATA.reduce((a, d) => a + d.applicants, 0);
+  const totalApps    = DEPT_DATA.reduce((a, d) => a + d.applicants, 0);
   const totalInvited = DEPT_DATA.reduce((a, d) => a + d.invited, 0);
-  const convRate   = Math.round((totalInvited / totalApps) * 100);
-  const avgMatch   = Math.round(candidates.reduce((a, c) => a + c.matchScore, 0) / candidates.length);
+  const convRate     = Math.round((totalInvited / totalApps) * 100);
+  const avgMatch     = Math.round(candidates.reduce((a, c) => a + c.matchScore, 0) / candidates.length);
 
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#08080f', fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif" }}>
@@ -95,12 +96,10 @@ export default function AnalyticsPage() {
         <TopBar
           title="Analytics"
           subtitle="Hiring performance overview"
-          accentColor="#6366F1"
           extraSlot={
             <div style={{ display: 'flex', gap: '4px', background: 'rgba(255,255,255,0.04)', borderRadius: '10px', padding: '3px' }}>
               {RANGE_OPTIONS.map(r => (
-                <button key={r} onClick={() => setRange(r)}
-                  style={{ padding: '5px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all 0.18s', background: range === r ? 'rgba(99,102,241,0.25)' : 'transparent', color: range === r ? '#818CF8' : 'rgba(255,255,255,0.35)' }}>
+                <button key={r} onClick={() => setRange(r)} style={{ padding: '5px 12px', borderRadius: '8px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', border: 'none', transition: 'all 0.18s', background: range === r ? 'rgba(99,102,241,0.25)' : 'transparent', color: range === r ? '#818CF8' : 'rgba(255,255,255,0.35)' }}>
                   {r}
                 </button>
               ))}
@@ -109,6 +108,7 @@ export default function AnalyticsPage() {
         />
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 28px', scrollbarWidth: 'none', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+
           {/* KPI row */}
           <div style={{ display: 'flex', gap: '12px' }}>
             <StatCard label="Total Applicants" value={totalApps}    delta="↑ 24% vs last week" color="#818CF8" bg="rgba(99,102,241,0.08)"  border="rgba(99,102,241,0.2)"  />
@@ -119,7 +119,8 @@ export default function AnalyticsPage() {
 
           {/* Charts row */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-            {/* Weekly views bar chart */}
+
+            {/* Weekly views */}
             <div style={{ padding: '20px', borderRadius: '18px', background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.07)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
                 <div>
@@ -127,18 +128,14 @@ export default function AnalyticsPage() {
                   <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', margin: 0 }}>vs. Applications this week</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#6366F1' }} />
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>Views</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: '#22C55E' }} />
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>Apps</span>
-                  </div>
+                  {[{ color: '#6366F1', label: 'Views' }, { color: '#22C55E', label: 'Apps' }].map(({ color, label }) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <div style={{ width: '8px', height: '8px', borderRadius: '2px', background: color }} />
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '11px' }}>{label}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
-
-              {/* Dual bar chart */}
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: '6px', height: '100px', marginBottom: '10px' }}>
                 {DAYS.map((d, i) => {
                   const maxV = Math.max(...WEEKLY_VIEWS);
@@ -161,7 +158,7 @@ export default function AnalyticsPage() {
               <p style={{ color: 'white', fontWeight: 700, fontSize: '14px', margin: '0 0 4px' }}>Hiring Funnel</p>
               <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '12px', margin: '0 0 18px' }}>Candidate pipeline overview</p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                {FUNNEL.map((f, i) => {
+                {FUNNEL.map(f => {
                   const pct = Math.round((f.value / FUNNEL[0].value) * 100);
                   return (
                     <div key={f.label}>
@@ -181,6 +178,7 @@ export default function AnalyticsPage() {
 
           {/* Dept breakdown + top candidates */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+
             {/* By department */}
             <div style={{ padding: '20px', borderRadius: '18px', background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.07)' }}>
               <p style={{ color: 'white', fontWeight: 700, fontSize: '14px', margin: '0 0 4px' }}>By Department</p>
@@ -240,22 +238,19 @@ export default function AnalyticsPage() {
           {/* Activity feed */}
           <div style={{ padding: '20px', borderRadius: '18px', background: '#0d0d1a', border: '1px solid rgba(255,255,255,0.07)' }}>
             <p style={{ color: 'white', fontWeight: 700, fontSize: '14px', margin: '0 0 14px' }}>Recent Activity</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0' }}>
-              {[
-                { icon: '✉', color: '#6366F1', bg: 'rgba(99,102,241,0.12)', text: 'Invite sent to Alex Rivera for Senior Full Stack Developer', time: '2m ago' },
-                { icon: '👁', color: '#818CF8', bg: 'rgba(129,140,248,0.12)', text: 'Jamie Santos viewed your company profile',                   time: '18m ago' },
-                { icon: '📝', color: '#22C55E', bg: 'rgba(34,197,94,0.12)',   text: 'New application from Morgan Lee — Cloud / DevOps Engineer',    time: '1h ago' },
-                { icon: '✕',  color: '#FF4E6A', bg: 'rgba(255,78,106,0.12)', text: 'Passed on Casey Nguyen',                                       time: '3h ago' },
-                { icon: '📌', color: '#FACC15', bg: 'rgba(250,204,21,0.12)', text: 'Job posting "Mobile Engineer" went live',                       time: 'Today' },
-              ].map((a, i, arr) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: i < arr.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
-                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: a.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', flexShrink: 0 }}>{a.icon}</div>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              {ACTIVITY.map((a, i) => (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px 0', borderBottom: i < ACTIVITY.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none' }}>
+                  <div style={{ width: '32px', height: '32px', borderRadius: '10px', background: a.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: a.color, flexShrink: 0 }}>
+                    {a.icon}
+                  </div>
                   <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', margin: 0, flex: 1, lineHeight: 1.4 }}>{a.text}</p>
                   <span style={{ color: 'rgba(255,255,255,0.2)', fontSize: '11px', flexShrink: 0 }}>{a.time}</span>
                 </div>
               ))}
             </div>
           </div>
+
         </div>
       </main>
     </div>

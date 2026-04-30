@@ -3,12 +3,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { jobs, TOTAL, navItems } from '../../data/jobs';
 import { Job } from '../../types/job';
 import LeftSidebar from '../../components/ui/LeftSidebar';
-import RightSidebar from '../../components/ui/RightSidebar';
+import RightSidebar, { UserPlan } from '../../components/ui/RightSidebar';
 import TopBar from '../../components/ui/TopBar';
 import SwipeArea from '../../components/ui/SwipeArea';
 import SwipeCard from '../../components/ui/SwipeCard';
 import DetailPanel from '../../components/ui/DetailPanel';
 import { IconX, IconHeart } from '../../components/ui/icons';
+import { useRouter } from 'next/router';
 
 const USER_NAV_ROUTES = {
   home:     '/user/swipe',
@@ -16,9 +17,14 @@ const USER_NAV_ROUTES = {
   profile:  '/user/profile',
 };
 
+const FREE_LIMIT = 3;
+
 export default function SwipeHomePage() {
+  const router = useRouter();
   const [index, setIndex] = useState(0);
   const [swipedCount, setSwipedCount] = useState(0);
+  const [viewedCount, setViewedCount] = useState(0);
+  const [plan] = useState<UserPlan>('free'); // swap with real auth/API later
   const [lastAction, setLastAction] = useState<'positive' | 'negative' | null>(null);
   const [activeNav, setActiveNav] = useState('home');
   const [leftOpen, setLeftOpen] = useState(true);
@@ -29,6 +35,13 @@ export default function SwipeHomePage() {
   const swipesLeft = Math.max(0, 15 - swipedCount);
   const currentJob = jobs[index] ?? null;
   const visibleJobs = jobs.slice(index, index + 3);
+
+  // Increment viewedCount each time the card changes
+  useEffect(() => {
+    if (currentJob) {
+      setViewedCount(c => c + 1);
+    }
+  }, [index]);
 
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
@@ -55,6 +68,7 @@ export default function SwipeHomePage() {
   const handleReset = () => {
     setIndex(0);
     setSwipedCount(0);
+    setViewedCount(0);
   };
 
   return (
@@ -62,7 +76,6 @@ export default function SwipeHomePage() {
       display: 'flex', height: '100vh', overflow: 'hidden',
       background: '#08080f', fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
     }}>
-
       <LeftSidebar
         sidebarRef={sidebarRef}
         leftOpen={leftOpen}
@@ -87,7 +100,6 @@ export default function SwipeHomePage() {
           title="Discover Jobs"
           subtitle={`${remaining} jobs remaining`}
         />
-
         <SwipeArea
           items={jobs}
           index={index}
@@ -140,6 +152,10 @@ export default function SwipeHomePage() {
         collapsedLabel="Details"
         hasItem={!!currentJob}
         emptyMessage="No more jobs to review"
+        plan={plan}
+        viewedCount={viewedCount}
+        freeLimit={FREE_LIMIT}
+        onUpgrade={() => router.push('/pricing')}
         detailPanel={
           currentJob ? (
             <DetailPanel
@@ -151,7 +167,6 @@ export default function SwipeHomePage() {
           ) : null
         }
       />
-
     </div>
   );
 }

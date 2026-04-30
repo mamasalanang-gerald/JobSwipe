@@ -1,6 +1,7 @@
 'use client';
 import React from 'react';
 import { Candidate } from '../../data/candidates';
+import { IconVerified, IconMapPin, IconGraduationCap, IconMail, IconX } from './icons';
 
 interface CandidateDetailPanelProps {
   candidate: Candidate;
@@ -23,7 +24,7 @@ export default function CandidateDetailPanel({ candidate, onInvite, onPass }: Ca
   return (
     <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', scrollbarWidth: 'none' }}>
 
-      {/* Header avatar + name */}
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
         <div style={{ width: '56px', height: '56px', borderRadius: '16px', overflow: 'hidden', border: '2px solid rgba(255,255,255,0.1)', flexShrink: 0 }}>
           <img src={candidate.avatar} alt={candidate.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -31,12 +32,12 @@ export default function CandidateDetailPanel({ candidate, onInvite, onPass }: Ca
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <p style={{ color: 'white', fontSize: '16px', fontWeight: 700, margin: 0 }}>{candidate.name}</p>
-            {candidate.verified && (
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="#22C55E"><path d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-            )}
+            {candidate.verified && <IconVerified />}
           </div>
           <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '12px', margin: '2px 0 0' }}>{candidate.role}</p>
-          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', margin: '1px 0 0' }}>{candidate.distance} · {candidate.availability.split('·')[0].trim()}</p>
+          <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '11px', margin: '1px 0 0', display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <IconMapPin /> {candidate.distance} · {candidate.availability.split('·')[0].trim()}
+          </p>
         </div>
       </div>
 
@@ -86,9 +87,11 @@ export default function CandidateDetailPanel({ candidate, onInvite, onPass }: Ca
         </div>
       </div>
 
-      {/* Education */}
+      {/* Education — 🎓 replaced with IconGraduationCap */}
       <div style={{ padding: '10px 12px', borderRadius: '12px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <span style={{ fontSize: '18px' }}>🎓</span>
+        <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#818CF8', flexShrink: 0 }}>
+          <IconGraduationCap />
+        </div>
         <div>
           <p style={{ color: 'rgba(255,255,255,0.3)', fontSize: '10px', margin: '0 0 2px', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>Education</p>
           <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px', margin: 0, fontWeight: 500 }}>{candidate.education}</p>
@@ -101,14 +104,13 @@ export default function CandidateDetailPanel({ candidate, onInvite, onPass }: Ca
           onClick={onInvite}
           style={{ width: '100%', padding: '13px', borderRadius: '14px', fontSize: '14px', fontWeight: 700, color: 'white', border: 'none', cursor: 'pointer', background: 'linear-gradient(135deg, #6366F1, #8B5CF6)', boxShadow: '0 4px 18px rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '7px' }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
-          Send Invite
+          <IconMail /> Send Invite
         </button>
         <button
           onClick={onPass}
-          style={{ width: '100%', padding: '12px', borderRadius: '14px', fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', cursor: 'pointer', background: 'transparent', border: '1px solid rgba(255,255,255,0.09)' }}
+          style={{ width: '100%', padding: '12px', borderRadius: '14px', fontSize: '13px', fontWeight: 600, color: 'rgba(255,255,255,0.4)', cursor: 'pointer', background: 'transparent', border: '1px solid rgba(255,255,255,0.09)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
         >
-          Pass
+          <IconX /> Pass
         </button>
       </div>
     </div>
