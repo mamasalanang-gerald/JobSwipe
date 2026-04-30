@@ -1,0 +1,77 @@
+import { CompanyThread } from '@/types/messages';
+
+export const COMPANY_THREADS: CompanyThread[] = [
+  {
+    id: 1, candidateId: 1,
+    name: 'Alex Rivera', initials: 'AR',
+    avatar: '/assets/images/img1.jpg',
+    role: 'Senior Full Stack Developer',
+    status: 'interviewing',
+    lastMessage: "Sounds great! I'm available for a call this Thursday.",
+    time: '2m', unread: 2,
+    color: '#6366F1', bg: 'rgba(99,102,241,0.12)',
+    messages: [
+      { id: 1, sender: 'company',   text: "Hi Alex! We reviewed your profile and we're very impressed. Would you be open to a quick intro call?", time: '10:02 AM' },
+      { id: 2, sender: 'candidate', text: "Hi! Thanks so much — absolutely, I'd love to chat.", time: '10:15 AM' },
+      { id: 3, sender: 'company',   text: 'Great! We have slots on Thursday or Friday. Which works for you?', time: '10:18 AM' },
+      { id: 4, sender: 'candidate', text: "Sounds great! I'm available for a call this Thursday.", time: '10:22 AM' },
+    ],
+  },
+  {
+    id: 2, candidateId: 2,
+    name: 'Jamie Santos', initials: 'JS',
+    avatar: '/assets/images/img2.jpg',
+    role: 'UX / Product Designer',
+    status: 'reviewing',
+    lastMessage: 'Could you share more about the design team structure?',
+    time: '1h', unread: 1,
+    color: '#8B5CF6', bg: 'rgba(139,92,246,0.12)',
+    messages: [
+      { id: 1, sender: 'company',   text: "Hey Jamie! We'd love to explore how you might fit into our design team.", time: '9:00 AM' },
+      { id: 2, sender: 'candidate', text: 'That sounds exciting! Could you share more about the design team structure?', time: '9:45 AM' },
+    ],
+  },
+  {
+    id: 3, candidateId: 3,
+    name: 'Morgan Lee', initials: 'ML',
+    avatar: '/assets/images/img3.jpg',
+    role: 'Cloud / DevOps Engineer',
+    status: 'invited',
+    lastMessage: "I'll send over my portfolio by EOD.",
+    time: '3h', unread: 0,
+    color: '#22C55E', bg: 'rgba(34,197,94,0.12)',
+    messages: [
+      { id: 1, sender: 'company',   text: "Morgan, your DevOps background is exactly what we're looking for. Can you share your portfolio?", time: '8:00 AM' },
+      { id: 2, sender: 'candidate', text: "Absolutely! I'll send over my portfolio by EOD.", time: '8:30 AM' },
+    ],
+  },
+  {
+    id: 4, candidateId: 4,
+    name: 'Casey Nguyen', initials: 'CN',
+    avatar: '/assets/images/img4.jpg',
+    role: 'Data / Marketing Analyst',
+    status: 'passed',
+    lastMessage: 'We appreciate your time and wish you the best.',
+    time: 'Yesterday', unread: 0,
+    color: 'rgba(255,255,255,0.25)', bg: 'rgba(255,255,255,0.05)',
+    messages: [
+      { id: 1, sender: 'company',   text: "Hi Casey! We reviewed your profile carefully.", time: 'Yesterday 2:00 PM' },
+      { id: 2, sender: 'candidate', text: "Thanks for considering me! I'm very interested.", time: 'Yesterday 2:30 PM' },
+      { id: 3, sender: 'company',   text: "After careful review, we've decided to move forward with other candidates for this role. We appreciate your time and wish you the best.", time: 'Yesterday 4:00 PM' },
+    ],
+  },
+  {
+    id: 5, candidateId: 5,
+    name: 'Jordan Kim', initials: 'JK',
+    avatar: '/assets/images/img5.jpg',
+    role: 'Customer Success Manager',
+    status: 'offer',
+    lastMessage: 'Looking forward to your decision!',
+    time: '2 days ago', unread: 0,
+    color: '#FACC15', bg: 'rgba(250,204,21,0.12)',
+    messages: [
+      { id: 1, sender: 'company',   text: "Jordan, we'd like to extend a formal offer for the Customer Success Manager role!", time: '2 days ago' },
+      { id: 2, sender: 'candidate', text: "This is wonderful news! I'm very excited. Looking forward to your decision!", time: '2 days ago' },
+    ],
+  },
+];

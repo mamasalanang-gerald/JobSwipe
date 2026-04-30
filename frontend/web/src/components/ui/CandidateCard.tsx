@@ -1,17 +1,38 @@
+'use client';
 import React, { useState, useRef, useEffect } from 'react';
-import { Job } from '../../types/job';
-import { IconPrev, IconNext, IconVerified, IconMapPin } from './icons';
+import { Candidate } from '../../data/candidates';
+import { IconMapPin, IconVerified } from './icons';
 
-interface SwipeCardProps {
-  job: Job;
+interface CandidateCardProps {
+  candidate: Candidate;
   isTop: boolean;
   onSwipe: (dir: 'left' | 'right') => void;
   zIndex: number;
-  scale: number;
   stackIdx: number;
 }
 
-export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx }: SwipeCardProps) {
+function MatchRing({ score }: { score: number }) {
+  const r = 18;
+  const circ = 2 * Math.PI * r;
+  const dash = (score / 100) * circ;
+  const color = score >= 90 ? '#22C55E' : score >= 75 ? '#FF4E6A' : '#FACC15';
+  return (
+    <svg width="48" height="48" style={{ flexShrink: 0 }}>
+      <circle cx="24" cy="24" r={r} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="3" />
+      <circle
+        cx="24" cy="24" r={r} fill="none"
+        stroke={color} strokeWidth="3"
+        strokeDasharray={`${dash} ${circ}`}
+        strokeLinecap="round"
+        transform="rotate(-90 24 24)"
+        style={{ transition: 'stroke-dasharray 0.5s ease' }}
+      />
+      <text x="24" y="28" textAnchor="middle" fill={color} fontSize="11" fontWeight="700">{score}%</text>
+    </svg>
+  );
+}
+
+export default function CandidateCard({ candidate, isTop, onSwipe, zIndex, stackIdx }: CandidateCardProps) {
   const [imgIdx, setImgIdx] = useState(0);
   const [progress, setProgress] = useState(0);
   const startX = useRef(0);
@@ -19,7 +40,7 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
   const isDragging = useRef(false);
   const [dragX, setDragX] = useState(0);
   const [dragRotate, setDragRotate] = useState(0);
-  const [hint, setHint] = useState<'like' | 'nope' | null>(null);
+  const [hint, setHint] = useState<'invite' | 'skip' | null>(null);
   const [flyOut, setFlyOut] = useState<'left' | 'right' | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const startTimeRef = useRef<number | null>(null);
@@ -28,11 +49,9 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
   const imgIdxRef = useRef(0);
 
   const DURATION = 3000;
-
-  const images = job.images.slice(0, 6);
+  const images = candidate.images.slice(0, 4);
   const numImgs = images.length;
 
-  // Auto-advance logic
   useEffect(() => {
     if (!isTop || numImgs <= 1) return;
 
@@ -73,7 +92,6 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
     };
   }, [isTop, numImgs]);
 
-  // Pause while dragging
   useEffect(() => {
     isPausedRef.current = isDragging.current;
   });
@@ -86,7 +104,6 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
     setProgress(0);
     setImgIdx(i);
 
-    // Restart tick from new index
     const tick = (timestamp: number) => {
       if (isPausedRef.current) {
         animFrameRef.current = requestAnimationFrame(tick);
@@ -115,16 +132,6 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
     animFrameRef.current = requestAnimationFrame(tick);
   };
 
-  const goNext = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (imgIdxRef.current < numImgs - 1) goTo(imgIdxRef.current + 1);
-  };
-
-  const goPrev = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (imgIdxRef.current > 0) goTo(imgIdxRef.current - 1);
-  };
-
   const triggerSwipe = (dir: 'left' | 'right') => {
     setFlyOut(dir);
     setTimeout(() => onSwipe(dir), 350);
@@ -135,7 +142,6 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
     isDragging.current = true;
     isPausedRef.current = true;
     startX.current = e.clientX;
-    currentX.current = 0;
     (e.target as HTMLElement).setPointerCapture(e.pointerId);
   };
 
@@ -144,8 +150,8 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
     const dx = e.clientX - startX.current;
     currentX.current = dx;
     setDragX(dx);
-    setDragRotate(dx * 0.025);
-    setHint(dx > 60 ? 'like' : dx < -60 ? 'nope' : null);
+    setDragRotate(dx * 0.022);
+    setHint(dx > 60 ? 'invite' : dx < -60 ? 'skip' : null);
   };
 
   const onPointerUp = () => {
@@ -159,6 +165,9 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
     else { setDragX(0); setDragRotate(0); setHint(null); }
   };
 
+  const goNext = (e: React.MouseEvent) => { e.stopPropagation(); if (imgIdxRef.current < numImgs - 1) goTo(imgIdxRef.current + 1); };
+  const goPrev = (e: React.MouseEvent) => { e.stopPropagation(); if (imgIdxRef.current > 0) goTo(imgIdxRef.current - 1); };
+
   const flyStyle: React.CSSProperties = flyOut ? {
     transform: `translateX(${flyOut === 'right' ? 150 : -150}%) rotate(${flyOut === 'right' ? 18 : -18}deg)`,
     opacity: 0,
@@ -169,7 +178,7 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
     transform: `translateX(${dragX}px) rotate(${dragRotate}deg)`,
     transition: isDragging.current ? 'none' : 'transform 0.35s cubic-bezier(0.4,0,0.2,1)',
   } : isTop ? {} : {
-    transition: 'top 0.35s cubic-bezier(0.4,0,0.2,1), left 0.35s, right 0.35s, bottom 0.35s',
+    transition: 'all 0.35s cubic-bezier(0.4,0,0.2,1)',
   };
 
   return (
@@ -181,12 +190,14 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
         right: isTop ? 0 : `${stackIdx * 2}%`,
         bottom: isTop ? 0 : `${stackIdx * 2}%`,
         zIndex,
-        borderRadius: '20px',
+        borderRadius: '22px',
         overflow: 'hidden',
         cursor: isTop ? 'grab' : 'default',
         ...dragStyle,
         ...flyStyle,
-        boxShadow: isTop ? '0 24px 64px rgba(0,0,0,0.55)' : '0 12px 32px rgba(0,0,0,0.3)',
+        boxShadow: isTop
+          ? '0 28px 72px rgba(0,0,0,0.65), 0 0 0 1px rgba(255,255,255,0.06)'
+          : '0 14px 36px rgba(0,0,0,0.35)',
       }}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
@@ -196,43 +207,43 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
       {/* Images */}
       {images.map((src, i) => (
         <img
-          key={src}
+          key={src + i}
           src={src}
-          alt={`${job.company} ${i + 1}`}
+          alt={candidate.name}
           className="absolute inset-0 w-full h-full object-cover"
           style={{ opacity: i === imgIdx ? 1 : 0, transition: 'opacity 0.3s ease', zIndex: 0 }}
         />
       ))}
 
-      {/* Gradient overlay */}
+      {/* Drag color wash */}
+      {isTop && (
+        <div className="absolute inset-0" style={{
+          background: dragX > 30
+            ? `rgba(34,197,94,${Math.min(Math.abs(dragX) / 100, 0.5)})`
+            : dragX < -30
+            ? `rgba(255,78,106,${Math.min(Math.abs(dragX) / 100, 0.5)})`
+            : 'transparent',
+          transition: isDragging.current ? 'none' : 'background 0.2s',
+          zIndex: 2,
+          pointerEvents: 'none',
+        }} />
+      )}
+
+      {/* Gradient */}
       <div className="absolute inset-0" style={{
-        background: 'linear-gradient(to bottom, rgba(0,0,0,0.0) 0%, rgba(0,0,0,0.0) 40%, rgba(5,5,18,0.75) 65%, rgba(5,5,18,0.98) 100%)',
+        background: 'linear-gradient(to bottom, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 35%, rgba(5,5,20,0.7) 60%, rgba(5,5,20,0.97) 100%)',
         zIndex: 3,
       }} />
 
       {/* Progress bars */}
       {isTop && numImgs > 1 && (
-        <div
-          className="absolute top-3 left-3 right-3 flex gap-1.5"
-          style={{ zIndex: 10 }}
-          onPointerDown={e => e.stopPropagation()}
-        >
+        <div className="absolute top-3 left-3 right-3 flex gap-1.5" style={{ zIndex: 10 }} onPointerDown={e => e.stopPropagation()}>
           {images.map((_, i) => (
-            <div
-              key={i}
-              className="flex-1 rounded-full overflow-hidden"
-              style={{ height: '3px', background: 'rgba(255,255,255,0.25)', cursor: 'pointer' }}
-              onClick={e => { e.stopPropagation(); goTo(i); }}
-            >
+            <div key={i} style={{ flex: 1, height: '3px', borderRadius: '999px', background: 'rgba(255,255,255,0.22)', overflow: 'hidden', cursor: 'pointer' }} onClick={e => { e.stopPropagation(); goTo(i); }}>
               <div style={{
                 height: '100%',
-                borderRadius: '999px',
-                background: 'white',
-                width: i < imgIdx
-                  ? '100%'
-                  : i === imgIdx
-                  ? `${progress * 100}%`
-                  : '0%',
+                width: i < imgIdx ? '100%' : i === imgIdx ? `${progress * 100}%` : '0%',
+                background: 'white', borderRadius: '999px',
                 transition: i === imgIdx ? 'none' : 'width 0.3s',
               }} />
             </div>
@@ -243,65 +254,54 @@ export default function SwipeCard({ job, isTop, onSwipe, zIndex, scale, stackIdx
       {/* Tap zones */}
       {isTop && numImgs > 1 && (
         <>
-          <div className="absolute top-0 bottom-0 left-0" style={{ width: '35%', zIndex: 5, cursor: imgIdx > 0 ? 'w-resize' : 'default' }} onPointerDown={e => e.stopPropagation()} onClick={goPrev} />
-          <div className="absolute top-0 bottom-0 right-0" style={{ width: '35%', zIndex: 5, cursor: imgIdx < numImgs - 1 ? 'e-resize' : 'default' }} onPointerDown={e => e.stopPropagation()} onClick={goNext} />
+          <div className="absolute top-0 bottom-0 left-0" style={{ width: '35%', zIndex: 5 }} onPointerDown={e => e.stopPropagation()} onClick={goPrev} />
+          <div className="absolute top-0 bottom-0 right-0" style={{ width: '35%', zIndex: 5 }} onPointerDown={e => e.stopPropagation()} onClick={goNext} />
         </>
       )}
 
-      {/* Arrow buttons */}
-      {isTop && numImgs > 1 && (
-        <>
-          {imgIdx > 0 && (
-            <button
-              className="absolute flex items-center justify-center"
-              style={{ left: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.18)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(6px)' }}
-              onPointerDown={e => e.stopPropagation()}
-              onClick={goPrev}
-            >
-              <IconPrev />
-            </button>
-          )}
-          {imgIdx < numImgs - 1 && (
-            <button
-              className="absolute flex items-center justify-center"
-              style={{ right: '10px', top: '50%', transform: 'translateY(-50%)', zIndex: 10, width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.18)', color: 'white', cursor: 'pointer', backdropFilter: 'blur(6px)' }}
-              onPointerDown={e => e.stopPropagation()}
-              onClick={goNext}
-            >
-              <IconNext />
-            </button>
-          )}
-        </>
-      )}
-
-      {/* Photo counter */}
-      {isTop && numImgs > 1 && (
-        <div className="absolute" style={{ top: '14px', right: '14px', zIndex: 10, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '20px', padding: '3px 9px', color: 'rgba(255,255,255,0.9)', fontSize: '11px', fontWeight: 600 }}>
-          {imgIdx + 1} / {numImgs}
+      {/* Match score */}
+      {isTop && (
+        <div className="absolute" style={{ top: '12px', right: '12px', zIndex: 10 }} onPointerDown={e => e.stopPropagation()}>
+          <MatchRing score={candidate.matchScore} />
         </div>
       )}
 
-      {/* Swipe hint labels */}
-      {hint === 'like' && (
-        <div className="absolute z-20" style={{ top: '28px', left: '20px', border: '2.5px solid #22C55E', color: '#22C55E', fontSize: '18px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(-12deg)', letterSpacing: '0.12em', opacity: 0.95 }}>APPLY</div>
-      )}
-      {hint === 'nope' && (
-        <div className="absolute z-20" style={{ top: '28px', right: '20px', border: '2.5px solid #FF4E6A', color: '#FF4E6A', fontSize: '18px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(12deg)', letterSpacing: '0.12em', opacity: 0.95 }}>SKIP</div>
+      {/* Verified badge */}
+      {candidate.verified && isTop && (
+        <div style={{ position: 'absolute', top: '14px', left: '14px', zIndex: 10, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: '999px', padding: '3px 9px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <IconVerified />
+          <span style={{ fontSize: '10px', color: '#22C55E', fontWeight: 700 }}>Verified</span>
+        </div>
       )}
 
-      {/* Card content */}
-      <div className="absolute bottom-0 left-0 right-0 z-10" style={{ padding: '20px 20px 22px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-          <span style={{ color: 'white', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.01em' }}>{job.company}</span>
-          {job.verified && <IconVerified />}
+      {/* Swipe hints */}
+      {hint === 'invite' && (
+        <div className="absolute z-20" style={{ top: '26px', left: '18px', border: '2.5px solid #22C55E', color: '#22C55E', fontSize: '17px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(-12deg)', letterSpacing: '0.1em' }}>INVITE</div>
+      )}
+      {hint === 'skip' && (
+        <div className="absolute z-20" style={{ top: '26px', right: '18px', border: '2.5px solid #FF4E6A', color: '#FF4E6A', fontSize: '17px', fontWeight: 900, padding: '4px 14px', borderRadius: '10px', transform: 'rotate(12deg)', letterSpacing: '0.1em' }}>PASS</div>
+      )}
+
+      {/* Card info */}
+      <div className="absolute bottom-0 left-0 right-0" style={{ padding: '20px 20px 22px', zIndex: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', marginBottom: '2px' }}>
+          <span style={{ color: 'white', fontSize: '22px', fontWeight: 700, letterSpacing: '-0.01em' }}>{candidate.name}</span>
         </div>
-        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}><IconMapPin /> {job.distance}</p>
-        <p style={{ color: 'rgba(255,255,255,0.35)', fontSize: '11px', marginBottom: '10px' }}>{job.type}</p>
-        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '10px', marginBottom: '2px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Looking for</p>
-        <p style={{ color: 'white', fontSize: '18px', fontWeight: 600, marginBottom: '10px', lineHeight: 1.2 }}>{job.role}</p>
+
+        {/* 📍 replaced with IconMapPin */}
+        <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '11px', marginBottom: '2px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ color: 'rgba(255,255,255,0.45)' }}><IconMapPin /></span>
+          {candidate.distance}
+        </p>
+        <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: '11px', marginBottom: '10px' }}>{candidate.availability}</p>
+
+        <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', marginBottom: '2px', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Looking for</p>
+        <p style={{ color: 'white', fontSize: '18px', fontWeight: 600, marginBottom: '4px', lineHeight: 1.2 }}>{candidate.role}</p>
+        <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '12px', marginBottom: '10px' }}>{candidate.salary}</p>
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-          {job.tags.map((t) => (
-            <span key={t} style={{ padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.8)' }}>{t}</span>
+          {candidate.tags.map(t => (
+            <span key={t} style={{ padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 500, background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.13)', color: 'rgba(255,255,255,0.78)' }}>{t}</span>
           ))}
         </div>
       </div>
