@@ -3,6 +3,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useTheme } from '../../theme';
 import {
   View,
   Text,
@@ -193,16 +194,15 @@ function SkillChip({ label, variant }: { label: string; variant: 'hard' | 'soft'
 }
 
 export default function CompanyHomeTab() {
+  const T = useTheme();
   const navigation = useNavigation();
   const tabBarHeight      = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
 
   const actionsBottom = tabBarHeight + 20;
   const overlayBottom = actionsBottom + ACTIONS_HEIGHT + 8;
-  const MAX_SWIPES = 15;
 
   const [index, setIndex]           = useState(0);
-  const [swipesUsed, setSwipesUsed] = useState(0);
   const indexRef = useRef(0);
   const growingApplicantRef = useRef<(typeof filteredApplicants)[number] | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
@@ -293,7 +293,6 @@ export default function CompanyHomeTab() {
   const filteredApplicants = APPLICANTS.filter(a => a.distanceKm <= maxDistanceKm && !blockedIds.includes(a.id));
   const filteredApplicantRef = useRef(filteredApplicants);
   filteredApplicantRef.current = filteredApplicants;
-  const remainingSwipes = Math.max(MAX_SWIPES - swipesUsed, 0);
 
   const position       = useRef(new Animated.ValueXY()).current;
   const cardOpacity    = useRef(new Animated.Value(1)).current;
@@ -382,7 +381,6 @@ export default function CompanyHomeTab() {
   ).current;
 
   const commitSwipe = (dir: number) => {
-    if (swipesUsed >= MAX_SWIPES) return;
     collapsePanel();
     const deck = filteredApplicantRef.current;
     const total = deck.length;
@@ -400,7 +398,6 @@ export default function CompanyHomeTab() {
       setPhotoIndex(0);
       photoScrollRef.current?.scrollTo({ x: 0, animated: false });
       advanceDeck();
-      setSwipesUsed(s => s + 1);
       growingApplicantRef.current = upcomingApplicant;
       requestAnimationFrame(() =>
         requestAnimationFrame(() =>
@@ -435,7 +432,6 @@ export default function CompanyHomeTab() {
     setLiked([]);
     setHistory([]);
     setPhotoIndex(0);
-    setSwipesUsed(0);
     growingApplicantRef.current = null;
     pausedElapsedRef.current = 0;
     nextCardAnim.setValue(0);
@@ -472,77 +468,6 @@ export default function CompanyHomeTab() {
     }
   };
 
-  // ── Settings panel content ────────────────────────────────────────────────
-  const SettingsPanelContent = () => (
-    <View style={s.settingsContent}>
-      <Text style={s.settingsTitle}>Filters</Text>
-
-      <View style={s.settingsSection}>
-        <View style={s.settingsLabelRow}>
-          <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color="rgba(255,255,255,0.6)" />
-          <Text style={s.settingsLabel}>Max Distance</Text>
-          <Text style={s.settingsValue}>{draftLabel}</Text>
-        </View>
-        <View
-          style={s.sliderWrapper}
-          onLayout={e => setSliderTrackWidth(e.nativeEvent.layout.width)}
-          ref={ref => { if (ref) ref.measure((_x, _y, _w, _h, pageX) => { sliderWrapperX.current = pageX; }); }}
-          onStartShouldSetResponder={() => true}
-          onMoveShouldSetResponder={() => true}
-          onResponderGrant={e => {
-            const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
-            setDraftDistance(Math.max(1, Math.round(pct * 100)));
-          }}
-          onResponderMove={e => {
-            const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
-            setDraftDistance(Math.max(1, Math.round(pct * 100)));
-          }}
-        >
-          <View style={s.sliderTrack} pointerEvents="none">
-            <View style={[s.sliderFill, { width: `${draftDistance}%` }]} />
-          </View>
-          <View style={[s.sliderThumb, { left: (draftDistance / 100) * sliderTrackWidth - 10 }]} pointerEvents="none" />
-        </View>
-        <View style={s.sliderLabels}>
-          <Text style={s.sliderMin}>1 {draftUseKm ? 'km' : 'mi'}</Text>
-          <Text style={s.sliderMax}>100 {draftUseKm ? 'km' : 'mi'}</Text>
-        </View>
-      </View>
-
-      <View style={s.divider} />
-
-      <View style={s.settingsSection}>
-        <View style={s.settingsLabelRow}>
-          <MaterialCommunityIcons name="map-outline" size={16} color="rgba(255,255,255,0.6)" />
-          <Text style={s.settingsLabel}>Distance Unit</Text>
-        </View>
-        <View style={s.unitToggleRow}>
-          <Text style={[s.unitLabel, !draftUseKm && s.unitLabelActive]}>Miles</Text>
-          <Switch
-            value={draftUseKm}
-            onValueChange={setDraftUseKm}
-            trackColor={{ false: 'rgba(255,255,255,0.15)', true: Colors.primary }}
-            thumbColor={Colors.white}
-            ios_backgroundColor="rgba(255,255,255,0.15)"
-          />
-          <Text style={[s.unitLabel, draftUseKm && s.unitLabelActive]}>Kilometres</Text>
-        </View>
-      </View>
-
-      <View style={s.divider} />
-
-      <View style={s.settingsResultRow}>
-        <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={Colors.primary} />
-        <Text style={s.settingsResultText}>
-          {draftFilteredCount} applicant{draftFilteredCount !== 1 ? 's' : ''} within {draftLabel}
-        </Text>
-      </View>
-      <TouchableOpacity style={s.applyBtn} onPress={applySettings} activeOpacity={0.85}>
-        <Text style={s.applyBtnText}>Apply Filters</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   // ── Empty: no applicants in range ─────────────────────────────────────────
   if (filteredApplicants.length === 0) {
     return (
@@ -563,37 +488,86 @@ export default function CompanyHomeTab() {
         )}
         <Animated.View
           style={[s.settingsPanel, {
+            backgroundColor: T.surface,
             paddingBottom: tabBarHeight + 16,
             transform: [{ translateY: settingsAnim.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }],
           }]}
           pointerEvents={settingsOpen ? 'box-none' : 'none'}
         >
-          <View style={s.panelHandle} />
-          <TouchableOpacity style={s.panelCloseBtn} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
-            <MaterialCommunityIcons name="chevron-down" size={24} color="rgba(255,255,255,0.9)" />
+          <View style={[s.panelHandle, { backgroundColor: T.borderFaint }]} />
+          <TouchableOpacity style={[s.panelCloseBtn, { backgroundColor: T.surfaceHigh }]} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+            <MaterialCommunityIcons name="chevron-down" size={24} color={T.textSub} />
           </TouchableOpacity>
-          <SettingsPanelContent />
+          <View style={s.settingsContent}>
+            <Text style={[s.settingsTitle, { color: T.textPrimary }]}>Filters</Text>
+            <View style={s.settingsSection}>
+              <View style={s.settingsLabelRow}>
+                <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={T.textSub} />
+                <Text style={[s.settingsLabel, { color: T.textSub }]}>Max Distance</Text>
+                <Text style={[s.settingsValue, { color: T.primary }]}>{draftLabel}</Text>
+              </View>
+              <View
+                style={s.sliderWrapper}
+                onLayout={(e) => {
+                  setSliderTrackWidth(e.nativeEvent.layout.width);
+                }}
+                ref={(ref) => {
+                  if (ref) ref.measure((_x, _y, _w, _h, pageX) => { sliderWrapperX.current = pageX; });
+                }}
+                onStartShouldSetResponder={() => true}
+                onMoveShouldSetResponder={() => true}
+                onResponderGrant={(e) => {
+                  const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
+                  setDraftDistance(Math.max(1, Math.round(pct * 100)));
+                }}
+                onResponderMove={(e) => {
+                  const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
+                  setDraftDistance(Math.max(1, Math.round(pct * 100)));
+                }}
+              >
+                <View style={[s.sliderTrack, { backgroundColor: T.borderFaint }]} pointerEvents="none">
+                  <View style={[s.sliderFill, { width: `${(draftDistance / 100) * 100}%`, backgroundColor: T.primary }]} />
+                </View>
+                <View
+                  style={[s.sliderThumb, { left: (draftDistance / 100) * sliderTrackWidth - 10 }]}
+                  pointerEvents="none"
+                />
+              </View>
+              <View style={s.sliderLabels}>
+                <Text style={[s.sliderMin, { color: T.textHint }]}>1 {draftUseKm ? 'km' : 'mi'}</Text>
+                <Text style={[s.sliderMax, { color: T.textHint }]}>100 {draftUseKm ? 'km' : 'mi'}</Text>
+              </View>
+            </View>
+            <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
+            <View style={s.settingsSection}>
+              <View style={s.settingsLabelRow}>
+                <MaterialCommunityIcons name="map-outline" size={16} color={T.textSub} />
+                <Text style={[s.settingsLabel, { color: T.textSub }]}>Distance Unit</Text>
+              </View>
+              <View style={s.unitToggleRow}>
+                <Text style={[s.unitLabel, { color: T.textHint }, !draftUseKm && { color: T.textPrimary }]}>Miles</Text>
+                <Switch
+                  value={draftUseKm}
+                  onValueChange={setDraftUseKm}
+                  trackColor={{ false: T.borderFaint, true: T.primary + '88' }}
+                  thumbColor={T.primary}
+                  ios_backgroundColor={T.borderFaint}
+                />
+                <Text style={[s.unitLabel, { color: T.textHint }, draftUseKm && { color: T.textPrimary }]}>Kilometres</Text>
+              </View>
+            </View>
+            <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
+            <View style={s.settingsResultRow}>
+              <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={T.primary} />
+              <Text style={[s.settingsResultText, { color: T.textSub }]}>
+                {draftFilteredCount} applicant{draftFilteredCount !== 1 ? 's' : ''} within {draftLabel}
+              </Text>
+            </View>
+            <TouchableOpacity style={[s.applyBtn, { backgroundColor: T.primary }]} onPress={applySettings} activeOpacity={0.85}>
+              <Text style={s.applyBtnText}>Apply Filters</Text>
+            </TouchableOpacity>
+          </View>
         </Animated.View>
-      </View>
-    );
-  }
-
-  // ── All swiped ────────────────────────────────────────────────────────────
-  if (swipesUsed >= MAX_SWIPES) {
-    return (
-      <View style={s.emptyScreen}>
-        <StatusBar barStyle="dark-content" />
-        <View style={s.emptyIconWrap}>
-          <MaterialCommunityIcons name="lightning-bolt" size={40} color={Colors.primary} />
-        </View>
-        <Text style={s.emptyTitle}>Daily limit reached</Text>
-        <Text style={s.emptySub}>You've used all 15 swipes for today. Upgrade to Pro for unlimited swipes.</Text>
-        <TouchableOpacity
-          style={s.refreshBtn}
-          onPress={() => navigation.navigate('subscription' as never)}
-        >
-          <Text style={s.refreshBtnText}>Upgrade to Pro</Text>
-        </TouchableOpacity>
       </View>
     );
   }
@@ -709,20 +683,7 @@ export default function CompanyHomeTab() {
             <TouchableOpacity style={s.iconPill} onPress={openSettings}>
               <MaterialCommunityIcons name="tune-variant" size={19} color={Colors.white} />
             </TouchableOpacity>
-            {(() => {
-              const accentColor = remainingSwipes > Math.floor(MAX_SWIPES / 2)
-                ? '#10B981'
-                : remainingSwipes > Math.floor(MAX_SWIPES * 0.25)
-                  ? '#F59E0B'
-                  : '#EF4444';
-              return (
-                <View style={[s.swipeCounterPill, { borderColor: accentColor }]}>
-                  <Text style={[s.swipeCounterText, { color: accentColor }]}>
-                    {remainingSwipes}/{MAX_SWIPES} swipes left
-                  </Text>
-                </View>
-              );
-            })()}
+            <View style={{ flex: 1 }} />
             <TouchableOpacity style={s.iconPill} onPress={() => navigation.navigate('subscription' as never)}>
               <MaterialCommunityIcons name="lightning-bolt" size={19} color="#A78BFA" />
             </TouchableOpacity>
@@ -920,22 +881,110 @@ export default function CompanyHomeTab() {
         <TouchableOpacity style={s.panelBackdrop} activeOpacity={1} onPress={collapsePanel} />
       )}
 
-      {/* Settings panel */}
+      {/* ── Settings panel ─────────────────────────────────────────────────── */}
       {settingsOpen && (
         <TouchableOpacity style={s.settingsBackdrop} activeOpacity={1} onPress={closeSettings} />
       )}
       <Animated.View
-        style={[s.settingsPanel, {
-          paddingBottom: tabBarHeight + 16,
-          transform: [{ translateY: settingsAnim.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }],
-        }]}
+        style={[
+          s.settingsPanel,
+          {
+            backgroundColor: T.surface,
+            paddingBottom: tabBarHeight + 16,
+            transform: [{ translateY: settingsAnim.interpolate({ inputRange: [0, 1], outputRange: [500, 0] }) }],
+          },
+        ]}
         pointerEvents={settingsOpen ? 'box-none' : 'none'}
       >
-        <View style={s.panelHandle} />
-        <TouchableOpacity style={s.panelCloseBtn} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
-          <MaterialCommunityIcons name="chevron-down" size={24} color="rgba(255,255,255,0.9)" />
+        <View style={[s.panelHandle, { backgroundColor: T.borderFaint }]} />
+        <TouchableOpacity style={[s.panelCloseBtn, { backgroundColor: T.surfaceHigh }]} onPress={closeSettings} hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}>
+          <MaterialCommunityIcons name="chevron-down" size={24} color={T.textSub} />
         </TouchableOpacity>
-        <SettingsPanelContent />
+
+        <View style={s.settingsContent}>
+          <Text style={[s.settingsTitle, { color: T.textPrimary }]}>Filters</Text>
+
+          {/* Distance slider */}
+          <View style={s.settingsSection}>
+            <View style={s.settingsLabelRow}>
+              <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={T.textSub} />
+              <Text style={[s.settingsLabel, { color: T.textSub }]}>Max Distance</Text>
+              <Text style={[s.settingsValue, { color: T.primary }]}>{draftLabel}</Text>
+            </View>
+
+            {/* Slider wrapper — tall touch target, visual track centred inside */}
+            <View
+              style={s.sliderWrapper}
+              onLayout={(e) => {
+                setSliderTrackWidth(e.nativeEvent.layout.width);
+              }}
+              ref={(ref) => {
+                if (ref) ref.measure((_x, _y, _w, _h, pageX) => { sliderWrapperX.current = pageX; });
+              }}
+              onStartShouldSetResponder={() => true}
+              onMoveShouldSetResponder={() => true}
+              onResponderGrant={(e) => {
+                const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
+                setDraftDistance(Math.max(1, Math.round(pct * 100)));
+              }}
+              onResponderMove={(e) => {
+                const pct = Math.max(0, Math.min(1, (e.nativeEvent.pageX - sliderWrapperX.current) / sliderTrackWidth));
+                setDraftDistance(Math.max(1, Math.round(pct * 100)));
+              }}
+            >
+              {/* Visual track */}
+              <View style={[s.sliderTrack, { backgroundColor: T.borderFaint }]} pointerEvents="none">
+                <View style={[s.sliderFill, { width: `${(draftDistance / 100) * 100}%`, backgroundColor: T.primary }]} />
+              </View>
+              {/* Thumb — positioned relative to wrapper */}
+              <View
+                style={[s.sliderThumb, { left: (draftDistance / 100) * sliderTrackWidth - 10 }]}
+                pointerEvents="none"
+              />
+            </View>
+
+            <View style={s.sliderLabels}>
+              <Text style={[s.sliderMin, { color: T.textHint }]}>1 {draftUseKm ? 'km' : 'mi'}</Text>
+              <Text style={[s.sliderMax, { color: T.textHint }]}>100 {draftUseKm ? 'km' : 'mi'}</Text>
+            </View>
+          </View>
+
+          <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
+
+          {/* Unit toggle */}
+          <View style={s.settingsSection}>
+            <View style={s.settingsLabelRow}>
+              <MaterialCommunityIcons name="map-outline" size={16} color={T.textSub} />
+              <Text style={[s.settingsLabel, { color: T.textSub }]}>Distance Unit</Text>
+            </View>
+            <View style={s.unitToggleRow}>
+              <Text style={[s.unitLabel, { color: T.textHint }, !draftUseKm && { color: T.textPrimary }]}>Miles</Text>
+              <Switch
+                value={draftUseKm}
+                onValueChange={setDraftUseKm}
+                trackColor={{ false: T.borderFaint, true: T.primary + '88' }}
+                thumbColor={T.primary}
+                ios_backgroundColor={T.borderFaint}
+              />
+              <Text style={[s.unitLabel, { color: T.textHint }, draftUseKm && { color: T.textPrimary }]}>Kilometres</Text>
+            </View>
+          </View>
+
+          <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
+
+          {/* Preview count */}
+          <View style={s.settingsResultRow}>
+            <MaterialCommunityIcons name="briefcase-search-outline" size={15} color={T.primary} />
+            <Text style={[s.settingsResultText, { color: T.textSub }]}>
+              {draftFilteredCount} applicant{draftFilteredCount !== 1 ? 's' : ''} within {draftLabel}
+            </Text>
+          </View>
+
+          {/* Apply button */}
+          <TouchableOpacity style={[s.applyBtn, { backgroundColor: T.primary }]} onPress={applySettings} activeOpacity={0.85}>
+            <Text style={s.applyBtnText}>Apply Filters</Text>
+          </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* ── Report Modal ─────────────────────────────────────────────────── */}
@@ -1247,26 +1296,25 @@ const s = StyleSheet.create({
 
   // Settings panel
   settingsBackdrop:  { position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, zIndex: 65, backgroundColor: 'rgba(0,0,0,0.5)' },
-  settingsPanel:     { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 70, backgroundColor: 'rgba(10,10,14,0.98)', borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: 'hidden' },
+  settingsPanel:     { position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 70, borderTopLeftRadius: 22, borderTopRightRadius: 22, overflow: 'hidden' },
   settingsContent:   { paddingHorizontal: Spacing['5'], paddingTop: Spacing['2'] },
-  settingsTitle:     { fontSize: Typography.xl, fontWeight: Typography.bold, color: Colors.white, marginBottom: Spacing['5'], marginTop: Spacing['2'] },
+  settingsTitle:     { fontSize: Typography.xl, fontWeight: Typography.bold, marginBottom: Spacing['5'], marginTop: Spacing['2'] },
   settingsSection:   { marginBottom: Spacing['4'] },
   settingsLabelRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: Spacing['3'] },
-  settingsLabel:     { flex: 1, fontSize: Typography.md, color: 'rgba(255,255,255,0.75)', fontWeight: Typography.medium },
-  settingsValue:     { fontSize: Typography.md, fontWeight: Typography.semibold, color: Colors.primary },
+  settingsLabel:     { flex: 1, fontSize: Typography.md, fontWeight: Typography.medium },
+  settingsValue:     { fontSize: Typography.md, fontWeight: Typography.semibold },
   settingsResultRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: Spacing['1'] },
-  settingsResultText:{ fontSize: Typography.sm, color: 'rgba(255,255,255,0.5)' },
+  settingsResultText:{ fontSize: Typography.sm },
   sliderWrapper: { height: 32, justifyContent: 'center', position: 'relative', marginBottom: 16 },
-  sliderTrack:   { height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.12)', overflow: 'visible' },
-  sliderFill:    { position: 'absolute', left: 0, top: 0, bottom: 0, backgroundColor: Colors.primary, borderRadius: 2 },
+  sliderTrack:   { height: 4, borderRadius: 2, overflow: 'visible' },
+  sliderFill:    { position: 'absolute', left: 0, top: 0, bottom: 0, borderRadius: 2 },
   sliderThumb:   { position: 'absolute', top: 6, width: 20, height: 20, borderRadius: 10, backgroundColor: Colors.white, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4, elevation: 4 },
   sliderLabels:  { flexDirection: 'row', justifyContent: 'space-between' },
-  sliderMin:     { fontSize: Typography.sm, color: 'rgba(255,255,255,0.35)' },
-  sliderMax:     { fontSize: Typography.sm, color: 'rgba(255,255,255,0.35)' },
+  sliderMin:     { fontSize: Typography.sm },
+  sliderMax:     { fontSize: Typography.sm },
   unitToggleRow:   { flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] },
-  unitLabel:       { fontSize: Typography.md, color: 'rgba(255,255,255,0.35)', fontWeight: Typography.medium },
-  unitLabelActive: { color: Colors.white },
-  applyBtn:     { marginTop: Spacing['4'], backgroundColor: Colors.primary, borderRadius: Radii.lg, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
+  unitLabel:       { fontSize: Typography.md, fontWeight: Typography.medium },
+  applyBtn:     { marginTop: Spacing['4'], borderRadius: Radii.lg, paddingVertical: 14, alignItems: 'center', justifyContent: 'center' },
   applyBtnText: { fontSize: Typography.md, fontWeight: Typography.bold, color: Colors.white, letterSpacing: 0.3 },
 });
 

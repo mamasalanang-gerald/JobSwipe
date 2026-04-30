@@ -23,7 +23,6 @@ import { useTheme, setThemeMode, getThemeMode } from '../../theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-const TECH_STACK = ['React Native', 'TypeScript', 'Node.js', 'AWS', 'PostgreSQL', 'Docker'];
 const PERKS = ['Hybrid Work', 'HMO Coverage', '14th Month', 'Stock Options', 'L&D Budget'];
 
 type TeamMember = {
@@ -148,15 +147,17 @@ function SettingsSheet({
   team,
   onInvite,
   onRevoke,
+  onSignOut,
 }: {
   visible: boolean;
   onClose: () => void;
   team: TeamMember[];
   onInvite: (payload: { email: string; role: string }) => void;
   onRevoke: (memberId: number) => void;
+  onSignOut: () => void;
 }) {
   const T = useTheme();
-  const [isLight, setIsLight] = useState(getThemeMode() === 'light');
+  const [isDark, setIsDark] = useState(getThemeMode() === 'dark');
   const [showInviteModal, setShowInviteModal] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<(typeof TEAM_ROLE_OPTIONS)[number]['value']>('hr');
@@ -165,8 +166,8 @@ function SettingsSheet({
   const [pendingRevoke, setPendingRevoke] = useState<TeamMember | null>(null);
 
   const handleToggle = (val: boolean) => {
-    setIsLight(val);
-    setThemeMode(val ? 'light' : 'dark');
+    setIsDark(val);
+    setThemeMode(val ? 'dark' : 'light');
   };
 
   const resetInviteForm = () => {
@@ -237,24 +238,24 @@ function SettingsSheet({
         <Text style={[ss.groupLabel, { color: T.textHint }]}>Appearance</Text>
 
         <View style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
-          <View style={[ss.iconWrap, { backgroundColor: isLight ? '#f59e0b18' : T.primary + '18' }]}>
+          <View style={[ss.iconWrap, { backgroundColor: isDark ? T.primary + '18' : '#f59e0b18' }]}>
             <MaterialCommunityIcons
-              name={isLight ? 'weather-sunny' : 'weather-night'}
+              name={isDark ? 'weather-night' : 'weather-sunny'}
               size={18}
-              color={isLight ? '#f59e0b' : T.primary}
+              color={isDark ? T.primary : '#f59e0b'}
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[ss.rowLabel, { color: T.textPrimary }]}>{isLight ? 'Light Mode' : 'Dark Mode'}</Text>
+            <Text style={[ss.rowLabel, { color: T.textPrimary }]}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
             <Text style={[ss.rowSub, { color: T.textHint }]}>
-              {isLight ? 'Bright theme active' : 'Dark theme active'}
+              {isDark ? 'Dark theme active' : 'Bright theme active'}
             </Text>
           </View>
           <Switch
-            value={isLight}
+            value={isDark}
             onValueChange={handleToggle}
-            trackColor={{ false: T.primary + '55', true: '#f59e0b88' }}
-            thumbColor={isLight ? '#f59e0b' : T.primary}
+            trackColor={{ false: '#f59e0b88', true: T.primary + '55' }}
+            thumbColor={isDark ? T.primary : '#f59e0b'}
           />
         </View>
 
@@ -339,6 +340,24 @@ function SettingsSheet({
             ))}
           </View>
         </View>
+
+        {/* Sign Out Button - at the bottom */}
+        <TouchableOpacity
+          activeOpacity={0.7}
+          style={[ss.signOutRow, { backgroundColor: T.dangerBg, borderColor: T.danger + '26', marginTop: 24 }]}
+          onPress={() => {
+            onClose();
+            onSignOut();
+          }}
+        >
+          <View style={[ss.iconWrap, { backgroundColor: T.danger + '18' }]}>
+            <MaterialCommunityIcons name="logout" size={18} color={T.danger} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[ss.rowLabel, { color: T.danger }]}>Sign Out</Text>
+            <Text style={[ss.rowSub, { color: T.danger, opacity: 0.7 }]}>Log out of your account</Text>
+          </View>
+        </TouchableOpacity>
       </View>
 
       <Modal visible={showInviteModal} transparent animationType="fade" onRequestClose={closeInviteModal}>
@@ -496,6 +515,16 @@ const ss = StyleSheet.create({
     paddingVertical: 12,
     marginBottom: 8,
   },
+  signOutRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
   iconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   rowLabel: { fontSize: 14, fontWeight: '600' },
   rowSub: { fontSize: 11, marginTop: 1 },
@@ -558,9 +587,6 @@ export default function CompanyProfileScreen() {
   const [showAddPerk, setShowAddPerk] = useState(false);
   const [perks, setPerks] = useState<string[]>(PERKS);
   const [newPerk, setNewPerk] = useState('');
-  const [showAddTech, setShowAddTech] = useState(false);
-  const [techStack, setTechStack] = useState<string[]>(TECH_STACK);
-  const [newTech, setNewTech] = useState('');
   const planRef = useRef<FlatList<Plan>>(null);
 
   const plans = buildPlans(T.primary, T.gold);
@@ -589,12 +615,6 @@ export default function CompanyProfileScreen() {
     if (!newPerk.trim()) return;
     setPerks((prev) => [...prev, newPerk.trim()]);
     setNewPerk('');
-  };
-
-  const addTech = () => {
-    if (!newTech.trim()) return;
-    setTechStack((prev) => [...prev, newTech.trim()]);
-    setNewTech('');
   };
 
   const onPlanScroll = (e: any) => {
@@ -697,6 +717,7 @@ export default function CompanyProfileScreen() {
           });
         }}
         onRevoke={(memberId) => setTeam((prev) => prev.filter((member) => member.id !== memberId))}
+        onSignOut={() => setShowSignOutModal(true)}
       />
 
       {showSignOutModal && (
@@ -855,109 +876,52 @@ export default function CompanyProfileScreen() {
 
         <View style={s.section}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <SectionLabel title="Tech Stack" />
+            <SectionLabel title="Perks & Benefits" />
             {editMode && (
               <TouchableOpacity
-                style={[s.addBtn, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}
-                onPress={() => setShowAddTech((v) => !v)}
+                style={[s.addBtn, { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' }]}
+                onPress={() => setShowAddPerk((v) => !v)}
               >
-                <MaterialCommunityIcons name={showAddTech ? 'minus' : 'plus'} size={12} color={T.primary} />
-                <Text style={[s.addBtnText, { color: T.primary }]}>{showAddTech ? 'Cancel' : 'Add'}</Text>
+                <MaterialCommunityIcons name={showAddPerk ? 'minus' : 'plus'} size={12} color="#4ade80" />
+                <Text style={[s.addBtnText, { color: '#4ade80' }]}>{showAddPerk ? 'Cancel' : 'Add'}</Text>
               </TouchableOpacity>
             )}
           </View>
 
-          <View style={s.skillSegment}>
-            <View style={s.skillSegmentHeader}>
-              <MaterialCommunityIcons name="code-braces" size={13} color={T.primary} />
-              <Text style={[s.skillSegmentLabel, { color: T.primary }]}>Technologies We Use</Text>
-            </View>
-            <View style={s.chips}>
-              {techStack.map((sk, i) => (
-                <View key={i} style={[s.chip, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}> 
-                  <Text style={[s.chipText, { color: T.primary }]}>{sk}</Text>
-                  {editMode && (
-                    <TouchableOpacity
-                      onPress={() => setTechStack((prev) => prev.filter((_, idx) => idx !== i))}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      style={{ marginLeft: 4 }}
-                    >
-                      <MaterialCommunityIcons name="close" size={10} color={T.primary} />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-            </View>
-
-            {editMode && showAddTech && (
-              <View style={[s.addForm, { marginTop: 12, backgroundColor: T.surfaceHigh, borderColor: T.border }]}> 
-                <TextInput
-                  style={[s.addInput, { backgroundColor: T.surface, borderColor: T.border, color: T.textPrimary }]}
-                  placeholder="e.g. React Native, AWS, PostgreSQL..."
-                  placeholderTextColor={T.textHint}
-                  value={newTech}
-                  onChangeText={setNewTech}
-                />
-                <TouchableOpacity style={[s.addConfirmBtn, { backgroundColor: T.primary }]} onPress={addTech}>
-                  <Text style={s.addConfirmText}>Add Technology</Text>
-                </TouchableOpacity>
+          <View style={s.chips}>
+            {perks.map((p, i) => (
+              <View
+                key={i}
+                style={[s.chip, { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' }]}
+              >
+                <Text style={[s.chipText, { color: '#4ade80' }]}>{p}</Text>
+                {editMode && (
+                  <TouchableOpacity
+                    onPress={() => setPerks((prev) => prev.filter((_, idx) => idx !== i))}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={{ marginLeft: 4 }}
+                  >
+                    <MaterialCommunityIcons name="close" size={10} color="#4ade80" />
+                  </TouchableOpacity>
+                )}
               </View>
-            )}
+            ))}
           </View>
 
-          <View style={[s.skillDivider, { backgroundColor: T.borderFaint }]} />
-          <View style={s.skillSegment}>
-            <View style={[s.skillSegmentHeader, { justifyContent: 'space-between' }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <MaterialCommunityIcons name="gift-outline" size={13} color="#4ade80" />
-                <Text style={[s.skillSegmentLabel, { color: '#4ade80' }]}>Perks & Benefits</Text>
-              </View>
-              {editMode && (
-                <TouchableOpacity
-                  style={[s.addBtn, { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' }]}
-                  onPress={() => setShowAddPerk((v) => !v)}
-                >
-                  <MaterialCommunityIcons name={showAddPerk ? 'minus' : 'plus'} size={12} color="#4ade80" />
-                  <Text style={[s.addBtnText, { color: '#4ade80' }]}>{showAddPerk ? 'Cancel' : 'Add'}</Text>
-                </TouchableOpacity>
-              )}
+          {editMode && showAddPerk && (
+            <View style={[s.addForm, { marginTop: 12, backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
+              <TextInput
+                style={[s.addInput, { backgroundColor: T.surface, borderColor: T.border, color: T.textPrimary }]}
+                placeholder="e.g. Remote Work, Free Meals, Gym..."
+                placeholderTextColor={T.textHint}
+                value={newPerk}
+                onChangeText={setNewPerk}
+              />
+              <TouchableOpacity style={[s.addConfirmBtn, { backgroundColor: T.primary }]} onPress={addPerk}>
+                <Text style={s.addConfirmText}>Add Perk</Text>
+              </TouchableOpacity>
             </View>
-
-            <View style={s.chips}>
-              {perks.map((p, i) => (
-                <View
-                  key={i}
-                  style={[s.chip, { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' }]}
-                >
-                  <Text style={[s.chipText, { color: '#4ade80' }]}>{p}</Text>
-                  {editMode && (
-                    <TouchableOpacity
-                      onPress={() => setPerks((prev) => prev.filter((_, idx) => idx !== i))}
-                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                      style={{ marginLeft: 4 }}
-                    >
-                      <MaterialCommunityIcons name="close" size={10} color="#4ade80" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-            </View>
-
-            {editMode && showAddPerk && (
-              <View style={[s.addForm, { marginTop: 12, backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
-                <TextInput
-                  style={[s.addInput, { backgroundColor: T.surface, borderColor: T.border, color: T.textPrimary }]}
-                  placeholder="e.g. Remote Work, Free Meals, Gym..."
-                  placeholderTextColor={T.textHint}
-                  value={newPerk}
-                  onChangeText={setNewPerk}
-                />
-                <TouchableOpacity style={[s.addConfirmBtn, { backgroundColor: T.primary }]} onPress={addPerk}>
-                  <Text style={s.addConfirmText}>Add Perk</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+          )}
         </View>
 
         <Sep />
@@ -1028,15 +992,6 @@ export default function CompanyProfileScreen() {
             </TouchableOpacity>
           ))}
         </View>
-
-        <TouchableOpacity
-          style={[s.signOut, { backgroundColor: T.dangerBg, borderColor: T.danger + '26' }]}
-          activeOpacity={0.8}
-          onPress={() => setShowSignOutModal(true)}
-        >
-          <MaterialCommunityIcons name="logout" size={14} color={T.danger} />
-          <Text style={[s.signOutText, { color: T.danger }]}>Sign out</Text>
-        </TouchableOpacity>
       </ScrollView>
     </View>
   );
