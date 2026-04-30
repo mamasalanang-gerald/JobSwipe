@@ -552,34 +552,31 @@ export default function HomeTab() {
   // ── Timer pause/resume tracking ──────────────────────────────────────────────
   const TIMER_DURATION   = 5000;
   const isDraggingRef    = useRef(false);
-  const pausedElapsedRef = useRef(0);
-  const dragStartRef     = useRef(0);
+  const timerAnimRef     = useRef<Animated.CompositeAnimation | null>(null);
+  const settingsOpenRef  = useRef(false);
 
   // Auto-cycle photos every 5 seconds — pauses while card is being dragged
   useEffect(() => {
     const total = filteredJobs[index]?.photos.length ?? 1;
     if (total <= 1) return;
 
-    let accumulatedMs = pausedElapsedRef.current;
-    let lastTick      = Date.now();
+    // Cancel any existing animation
+    if (timerAnimRef.current) {
+      timerAnimRef.current.stop();
+    }
 
-    // Drive progressAnim directly from accumulatedMs every tick.
-    // This way pausing is just "stop incrementing" — no Animated.timing involved,
-    // so there is no async mismatch between the animation clock and real elapsed time.
-    const id = setInterval(() => {
-      const now = Date.now();
+    // Reset progress to 0
+    progressAnim.setValue(0);
 
-      if (!isDraggingRef.current) {
-        accumulatedMs += now - lastTick;
-      }
-      lastTick = now;
+    // Start smooth animation
+    timerAnimRef.current = Animated.timing(progressAnim, {
+      toValue: 1,
+      duration: TIMER_DURATION,
+      useNativeDriver: false,
+    });
 
-      progressAnim.setValue(Math.min(accumulatedMs / TIMER_DURATION, 1));
-
-      if (accumulatedMs >= TIMER_DURATION) {
-        pausedElapsedRef.current = 0;
-        clearInterval(id);
-        progressAnim.setValue(0);
+    timerAnimRef.current.start(({ finished }) => {
+      if (finished && !isDraggingRef.current && !settingsOpenRef.current) {
         setPhotoIndex(p => {
           const isLast = p === total - 1;
           const next   = isLast ? 0 : p + 1;
@@ -593,9 +590,13 @@ export default function HomeTab() {
         });
         setTimerKey(k => k + 1);
       }
-    }, 100);
+    });
 
-    return () => clearInterval(id);
+    return () => {
+      if (timerAnimRef.current) {
+        timerAnimRef.current.stop();
+      }
+    };
   }, [index, cardSize.width, timerKey, filteredJobs.length]);
 
   const onCardLayout = (e: LayoutChangeEvent) => {
@@ -615,7 +616,6 @@ export default function HomeTab() {
   const nextCardSettleImageOpacity  = nextCardAnim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0, 0.7, 1] });
   const panelTranslateY    = expandAnim.interpolate({ inputRange: [0, 1],               outputRange: [PANEL_HEIGHT, 0] });
 
-  const settingsOpenRef = useRef(false);
   const expandedRef     = useRef(false);
   const isHoldingRef    = useRef(false);
   const panResponder = useRef(
@@ -722,6 +722,11 @@ export default function HomeTab() {
     const x     = evt.nativeEvent.locationX;
     const total = filteredJobs[index].photos.length;
     if (x < SW * 0.35 || x > SW * 0.65) {
+      // Stop current animation immediately
+      if (timerAnimRef.current) {
+        timerAnimRef.current.stop();
+      }
+      
       setPhotoIndex(p => {
         const next = x < SW * 0.35
           ? (p === 0 ? total - 1 : p - 1)
@@ -729,8 +734,9 @@ export default function HomeTab() {
         photoScrollRef.current?.scrollTo({ x: next * cardSize.width, animated: true });
         return next;
       });
-      setTimerKey(k => k + 1); // resets the interval
-      pausedElapsedRef.current = 0;
+      
+      // Reset timer to restart the animation
+      setTimerKey(k => k + 1);
     }
   };
 

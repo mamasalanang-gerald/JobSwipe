@@ -18,9 +18,9 @@ const ACCENT = {
   swipe: '#06b6d4',
 };
 
-type PlanKey = 'free' | 'gold_monthly' | 'gold_yearly' | 'plat_monthly' | 'plat_yearly';
+type PlanKey = 'free' | 'gold_monthly' | 'gold_yearly';
 type Plan = {
-  key: PlanKey; tier: 'free' | 'gold' | 'platinum';
+  key: PlanKey; tier: 'free' | 'gold';
   name: string; billing: string; price: string | null; billed: string | null;
   badge: string | null; saving: string | null;
   color: string; border: string; bg: string;
@@ -47,7 +47,7 @@ const PLANS: Plan[] = [
     color: '#a855f7', border: 'rgba(168,85,247,0.3)', bg: 'rgba(168,85,247,0.05)',
     icon: 'star-outline',
     features: ['10 applications / month', 'Basic job matching'],
-    locked: ['See who liked you', 'Priority results', 'Advanced insights', 'Career coach'],
+    locked: ['See who liked you', 'Priority results'],
     ctaLabel: null, ctaTextColor: '#fff',
   },
   {
@@ -56,7 +56,7 @@ const PLANS: Plan[] = [
     color: ACCENT.gold, border: 'rgba(245,158,11,0.35)', bg: 'rgba(245,158,11,0.05)',
     icon: 'lightning-bolt',
     features: ['Unlimited applications', 'Advanced matching', 'See who liked you', 'Priority results'],
-    locked: ['Advanced insights', 'Career coach'],
+    locked: [],
     ctaLabel: 'Upgrade to Gold', ctaTextColor: '#fff',
   },
   {
@@ -65,24 +65,8 @@ const PLANS: Plan[] = [
     color: ACCENT.gold, border: 'rgba(245,158,11,0.35)', bg: 'rgba(245,158,11,0.05)',
     icon: 'lightning-bolt',
     features: ['Unlimited applications', 'Advanced matching', 'See who liked you', 'Priority results'],
-    locked: ['Advanced insights', 'Career coach'],
+    locked: [],
     ctaLabel: 'Upgrade to Gold', ctaTextColor: '#fff',
-  },
-  {
-    key: 'plat_monthly', tier: 'platinum', name: 'Platinum', billing: 'Monthly',
-    price: '$29.99', billed: 'Billed monthly', badge: null, saving: null,
-    color: ACCENT.plat, border: 'rgba(203,213,225,0.3)', bg: 'rgba(148,163,184,0.05)',
-    icon: 'diamond-stone',
-    features: ['Everything in Gold', 'Advanced insights', 'Dedicated career coach', 'AI-powered matching'],
-    locked: [], ctaLabel: 'Upgrade to Platinum', ctaTextColor: '#0f172a',
-  },
-  {
-    key: 'plat_yearly', tier: 'platinum', name: 'Platinum', billing: 'Yearly',
-    price: '$19.99', billed: 'Billed $239.88 / year', badge: 'BEST DEAL', saving: 'Save 33%',
-    color: ACCENT.plat, border: 'rgba(203,213,225,0.3)', bg: 'rgba(148,163,184,0.05)',
-    icon: 'diamond-stone',
-    features: ['Everything in Gold', 'Advanced insights', 'Dedicated career coach', 'AI-powered matching'],
-    locked: [], ctaLabel: 'Upgrade to Platinum', ctaTextColor: '#0f172a',
   },
 ];
 
@@ -199,10 +183,8 @@ export default function SubscriptionScreen() {
 
   // ── CTA colours (plans) ──────────────────────────────────────────────────────
   const ctaColors: [string, string] =
-    selectedPlan.tier === 'platinum' ? ['#cbd5e1', '#94a3b8'] :
-    selectedPlan.tier === 'gold'     ? ['#f59e0b', '#d97706'] :
-                                       [T.primary, T.primaryDark];
-  const ctaIconColor = selectedPlan.tier === 'platinum' ? '#0f172a' : '#fff';
+    selectedPlan.tier === 'gold' ? ['#f59e0b', '#d97706'] : [T.primary, T.primaryDark];
+  const ctaIconColor = '#fff';
 
   // ── Render: plan card ────────────────────────────────────────────────────────
   const renderPlanCard = ({ item }: { item: Plan }) => (
@@ -392,7 +374,7 @@ export default function SubscriptionScreen() {
                   style={s.ctaGradient}
                 >
                   <MaterialCommunityIcons
-                    name={selectedPlan.tier === 'platinum' ? 'diamond-stone' : 'lightning-bolt'}
+                    name="lightning-bolt"
                     size={18} color={ctaIconColor}
                   />
                   <Text style={[s.ctaText, { color: ctaIconColor }]}>
