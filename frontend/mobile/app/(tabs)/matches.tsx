@@ -15,6 +15,7 @@ import {
   BackHandler,
   Image,
   ImageSourcePropType,
+  KeyboardAvoidingView,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -359,6 +360,10 @@ function MatchCarousel({
 }) {
   const T = useTheme();
 
+  if (matches.length === 0) {
+    return null;
+  }
+
   return (
     <>
       <View style={styles.sectionRow}>
@@ -411,10 +416,12 @@ function MatchCarousel({
 
 function MessagesList({
   conversations,
+  hasMatches,
   onOpenConversation,
   onOpenReview,
 }: {
   conversations: Conversation[];
+  hasMatches: boolean;
   onOpenConversation: (conversationId: number) => void;
   onOpenReview: (companyId: number) => void;
 }) {
@@ -424,9 +431,14 @@ function MessagesList({
     return (
       <View style={styles.emptyState}>
         <MaterialCommunityIcons name="message-text-outline" size={34} color="rgba(124,58,237,0.24)" />
-        <Text style={styles.emptyTitle}>No conversations yet</Text>
+        <Text style={styles.emptyTitle}>
+          {hasMatches ? 'Start a conversation' : 'No matches yet'}
+        </Text>
         <Text style={styles.emptyCopy}>
-          Start a conversation from one of your matches and it will show up here.
+          {hasMatches 
+            ? 'Tap on a match above to start chatting and begin your journey.'
+            : "When companies match with you, they'll appear here and you can start chatting."
+          }
         </Text>
       </View>
     );
@@ -524,8 +536,8 @@ function ConversationScreen({
   const { top: topInset } = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isTyping, setIsTyping] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
   const replyIndexRef = useRef(0);
 
@@ -563,26 +575,16 @@ function ConversationScreen({
   }, [onBack]);
 
   useEffect(() => {
-    const show = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
-      (e: KeyboardEvent) => {
-        if (Platform.OS === 'android') {
-          const windowHeight = Dimensions.get('window').height;
-          setKeyboardHeight(Math.max(0, windowHeight - e.endCoordinates.screenY));
-        } else {
-          setKeyboardHeight(e.endCoordinates.height);
-        }
-      },
-    );
-
-    const hide = Keyboard.addListener(
-      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
-      () => setKeyboardHeight(0),
-    );
+    const showSubscription = Keyboard.addListener('keyboardDidShow', () => {
+      setIsKeyboardVisible(true);
+    });
+    const hideSubscription = Keyboard.addListener('keyboardDidHide', () => {
+      setIsKeyboardVisible(false);
+    });
 
     return () => {
-      show.remove();
-      hide.remove();
+      showSubscription.remove();
+      hideSubscription.remove();
     };
   }, []);
 
@@ -656,8 +658,9 @@ function ConversationScreen({
       <ScrollView
         ref={scrollRef}
         style={styles.chatScroll}
-        contentContainerStyle={[styles.chatContent, { paddingBottom: keyboardHeight > 0 ? 16 : tabBarHeight + 20 }]}
+        contentContainerStyle={[styles.chatContent, { paddingBottom: 16 }]}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
         {bannerText ? (
           <View style={styles.chatBanner}>
@@ -727,53 +730,58 @@ function ConversationScreen({
         ) : null}
       </ScrollView>
 
-      {isClosedConversation ? (
-        <View style={[styles.chatFooterLocked, { paddingBottom: tabBarHeight + 10 }]}>
-          <TouchableOpacity
-            style={[styles.footerReviewButton, { backgroundColor: T.primary }]}
-            activeOpacity={0.85}
-            onPress={() => onOpenReview(fallbackCompany.id)}
+      <KeyboardAvoidingView
+        behavior={isKeyboardVisible ? (Platform.OS === 'ios' ? 'padding' : 'padding') : undefined}
+        keyboardVerticalOffset={0}
+      >
+        {isClosedConversation ? (
+          <View style={[styles.chatFooterLocked, { paddingBottom: isKeyboardVisible ? 8 : tabBarHeight + 10 }]}>
+            <TouchableOpacity
+              style={[styles.footerReviewButton, { backgroundColor: T.primary }]}
+              activeOpacity={0.85}
+              onPress={() => onOpenReview(fallbackCompany.id)}
+            >
+              <MaterialCommunityIcons name="star-outline" size={16} color="#fff" />
+              <Text style={styles.footerReviewButtonText}>Leave a review</Text>
+            </TouchableOpacity>
+          </View>
+        ) : canChat ? (
+          <View
+            style={[
+              styles.chatInputBar,
+              {
+                paddingBottom: isKeyboardVisible ? 8 : tabBarHeight + 8,
+                borderTopColor: 'rgba(124,58,237,0.12)',
+              },
+            ]}
           >
-            <MaterialCommunityIcons name="star-outline" size={16} color="#fff" />
-            <Text style={styles.footerReviewButtonText}>Leave a review</Text>
-          </TouchableOpacity>
-        </View>
-      ) : canChat ? (
-        <View
-          style={[
-            styles.chatInputBar,
-            {
-              paddingBottom: keyboardHeight > 0 ? 8 : tabBarHeight + 8,
-              borderTopColor: 'rgba(124,58,237,0.12)',
-            },
-          ]}
-        >
-          <TextInput
-            style={styles.chatInput}
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={isPendingMatch ? 'Start the conversation...' : 'Message...'}
-            placeholderTextColor="#9f98b7"
-            multiline
-            maxLength={500}
-          />
-          <TouchableOpacity
-            style={[styles.chatSendButton, { backgroundColor: T.primary }, !draft.trim() && styles.chatSendButtonDisabled]}
-            activeOpacity={0.85}
-            onPress={sendMessage}
-            disabled={!draft.trim()}
-          >
-            <MaterialCommunityIcons name="send" size={18} color="#fff" />
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <View style={[styles.chatFooterLocked, { paddingBottom: tabBarHeight + 10 }]}>
-          <MaterialCommunityIcons name="message-off-outline" size={16} color="#9f98b7" />
-          <Text style={styles.chatFooterLockedText}>
-            {isExpiredMatch || isExpiredConversation ? 'Conversation expired' : 'Messaging locked'}
-          </Text>
-        </View>
-      )}
+            <TextInput
+              style={styles.chatInput}
+              value={draft}
+              onChangeText={setDraft}
+              placeholder={isPendingMatch ? 'Start the conversation...' : 'Message...'}
+              placeholderTextColor="#9f98b7"
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[styles.chatSendButton, { backgroundColor: T.primary }, !draft.trim() && styles.chatSendButtonDisabled]}
+              activeOpacity={0.85}
+              onPress={sendMessage}
+              disabled={!draft.trim()}
+            >
+              <MaterialCommunityIcons name="send" size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={[styles.chatFooterLocked, { paddingBottom: isKeyboardVisible ? 8 : tabBarHeight + 10 }]}>
+            <MaterialCommunityIcons name="message-off-outline" size={16} color="#9f98b7" />
+            <Text style={styles.chatFooterLockedText}>
+              {isExpiredMatch || isExpiredConversation ? 'Conversation expired' : 'Messaging locked'}
+            </Text>
+          </View>
+        )}
+      </KeyboardAvoidingView>
     </View>
   );
 }
@@ -802,7 +810,12 @@ function ReviewScreen({
 
   return (
     <View style={[styles.reviewScreen, { backgroundColor: T.bg }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.reviewScroll, { paddingBottom: tabBarHeight + 28 }]}>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={[styles.reviewScroll, { paddingBottom: tabBarHeight + 28 }]}
+        bounces={false}
+        overScrollMode="never"
+      >
         <View style={styles.reviewBannerWrap}>
           <Image source={details.banner} style={styles.reviewBannerImage} resizeMode="cover" />
           <View style={styles.reviewBannerOverlay} />
@@ -1088,11 +1101,16 @@ export default function MatchesTab() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.pageScroll, { paddingBottom: tabBarHeight + 28 }]}
+        contentContainerStyle={[
+          styles.pageScroll, 
+          { paddingBottom: tabBarHeight + 28 },
+          visibleMatches.length === 0 && visibleConversations.length === 0 && styles.pageScrollCentered
+        ]}
       >
         <MatchCarousel matches={visibleMatches} currentTime={currentTime} onOpen={openPendingMatch} />
         <MessagesList
           conversations={visibleConversations}
+          hasMatches={visibleMatches.length > 0}
           onOpenConversation={openConversation}
           onOpenReview={setReviewCompanyId}
         />
@@ -1130,6 +1148,10 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   pageScroll: { paddingHorizontal: 20 },
+  pageScrollCentered: { 
+    flexGrow: 1, 
+    justifyContent: 'center',
+  },
   sectionRow: {
     marginBottom: 10,
     flexDirection: 'row',
@@ -1565,6 +1587,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.16)',
   },
   reviewScroll: {
+    flexGrow: 1,
     paddingBottom: 36,
   },
   reviewBannerWrap: {

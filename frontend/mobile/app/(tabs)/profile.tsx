@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useAuthStore } from '../../store/authStore';
@@ -72,11 +72,18 @@ function SettingsSheet({
   onSignOut: () => void;
 }) {
   const T = useTheme();
-  const [isLight, setIsLight] = useState(getThemeMode() === 'light');
+  const [isDark, setIsDark] = useState(getThemeMode() === 'dark');
+
+  // Sync state with actual theme mode when modal opens
+  useEffect(() => {
+    if (visible) {
+      setIsDark(getThemeMode() === 'dark');
+    }
+  }, [visible]);
 
   const handleToggle = (val: boolean) => {
-    setIsLight(val);
-    setThemeMode(val ? 'light' : 'dark');
+    setIsDark(val);
+    setThemeMode(val ? 'dark' : 'light');
   };
 
   return (
@@ -111,26 +118,26 @@ function SettingsSheet({
         <Text style={[ss.groupLabel, { color: T.textHint }]}>Appearance</Text>
 
         <View style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
-          <View style={[ss.iconWrap, { backgroundColor: isLight ? '#f59e0b18' : T.primary + '18' }]}>
+          <View style={[ss.iconWrap, { backgroundColor: isDark ? T.primary + '18' : '#f59e0b18' }]}>
             <MaterialCommunityIcons
-              name={isLight ? 'weather-sunny' : 'weather-night'}
+              name={isDark ? 'weather-night' : 'weather-sunny'}
               size={18}
-              color={isLight ? '#f59e0b' : T.primary}
+              color={isDark ? T.primary : '#f59e0b'}
             />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[ss.rowLabel, { color: T.textPrimary }]}>
-              {isLight ? 'Light Mode' : 'Dark Mode'}
+              {isDark ? 'Dark Mode' : 'Light Mode'}
             </Text>
             <Text style={[ss.rowSub, { color: T.textHint }]}>
-              {isLight ? 'Bright theme active' : 'Dark theme active'}
+              {isDark ? 'Dark theme active' : 'Light theme active'}
             </Text>
           </View>
           <Switch
-            value={isLight}
+            value={isDark}
             onValueChange={handleToggle}
-            trackColor={{ false: T.primary + '55', true: '#f59e0b88' }}
-            thumbColor={isLight ? '#f59e0b' : T.primary}
+            trackColor={{ false: '#f59e0b88', true: T.primary + '55' }}
+            thumbColor={isDark ? T.primary : '#f59e0b'}
           />
         </View>
 
