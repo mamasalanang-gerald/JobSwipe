@@ -2,6 +2,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import PhotoCard from '../../components/ui/Photocard';
 import LeftSidebar from '../../components/ui/LeftSidebar';
+import { USER_NAV, USER_NAV_ROUTES } from '../../lib/nav';
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -88,14 +89,6 @@ const IconDollarSign = () => (
   </svg>
 );
 
-const IconLogOut = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-    <polyline points="16 17 21 12 16 7" />
-    <line x1="21" y1="12" x2="9" y2="12" />
-  </svg>
-);
-
 const IconImage = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
     <rect x="3" y="3" width="18" height="18" rx="2" />
@@ -124,15 +117,6 @@ const IconTrash = () => (
     <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
     <path d="M10 11v6M14 11v6" />
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
-  </svg>
-);
-
-const IconZoomIn = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="11" cy="11" r="8" />
-    <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    <line x1="11" y1="8" x2="11" y2="14" />
-    <line x1="8" y1="11" x2="14" y2="11" />
   </svg>
 );
 
@@ -348,7 +332,6 @@ const initialData: ProfileData = {
 
 function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url: string) => void; onCancel: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Store offset & scale in a ref so drag handlers always see latest values
   const stateRef = useRef({ offsetX: 0, offsetY: 0, scale: 1 });
   const [scale, setScaleState] = useState(1);
   const [dragging, setDragging] = useState(false);
@@ -356,7 +339,6 @@ function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url:
   const imgEl = useRef<HTMLImageElement | null>(null);
   const SIZE = 260;
 
-  // Draw current frame onto canvas
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imgEl.current;
@@ -368,7 +350,6 @@ function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url:
     ctx.drawImage(img, offsetX, offsetY, img.naturalWidth * s, img.naturalHeight * s);
   }, []);
 
-  // Sync scale state → ref and redraw
   function setScale(s: number) {
     stateRef.current.scale = s;
     setScaleState(s);
@@ -381,7 +362,6 @@ function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url:
     draw();
   }
 
-  // Load image, fit to canvas, center it
   useEffect(() => {
     const img = new Image();
     img.onload = () => {
@@ -398,7 +378,6 @@ function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url:
     img.src = src;
   }, [src, draw]);
 
-  // Redraw whenever scale state changes (covers slider)
   useEffect(() => { draw(); }, [scale, draw]);
 
   function onMouseDown(e: React.MouseEvent) {
@@ -420,7 +399,6 @@ function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url:
     setOffset(dragStart.current.ox + t.clientX - dragStart.current.mx, dragStart.current.oy + t.clientY - dragStart.current.my);
   }
 
-  // Export exactly what's on the canvas as a PNG
   function confirm() {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -460,13 +438,11 @@ function CropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url:
 
 // ─── BannerCropModal ──────────────────────────────────────────────────────────
 
-// Preview canvas size (UI display)
 const PREV_W = 340;
 const PREV_H = 120;
-// Export canvas size (what gets saved — same aspect ratio, higher res)
 const EXPORT_W = 1200;
 const EXPORT_H = 400;
-const SCALE_RATIO = EXPORT_W / PREV_W; // 1200/340 ≈ 3.53
+const SCALE_RATIO = EXPORT_W / PREV_W;
 
 function BannerCropModal({ src, onConfirm, onCancel }: { src: string; onConfirm: (url: string) => void; onCancel: () => void }) {
   const previewRef = useRef<HTMLCanvasElement>(null);
@@ -476,7 +452,6 @@ function BannerCropModal({ src, onConfirm, onCancel }: { src: string; onConfirm:
   const dragStart = useRef({ mx: 0, my: 0, ox: 0, oy: 0 });
   const imgEl = useRef<HTMLImageElement | null>(null);
 
-  // Draw onto the preview canvas
   const draw = useCallback(() => {
     const canvas = previewRef.current;
     const img = imgEl.current;
@@ -504,7 +479,6 @@ function BannerCropModal({ src, onConfirm, onCancel }: { src: string; onConfirm:
     const img = new Image();
     img.onload = () => {
       imgEl.current = img;
-      // Fit image to fill preview, centered
       const s = Math.max(PREV_W / img.naturalWidth, PREV_H / img.naturalHeight);
       stateRef.current = {
         scale: s,
@@ -538,7 +512,6 @@ function BannerCropModal({ src, onConfirm, onCancel }: { src: string; onConfirm:
     setOffset(dragStart.current.ox + t.clientX - dragStart.current.mx, dragStart.current.oy + t.clientY - dragStart.current.my);
   }
 
-  // Export at high resolution — scale up the preview's offset/scale to the export dimensions
   function confirm() {
     const img = imgEl.current;
     if (!img) return;
@@ -548,7 +521,6 @@ function BannerCropModal({ src, onConfirm, onCancel }: { src: string; onConfirm:
     const ctx = exportCanvas.getContext('2d');
     if (!ctx) return;
     const { offsetX, offsetY, scale: s } = stateRef.current;
-    // Multiply offset and scale by the ratio between export and preview sizes
     ctx.drawImage(
       img,
       offsetX * SCALE_RATIO,
@@ -650,6 +622,15 @@ export default function ProfilePage() {
         setActiveNav={setActiveNav}
         swipedCount={0}
         swipesLeft={15}
+        navItems={USER_NAV}
+        navRoutes={USER_NAV_ROUTES}
+        accentColor="#FF4E6A"
+        counterLabel="Daily swipes"
+        counterLimit={15}
+        profileName="John Doe"
+        profileEmail="user@jobswipe.com"
+        profileImage="/assets/images/img1.jpg"
+        avatarRadius="50%"
       />
     <div style={{ flex: 1, overflowY: 'auto', background: '#08080f', scrollbarWidth: 'none' }}>
 
@@ -821,21 +802,18 @@ export default function ProfilePage() {
           )}
         </div>
 
-        {/* Empty state — view mode only */}
         {!editMode && photos.length === 0 && (
           <p style={{ color: 'rgba(255,255,255,0.25)', fontSize: '13px', margin: 0, fontStyle: 'italic' }}>
             No photos uploaded
           </p>
         )}
 
-        {/* Empty state — edit mode, no photos yet */}
         {editMode && photos.length === 0 && (
           <p style={{ color: 'rgba(255,255,255,0.2)', fontSize: '12px', margin: '0 0 4px 0', fontStyle: 'italic' }}>
             No photos yet — click "Add Photo" to upload one.
           </p>
         )}
 
-        {/* PhotoCards — one per uploaded photo */}
         {photos.length > 0 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
             {photos.map((photo, i) => (

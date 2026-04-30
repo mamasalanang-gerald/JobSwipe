@@ -13,8 +13,8 @@ interface LeftSidebarProps {
   sidebarRef: RefObject<HTMLElement>;
   leftOpen: boolean;
   setLeftOpen: (val: boolean | ((v: boolean) => boolean)) => void;
-  activeNav: string;
-  setActiveNav: (id: string) => void;
+  activeNav?: string; // now optional — sidebar derives it from router internally
+  setActiveNav?: (id: string) => void; // now optional — no longer needed
   swipedCount: number;
   swipesLeft: number;
   // Customization props
@@ -26,8 +26,8 @@ interface LeftSidebarProps {
   profileName?: string;
   profileEmail?: string;
   profileImage?: string;
-  avatarRadius?: string; // '50%' for user circle, '8px' for company square
-  badgeLabel?: string;   // e.g. 'COMPANY' badge next to logo
+  avatarRadius?: string;
+  badgeLabel?: string;
   // Rating modal (user only)
   pendingRating?: {
     threadId: number;
@@ -42,7 +42,7 @@ interface LeftSidebarProps {
 }
 
 export default function LeftSidebar({
-  sidebarRef, leftOpen, setLeftOpen, activeNav, setActiveNav,
+  sidebarRef, leftOpen, setLeftOpen,
   swipedCount, swipesLeft,
   navItems, navRoutes = {}, accentColor = '#FF4E6A',
   counterLabel = 'Daily swipes', counterLimit = 15,
@@ -53,12 +53,21 @@ export default function LeftSidebar({
 }: LeftSidebarProps) {
   const router = useRouter();
 
-  const accentBg = `${accentColor}14`;
+  // ── Derive active nav from current route — never stale, never flickers ──
+  const routeToNav = Object.fromEntries(
+    Object.entries(navRoutes).map(([id, path]) => [path, id])
+  );
+  // Match exact path first, then try startsWith for nested routes
+  const activeNav =
+    routeToNav[router.pathname] ??
+    Object.entries(routeToNav).find(([path]) => router.pathname.startsWith(path))?.[1] ??
+    navItems[0]?.id;
+
+  const accentBg     = `${accentColor}14`;
   const accentBorder = `${accentColor}24`;
 
   const handleNavClick = (id: string) => {
     if (navRoutes[id]) router.push(navRoutes[id]);
-    else setActiveNav(id);
   };
 
   return (
