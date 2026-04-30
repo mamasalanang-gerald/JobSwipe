@@ -75,15 +75,15 @@ const COMPANY_INFO: Record<string, CompanyInfo> = {
     website: 'socia.io',
     photos: [
       '/assets/images/socia.png',
-      '/assets/images/socia2.png',
-      '/assets/images/socia3.png',
+      '/assets/images/socia2.jpg',
+      '/assets/images/socia3.jpg',
     ],
   },
 };
 
-// Fallback for companies not in the map
+
 function getCompanyInfo(companyName: string): CompanyInfo {
-  // Try exact match first, then partial match
+  
   const exact = COMPANY_INFO[companyName];
   if (exact) return exact;
 
