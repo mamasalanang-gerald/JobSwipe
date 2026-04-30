@@ -558,6 +558,9 @@ export default function CompanyProfileScreen() {
   const [showAddPerk, setShowAddPerk] = useState(false);
   const [perks, setPerks] = useState<string[]>(PERKS);
   const [newPerk, setNewPerk] = useState('');
+  const [showAddTech, setShowAddTech] = useState(false);
+  const [techStack, setTechStack] = useState<string[]>(TECH_STACK);
+  const [newTech, setNewTech] = useState('');
   const planRef = useRef<FlatList<Plan>>(null);
 
   const plans = buildPlans(T.primary, T.gold);
@@ -586,7 +589,12 @@ export default function CompanyProfileScreen() {
     if (!newPerk.trim()) return;
     setPerks((prev) => [...prev, newPerk.trim()]);
     setNewPerk('');
-    setShowAddPerk(false);
+  };
+
+  const addTech = () => {
+    if (!newTech.trim()) return;
+    setTechStack((prev) => [...prev, newTech.trim()]);
+    setNewTech('');
   };
 
   const onPlanScroll = (e: any) => {
@@ -849,9 +857,12 @@ export default function CompanyProfileScreen() {
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
             <SectionLabel title="Tech Stack" />
             {editMode && (
-              <TouchableOpacity style={[s.addBtn, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}>
-                <MaterialCommunityIcons name="plus" size={12} color={T.primary} />
-                <Text style={[s.addBtnText, { color: T.primary }]}>Add</Text>
+              <TouchableOpacity
+                style={[s.addBtn, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}
+                onPress={() => setShowAddTech((v) => !v)}
+              >
+                <MaterialCommunityIcons name={showAddTech ? 'minus' : 'plus'} size={12} color={T.primary} />
+                <Text style={[s.addBtnText, { color: T.primary }]}>{showAddTech ? 'Cancel' : 'Add'}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -862,17 +873,39 @@ export default function CompanyProfileScreen() {
               <Text style={[s.skillSegmentLabel, { color: T.primary }]}>Technologies We Use</Text>
             </View>
             <View style={s.chips}>
-              {TECH_STACK.map((sk, i) => (
-                <View key={i} style={[s.chip, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}>
+              {techStack.map((sk, i) => (
+                <View key={i} style={[s.chip, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}> 
                   <Text style={[s.chipText, { color: T.primary }]}>{sk}</Text>
-                  {editMode && <MaterialCommunityIcons name="close" size={10} color={T.primary} style={{ marginLeft: 4 }} />}
+                  {editMode && (
+                    <TouchableOpacity
+                      onPress={() => setTechStack((prev) => prev.filter((_, idx) => idx !== i))}
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                      style={{ marginLeft: 4 }}
+                    >
+                      <MaterialCommunityIcons name="close" size={10} color={T.primary} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))}
             </View>
+
+            {editMode && showAddTech && (
+              <View style={[s.addForm, { marginTop: 12, backgroundColor: T.surfaceHigh, borderColor: T.border }]}> 
+                <TextInput
+                  style={[s.addInput, { backgroundColor: T.surface, borderColor: T.border, color: T.textPrimary }]}
+                  placeholder="e.g. React Native, AWS, PostgreSQL..."
+                  placeholderTextColor={T.textHint}
+                  value={newTech}
+                  onChangeText={setNewTech}
+                />
+                <TouchableOpacity style={[s.addConfirmBtn, { backgroundColor: T.primary }]} onPress={addTech}>
+                  <Text style={s.addConfirmText}>Add Technology</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           <View style={[s.skillDivider, { backgroundColor: T.borderFaint }]} />
-
           <View style={s.skillSegment}>
             <View style={[s.skillSegmentHeader, { justifyContent: 'space-between' }]}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
