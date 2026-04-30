@@ -632,7 +632,6 @@ export default function HomeTab() {
         isDraggingRef.current = false;
         isHoldingRef.current = false;
         if (Math.abs(dx) > SWIPE_THRESHOLD || Math.abs(vx) > 0.4) {
-          pausedElapsedRef.current = 0;
           commitSwipe(dx > 0 ? 1 : -1);
         } else {
           resetCard();
