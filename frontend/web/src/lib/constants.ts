@@ -29,16 +29,24 @@ export const COMPANY_STAR_LABELS: Record<number, string> = {
 };
 
 // ─── Nav routes ───────────────────────────────────────────────────────────────
-export const USER_NAV_ROUTES = {
-  home:     '/user/swipe',
-  messages: '/user/messages',
-  profile:  '/user/profile',
+export const USER_NAV_ROUTES: Record<string, string> = {
+  home:         '/user/swipe',
+  explore:      '/user/explore',
+  applications: '/user/application',
+  messages:     '/user/messages',
+  profile:      '/user/profile',
 };
 
-export const COMPANY_NAV_ROUTES = {
+export const COMPANY_NAV_ROUTES: Record<string, string> = {
   home:       '/company/swipe',
   candidates: '/company/candidates',
   postings:   '/company/postings',
   messages:   '/company/messages',
   analytics:  '/company/analytics',
 };
+
+// ─── Nav item IDs ─────────────────────────────────────────────────────────────
+// Only IDs and labels here — icons are added in a separate nav.tsx file
+// because JSX cannot live in a plain .ts constants file.
+export const USER_NAV_IDS = ['home', 'explore', 'applications', 'messages', 'profile'] as const;
+export type UserNavId = typeof USER_NAV_IDS[number];

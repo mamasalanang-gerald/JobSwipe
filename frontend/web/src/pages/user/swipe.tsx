@@ -1,67 +1,91 @@
 'use client';
+
 import React, { useState, useRef, useEffect } from 'react';
-import { jobs, TOTAL, navItems } from '../../data/jobs';
+import { jobs, TOTAL } from '../../data/jobs';
 import { Job } from '../../types/job';
+
 import LeftSidebar from '../../components/ui/LeftSidebar';
 import RightSidebar, { UserPlan } from '../../components/ui/RightSidebar';
 import TopBar from '../../components/ui/TopBar';
 import SwipeArea from '../../components/ui/SwipeArea';
 import SwipeCard from '../../components/ui/SwipeCard';
 import DetailPanel from '../../components/ui/DetailPanel';
+
 import { IconX, IconHeart } from '../../components/ui/icons';
+
 import { useRouter } from 'next/router';
 
-const USER_NAV_ROUTES = {
-  home:     '/user/swipe',
-  messages: '/user/messages',
-  profile:  '/user/profile',
-};
+// ✅ Import centralized nav config
+import { USER_NAV, USER_NAV_ROUTES } from '../../lib/nav';
 
 const FREE_LIMIT = 3;
 
 export default function SwipeHomePage() {
   const router = useRouter();
+
   const [index, setIndex] = useState(0);
   const [swipedCount, setSwipedCount] = useState(0);
   const [viewedCount, setViewedCount] = useState(0);
-  const [plan] = useState<UserPlan>('free'); // swap with real auth/API later
-  const [lastAction, setLastAction] = useState<'positive' | 'negative' | null>(null);
+
+  const [plan] = useState<UserPlan>('free');
+
+  const [lastAction, setLastAction] = useState<
+    'positive' | 'negative' | null
+  >(null);
+
   const [activeNav, setActiveNav] = useState('home');
+
   const [leftOpen, setLeftOpen] = useState(true);
   const [rightOpen, setRightOpen] = useState(true);
+
   const sidebarRef = useRef<HTMLElement>(null);
 
   const remaining = TOTAL - index;
   const swipesLeft = Math.max(0, 15 - swipedCount);
+
   const currentJob = jobs[index] ?? null;
   const visibleJobs = jobs.slice(index, index + 3);
 
-  // Increment viewedCount each time the card changes
+  // Track viewed cards
   useEffect(() => {
     if (currentJob) {
-      setViewedCount(c => c + 1);
+      setViewedCount((c) => c + 1);
     }
   }, [index]);
 
+  // Auto close sidebar when clicking outside
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
-      if (leftOpen && sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+      if (
+        leftOpen &&
+        sidebarRef.current &&
+        !sidebarRef.current.contains(e.target as Node)
+      ) {
         setLeftOpen(false);
       }
     };
+
     document.addEventListener('mousedown', handleOutsideClick);
-    return () => document.removeEventListener('mousedown', handleOutsideClick);
+
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
   }, [leftOpen]);
 
   const handleSwipe = (dir: 'left' | 'right') => {
     setLastAction(dir === 'right' ? 'positive' : 'negative');
-    setTimeout(() => setLastAction(null), 1400);
+
+    setTimeout(() => {
+      setLastAction(null);
+    }, 1400);
+
     setIndex((i) => i + 1);
     setSwipedCount((c) => c + 1);
   };
 
   const handleButton = (dir: 'left' | 'right') => {
     if (index >= TOTAL) return;
+
     handleSwipe(dir);
   };
 
@@ -72,10 +96,16 @@ export default function SwipeHomePage() {
   };
 
   return (
-    <div style={{
-      display: 'flex', height: '100vh', overflow: 'hidden',
-      background: '#08080f', fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
-    }}>
+    <div
+      style={{
+        display: 'flex',
+        height: '100vh',
+        overflow: 'hidden',
+        background: '#08080f',
+        fontFamily: "'DM Sans', 'Helvetica Neue', sans-serif",
+      }}
+    >
+      {/* LEFT SIDEBAR */}
       <LeftSidebar
         sidebarRef={sidebarRef}
         leftOpen={leftOpen}
@@ -84,7 +114,7 @@ export default function SwipeHomePage() {
         setActiveNav={setActiveNav}
         swipedCount={swipedCount}
         swipesLeft={swipesLeft}
-        navItems={navItems}
+        navItems={USER_NAV}
         navRoutes={USER_NAV_ROUTES}
         accentColor="#FF4E6A"
         counterLabel="Daily swipes"
@@ -95,11 +125,21 @@ export default function SwipeHomePage() {
         avatarRadius="50%"
       />
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+      {/* MAIN CONTENT */}
+      <main
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          overflow: 'hidden',
+        }}
+      >
         <TopBar
           title="Discover Jobs"
           subtitle={`${remaining} jobs remaining`}
         />
+
         <SwipeArea
           items={jobs}
           index={index}
@@ -144,6 +184,7 @@ export default function SwipeHomePage() {
         />
       </main>
 
+      {/* RIGHT SIDEBAR */}
       <RightSidebar
         rightOpen={rightOpen}
         setRightOpen={setRightOpen}
