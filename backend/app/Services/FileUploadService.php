@@ -14,7 +14,7 @@ class FileUploadService
 
     public const PRESIGNED_EXPIRATION_SECONDS = 900;
 
-    private const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+    private const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
 
     private const DOCUMENT_EXTENSIONS = ['pdf', 'docx'];
 
@@ -22,6 +22,8 @@ class FileUploadService
         'image/jpeg',
         'image/png',
         'image/webp',
+        'image/heic',
+        'image/heif',
     ];
 
     private const DOCUMENT_MIME_TYPES = [
@@ -89,7 +91,20 @@ class FileUploadService
 
         $host = parse_url($fileUrl, PHP_URL_HOST);
 
-        if (! is_string($host) || ! in_array($host, $allowedHosts, true)) {
+        if (! is_string($host)) {
+            throw new FileUploadException('INVALID_FILE_URL', 'The provided file URL has no valid host.');
+        }
+
+        // Check if host matches exactly or is a subdomain of allowed hosts
+        $isAllowed = false;
+        foreach ($allowedHosts as $allowedHost) {
+            if ($host === $allowedHost || str_ends_with($host, '.'.$allowedHost)) {
+                $isAllowed = true;
+                break;
+            }
+        }
+
+        if (! $isAllowed) {
             throw new FileUploadException('INVALID_FILE_URL', 'The provided file URL is not from an authorized R2 bucket.');
         }
 
@@ -135,7 +150,7 @@ class FileUploadService
             if (! in_array($extension, self::IMAGE_EXTENSIONS, true) || ! in_array($mimeType, self::IMAGE_MIME_TYPES, true)) {
                 throw new FileUploadException(
                     'INVALID_FILE_TYPE',
-                    'Invalid file type. Allowed image types: jpg, jpeg, png, webp.'
+                    'Invalid file type. Allowed image types: jpg, jpeg, png, webp, heic, heif.'
                 );
             }
 

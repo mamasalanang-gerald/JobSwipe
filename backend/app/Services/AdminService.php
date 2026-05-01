@@ -14,6 +14,7 @@ use App\Repositories\PostgreSQL\JobPostingRepository;
 use App\Repositories\PostgreSQL\TrustEventRepository;
 use App\Repositories\PostgreSQL\UserRepository;
 use App\Support\AdminCacheable;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 
@@ -32,6 +33,7 @@ class AdminService
         private TrustEventRepository $trustEvents,
         private TrustScoreService $trustScoreService,
         private AuditService $auditService,
+        private FileUploadService $fileUploads,
     ) {}
 
     public function approveCompanyVerification(string $companyId, string $moderatorId): CompanyProfile
@@ -300,9 +302,34 @@ class AdminService
     /**
      * List companies with filtering and pagination.
      */
-    public function listCompanies(array $filters, int $perPage = 20): \Illuminate\Contracts\Pagination\LengthAwarePaginator
+    public function listCompanies(array $filters, int $perPage = 20): LengthAwarePaginator
     {
-        return $this->companies->searchAdmin($filters, $perPage);
+        $paginator = $this->companies->searchAdmin($filters, $perPage);
+
+        return $paginator->through(function (CompanyProfile $company): array {
+            $document = $this->companyDocs->findByCompanyId((string) $company->id);
+
+            return [
+                'id' => (string) $company->id,
+                'name' => (string) $company->company_name,
+                'company_name' => (string) $company->company_name,
+                'website' => $document?->website_url ?? null,
+                'website_url' => $document?->website_url ?? null,
+                'industry' => $document?->industry ?? null,
+                'size' => $document?->company_size ?? null,
+                'company_size' => $document?->company_size ?? null,
+                'description' => $document?->description ?? null,
+                'logo_url' => $this->toSignedReadUrl((string) ($document?->logo_url ?? '')),
+                'status' => (string) $company->status,
+                'verification_status' => (string) $company->verification_status,
+                'trust_level' => (string) $company->trust_level,
+                'trust_score' => (int) $company->trust_score,
+                'subscription_tier' => (string) $company->subscription_tier,
+                'subscription_status' => (string) $company->subscription_status,
+                'created_at' => optional($company->created_at)?->toIso8601String(),
+                'updated_at' => optional($company->updated_at)?->toIso8601String(),
+            ];
+        });
     }
 
     /**
@@ -331,7 +358,32 @@ class AdminService
             $companyData['tagline'] = $document->tagline ?? null;
         }
 
-        return $companyData;
+        return [
+            ...$companyData,
+            'name' => (string) ($companyData['company_name'] ?? ''),
+            'website' => $companyData['website_url'] ?? null,
+            'size' => $companyData['company_size'] ?? null,
+            'logo_url' => $this->toSignedReadUrl((string) ($companyData['logo_url'] ?? '')),
+        ];
+    }
+
+    private function toSignedReadUrl(string $fileUrl): string
+    {
+        if ($fileUrl === '') {
+            return '';
+        }
+
+        try {
+            $result = $this->fileUploads->generatePresignedReadUrl($fileUrl);
+
+            if (is_array($result) && isset($result['read_url']) && is_string($result['read_url'])) {
+                return $result['read_url'];
+            }
+        } catch (\Throwable) {
+            return $fileUrl;
+        }
+
+        return $fileUrl;
     }
 
     /**

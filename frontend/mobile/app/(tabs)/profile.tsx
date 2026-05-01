@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useAuthStore } from '../../store/authStore';
@@ -11,6 +11,7 @@ import { useTheme, setThemeMode, getThemeMode } from '../../theme'; // ← centr
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { Link, router } from 'expo-router';
+import { api } from '../../services/api';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -200,6 +201,7 @@ export default function ProfileTab() {
   const [showSettings, setShowSettings] = useState(false);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [editMode, setEditMode]         = useState(false);
+  const [saving, setSaving]             = useState(false);
   const [avatarPhoto, setAvatarPhoto] = useState<string | null>(null);
   const [coverPhoto, setCoverPhoto]   = useState<string | null>(null);
   const [photos, setPhotos]           = useState<(string | null)[]>([null, null, null]);
@@ -209,9 +211,66 @@ export default function ProfileTab() {
   const [profileAbout, setProfileAbout] = useState(
     'Passionate developer with expertise in building modern web applications. Strong background in React, Node.js, and cloud technologies.'
   );
+  const [hardSkills, setHardSkills] = useState<string[]>(HARD_SKILLS);
+  const [softSkills, setSoftSkills] = useState<string[]>(SOFT_SKILLS);
   const [experience, setExperience]   = useState<ExperienceItem[]>(INITIAL_EXPERIENCE);
   const [education, setEducation]     = useState<EducationItem[]>(INITIAL_EDUCATION);
   const [prefs, setPrefs]             = useState<PrefItem[]>(INITIAL_PREFS);
+  const [stats, setStats]             = useState({ applied: 0, pendingMessages: 0, closedMessages: 0 });
+
+  // ── Load profile from API ────────────────────────────────────────────────
+  useEffect(() => {
+    api.get('/profile/applicant')
+      .then((data: any) => {
+        const profile = data?.profile ?? data;
+        if (!profile) return;
+
+        const firstName = profile.first_name ?? '';
+        const lastName = profile.last_name ?? '';
+        const fullName = `${firstName} ${lastName}`.trim();
+
+        if (fullName) setProfileName(fullName);
+        if (profile.headline) setProfileHeadline(profile.headline);
+        if (profile.location) setProfileLocation(profile.location);
+        if (profile.bio) setProfileAbout(profile.bio);
+        if (profile.profile_photo_url) setAvatarPhoto(profile.profile_photo_url);
+        if (profile.cover_url) setCoverPhoto(profile.cover_url);
+
+        if (Array.isArray(profile.skills) && profile.skills.length) {
+          const flatSkills = profile.skills
+            .map((skill: any) => typeof skill === 'string' ? skill : skill?.name)
+            .filter(Boolean);
+          if (flatSkills.length) {
+            setHardSkills(flatSkills);
+            setSoftSkills([]);
+          }
+        }
+
+        if (Array.isArray(profile.photos) && profile.photos.length) {
+          setPhotos(profile.photos.map((u: string) => u ?? null));
+        }
+
+        if (Array.isArray(profile.work_experience) && profile.work_experience.length) {
+          setExperience(profile.work_experience.map((e: any, i: number) => ({
+            id: i + 1,
+            role: e.position ?? e.role ?? '',
+            company: e.company ?? '',
+            period: `${e.start_date ?? ''}${e.end_date ? ` - ${e.end_date}` : ''}`.trim(),
+            icon: EXP_ICONS[i % EXP_ICONS.length],
+            color: EXP_COLORS[i % EXP_COLORS.length],
+          })));
+        }
+
+        if (Array.isArray(profile.education) && profile.education.length) {
+          setEducation(profile.education.map((e: any, i: number) => ({ id: i + 1, degree: e.degree ?? '', school: e.institution ?? e.school ?? '', period: e.graduation_year ? String(e.graduation_year) : '' })));
+        }
+
+        if (profile.stats) {
+          setStats({ applied: profile.stats.applied ?? 0, pendingMessages: profile.stats.pending_messages ?? 0, closedMessages: profile.stats.closed_messages ?? 0 });
+        }
+      })
+      .catch(() => { /* keep defaults on error */ });
+  }, []);
 
   const [showAddExp,  setShowAddExp]  = useState(false);
   const [showAddEdu,  setShowAddEdu]  = useState(false);
@@ -263,6 +322,7 @@ export default function ProfileTab() {
 
   const clearToken = useAuthStore((s) => s.clearToken);
   const handleSignOut = async () => {
+    try { await api.post('/auth/logout', {}); } catch { /* ignore */ }
     await clearToken();
     router.replace('/(auth)/login');
   };
@@ -360,7 +420,25 @@ export default function ProfileTab() {
               { borderColor: T.border, backgroundColor: T.surfaceHigh },
               editMode && s.editBtnSaving,
             ]}
-            onPress={() => setEditMode(e => !e)}
+            onPress={async () => {
+              if (editMode) {
+                setSaving(true);
+                try {
+                  const [firstName = '', ...rest] = profileName.trim().split(/\s+/);
+                  const lastName = rest.join(' ');
+                  await api.patch('/profile/applicant/basic-info', {
+                    first_name: firstName || profileName.trim() || 'Applicant',
+                    last_name: lastName || '-',
+                    location: profileLocation,
+                    bio: profileAbout,
+                    location_city: null,
+                    location_region: null,
+                  });
+                } catch { /* best-effort */ }
+                setSaving(false);
+              }
+              setEditMode(e => !e);
+            }}
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons
@@ -429,9 +507,9 @@ export default function ProfileTab() {
         {/* ── Stats ────────────────────────────────────────────────────────── */}
         <View style={[s.statsCard, { backgroundColor: T.surface, borderColor: T.border }]}>
           {[
-            { label: 'Applied',          value: '12' },
-            { label: 'Pending Messages', value: '4'  },
-            { label: 'Closed Messages',  value: '1'  },
+            { label: 'Applied',          value: String(stats.applied) },
+            { label: 'Pending Messages', value: String(stats.pendingMessages) },
+            { label: 'Closed Messages',  value: String(stats.closedMessages) },
           ].map((st, i) => (
             <React.Fragment key={st.label}>
               {i > 0 && <View style={[s.statSep, { backgroundColor: T.border }]} />}
@@ -505,7 +583,7 @@ export default function ProfileTab() {
               <Text style={[s.skillSegmentLabel, { color: T.primary }]}>Hard Skills</Text>
             </View>
             <View style={s.chips}>
-              {HARD_SKILLS.map((sk, i) => (
+              {hardSkills.map((sk, i) => (
                 <View key={i} style={[s.chip, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}>
                   <Text style={[s.chipText, { color: T.primary }]}>{sk}</Text>
                   {editMode && <MaterialCommunityIcons name="close" size={10} color={T.primary} style={{ marginLeft: 4 }} />}
@@ -522,7 +600,7 @@ export default function ProfileTab() {
               <Text style={[s.skillSegmentLabel, { color: '#4ade80' }]}>Soft Skills</Text>
             </View>
             <View style={s.chips}>
-              {SOFT_SKILLS.map((sk, i) => (
+              {softSkills.map((sk, i) => (
                 <View key={i} style={[s.chip, { borderColor: T.borderFaint, backgroundColor: T.surfaceHigh }]}>
                   <Text style={[s.chipText, { color: '#4ade80' }]}>{sk}</Text>
                   {editMode && <MaterialCommunityIcons name="close" size={10} color="#4ade80" style={{ marginLeft: 4 }} />}

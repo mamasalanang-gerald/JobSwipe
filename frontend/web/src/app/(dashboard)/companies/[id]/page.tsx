@@ -1,18 +1,18 @@
 'use client';
 
 
-import { useState } from 'react';
+import { use, useState } from 'react';
 import { useCompany, useSuspendCompany, useUnsuspendCompany } from '@/lib/hooks';
 import { StatusBadge } from '@/components/shared/StatusBadge';
 import { Button } from '@/components/shared/Button';
 import { ConfirmationDialog } from '@/components/shared/ConfirmationDialog';
 import { Skeleton } from '@/components/shared/Skeleton';
-import { formatDateTime, formatCurrency } from '@/lib/utils';
-import { ArrowLeft, Building, Globe, Users, Ban, CheckCircle, Shield, DollarSign } from 'lucide-react';
+import { formatDateTime } from '@/lib/utils';
+import { ArrowLeft, Building, Globe, Ban, CheckCircle, Shield } from 'lucide-react';
 import Link from 'next/link';
 
-export default function CompanyDetailPage({ params }: { params: { id: string } }) {
-  const companyId = params.id;
+export default function CompanyDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id: companyId } = use(params);
   const [showSuspendDialog, setShowSuspendDialog] = useState(false);
 
   const { data: company, isLoading } = useCompany(companyId);
@@ -155,7 +155,18 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
             </div>
           </div>
           <div className="mt-4 text-center">
-            <StatusBadge status={company.trustLevel} variant={company.trustScore >= 70 ? 'success' : company.trustScore >= 40 ? 'warning' : 'danger'} />
+            <StatusBadge
+              status={company.trustLevel}
+              variant={
+                company.trustLevel === 'established'
+                  ? 'warning'
+                  : company.trustScore >= 70
+                    ? 'success'
+                    : company.trustScore >= 40
+                      ? 'warning'
+                      : 'danger'
+              }
+            />
           </div>
         </div>
       </div>
@@ -172,7 +183,17 @@ export default function CompanyDetailPage({ params }: { params: { id: string } }
         </div>
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
           <p className="text-sm text-zinc-400">Trust Level</p>
-          <StatusBadge status={company.trustLevel} variant={company.trustLevel === 'high' ? 'success' : company.trustLevel === 'medium' ? 'warning' : 'danger'} className="mt-2" />
+          <StatusBadge
+            status={company.trustLevel}
+            variant={
+              company.trustLevel === 'high'
+                ? 'success'
+                : company.trustLevel === 'medium' || company.trustLevel === 'established'
+                  ? 'warning'
+                  : 'danger'
+            }
+            className="mt-2"
+          />
         </div>
       </div>
 

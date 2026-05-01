@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useAuthStore } from '../../store/authStore';
@@ -20,10 +20,10 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { useTheme, setThemeMode, getThemeMode } from '../../theme';
+import { api } from '../../services/api';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
-const TECH_STACK = ['React Native', 'TypeScript', 'Node.js', 'AWS', 'PostgreSQL', 'Docker'];
 const PERKS = ['Hybrid Work', 'HMO Coverage', '14th Month', 'Stock Options', 'L&D Budget'];
 
 type TeamMember = {
@@ -148,12 +148,14 @@ function SettingsSheet({
   team,
   onInvite,
   onRevoke,
+  isCompanyAdmin,
 }: {
   visible: boolean;
   onClose: () => void;
   team: TeamMember[];
   onInvite: (payload: { email: string; role: string }) => void;
   onRevoke: (memberId: number) => void;
+  isCompanyAdmin: boolean;
 }) {
   const T = useTheme();
   const [isLight, setIsLight] = useState(getThemeMode() === 'light');
@@ -281,25 +283,29 @@ function SettingsSheet({
           </TouchableOpacity>
         ))}
 
-        <Text style={[ss.groupLabel, { color: T.textHint }]}>Team Management (Admin Only)</Text>
+        {isCompanyAdmin && (
+          <>
+            <Text style={[ss.groupLabel, { color: T.textHint }]}>Team Management (Admin Only)</Text>
 
-        <TouchableOpacity
-          activeOpacity={0.7}
-          style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}
-          onPress={() => {
-            onClose();
-            router.push('/team-management');
-          }}
-        >
-          <View style={[ss.iconWrap, { backgroundColor: T.primary + '18' }]}>
-            <MaterialCommunityIcons name="account-group-outline" size={18} color={T.primary} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[ss.rowLabel, { color: T.textPrimary }]}>Team Management</Text>
-            <Text style={[ss.rowSub, { color: T.textHint }]}>Open the admin invite and access form</Text>
-          </View>
-          <MaterialCommunityIcons name="chevron-right" size={18} color={T.textHint} />
-        </TouchableOpacity>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}
+              onPress={() => {
+                onClose();
+                router.push('/team-management');
+              }}
+            >
+              <View style={[ss.iconWrap, { backgroundColor: T.primary + '18' }]}>
+                <MaterialCommunityIcons name="account-group-outline" size={18} color={T.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[ss.rowLabel, { color: T.textPrimary }]}>Team Management</Text>
+                <Text style={[ss.rowSub, { color: T.textHint }]}>Open the admin invite and access form</Text>
+              </View>
+              <MaterialCommunityIcons name="chevron-right" size={18} color={T.textHint} />
+            </TouchableOpacity>
+          </>
+        )}
 
         <View style={[ss.teamCard, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
           <View style={ss.teamCardHeader}>
@@ -546,34 +552,208 @@ export default function CompanyProfileScreen() {
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
   const clearToken = useAuthStore((s) => s.clearToken);
+  const authRole = useAuthStore((s) => s.role);
+  const isCompanyAdmin = authRole === 'company_admin';
 
   const [showSettings, setShowSettings] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [logoPhoto, setLogoPhoto] = useState<string | null>(null);
   const [coverPhoto, setCoverPhoto] = useState<string | null>(null);
-  const [galleryPhotos, setGalleryPhotos] = useState<(string | null)[]>([null, null, null]);
+  const [galleryPhotos, setGalleryPhotos] = useState<(string | null)[]>(Array.from({ length: 6 }, () => null));
+  const [companyName, setCompanyName] = useState('');
+  const [companyIndustry, setCompanyIndustry] = useState('');
+  const [companyLocation, setCompanyLocation] = useState('');
+  const [companyAbout, setCompanyAbout] = useState('');
+  const [companySize, setCompanySize] = useState<string | null>(null);
+  const [companyWebsite, setCompanyWebsite] = useState<string | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+  const [isProfileLoading, setIsProfileLoading] = useState(true);
+  const [isVerified, setIsVerified] = useState(false);
   const [activePlan, setActivePlan] = useState(0);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
   const [team, setTeam] = useState<TeamMember[]>(INITIAL_TEAM);
   const [showAddPerk, setShowAddPerk] = useState(false);
-  const [perks, setPerks] = useState<string[]>(PERKS);
+  const [perks, setPerks] = useState<string[]>([]);
   const [newPerk, setNewPerk] = useState('');
   const planRef = useRef<FlatList<Plan>>(null);
 
   const plans = buildPlans(T.primary, T.gold);
   const PLAN_W = SCREEN_W - 48;
 
+  const isRemoteUrl = (value: string | null | undefined): boolean =>
+    typeof value === 'string' && /^https?:\/\//i.test(value);
+
+  const stripPresignedParams = (url: string): string => {
+    if (!isRemoteUrl(url)) return url;
+    try {
+      const urlObj = new URL(url);
+      // Remove presigned query parameters (X-Amz-*)
+      urlObj.search = '';
+      return urlObj.toString();
+    } catch {
+      return url;
+    }
+  };
+
+  const getFileExtension = (value: string): string => {
+    const cleanValue = value.split('?')[0];
+    const fileName = cleanValue.split('/').pop() ?? cleanValue;
+    const parts = fileName.split('.');
+    return parts.length > 1 ? (parts.pop() ?? '').toLowerCase() : '';
+  };
+
+  const inferImageMimeType = (uri: string): string => {
+    const extension = getFileExtension(uri);
+    if (extension === 'png') return 'image/png';
+    if (extension === 'webp') return 'image/webp';
+    if (extension === 'heic') return 'image/heic';
+    if (extension === 'heif') return 'image/heif';
+    return 'image/jpeg';
+  };
+
+  const uploadImageFromUri = async (uri: string): Promise<string> => {
+    if (isRemoteUrl(uri)) return uri;
+
+    const fileResponse = await fetch(uri);
+    const blob = await fileResponse.blob();
+    const fileSize = blob.size;
+    if (!fileSize || fileSize < 1) {
+      throw new Error('Selected image appears empty.');
+    }
+
+    const extension = getFileExtension(uri) || 'jpg';
+    const fileType = inferImageMimeType(uri);
+    const fileName = `company-media-${Date.now()}.${extension}`;
+
+    const uploadMeta = await api.post('/files/upload-url', {
+      file_name: fileName,
+      file_type: fileType,
+      file_size: fileSize,
+      upload_type: 'image',
+    }) as { upload_url: string; public_url: string };
+
+    const uploadResponse = await fetch(uploadMeta.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': fileType },
+      body: blob,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error('Unable to upload image to storage.');
+    }
+
+    await api.post('/files/confirm-upload', { file_url: uploadMeta.public_url });
+    return uploadMeta.public_url;
+  };
+
+  const handleSaveProfile = async () => {
+    if (!isCompanyAdmin || isSavingProfile) return;
+
+    try {
+      setIsSavingProfile(true);
+
+      let nextLogoUrl = logoPhoto;
+      let nextCoverPhotoUrl = coverPhoto;
+      if (logoPhoto && !isRemoteUrl(logoPhoto)) {
+        nextLogoUrl = await uploadImageFromUri(logoPhoto);
+      } else if (logoPhoto) {
+        // Strip presigned parameters from existing R2 URLs
+        nextLogoUrl = stripPresignedParams(logoPhoto);
+      }
+      
+      if (coverPhoto && !isRemoteUrl(coverPhoto)) {
+        nextCoverPhotoUrl = await uploadImageFromUri(coverPhoto);
+      } else if (coverPhoto) {
+        // Strip presigned parameters from existing R2 URLs
+        nextCoverPhotoUrl = stripPresignedParams(coverPhoto);
+      }
+
+      const uploadedOfficeImages = await Promise.all(
+        galleryPhotos
+          .filter((value): value is string => typeof value === 'string' && value.trim() !== '')
+          .map((uri) => {
+            if (isRemoteUrl(uri)) {
+              // Strip presigned parameters from existing R2 URLs
+              return Promise.resolve(stripPresignedParams(uri));
+            }
+            return uploadImageFromUri(uri);
+          })
+      );
+
+      // Only send fields that are actually editable on this screen
+      const detailsPayload: Record<string, unknown> = {
+        benefits: perks,
+        office_images: uploadedOfficeImages.slice(0, 6),
+      };
+
+      // Only include cover_photo if it exists
+      if (nextCoverPhotoUrl) {
+        detailsPayload.cover_photo = nextCoverPhotoUrl;
+      }
+
+      await api.patch('/profile/company/details', detailsPayload);
+
+      // Update logo separately if changed
+      if (nextLogoUrl) {
+        await api.patch('/profile/company/logo', { logo_url: nextLogoUrl });
+      }
+
+      // Refetch profile to get fresh presigned URLs so images stay visible
+      try {
+        const refreshedData: any = await api.get('/profile/company');
+        
+        
+        const payload = refreshedData?.profile ?? refreshedData?.data?.profile ?? refreshedData?.data ?? refreshedData;
+        const profile = payload?.profile ?? payload;
+        
+        if (profile) {
+          const resolvedLogoUrl = profile.logo_url ?? profile.logoUrl ?? null;
+          const resolvedCoverPhoto = profile.cover_photo ?? profile.coverPhoto ?? null;
+          if (resolvedLogoUrl) setLogoPhoto(resolvedLogoUrl);
+          if (resolvedCoverPhoto) setCoverPhoto(resolvedCoverPhoto);
+
+          const sourceOfficeImages = Array.isArray(profile.office_images)
+            ? profile.office_images
+            : Array.isArray(profile.officeImages)
+              ? profile.officeImages
+              : [];
+          const officeImages = sourceOfficeImages.filter(Boolean).slice(0, 6);
+          const normalized = Array.from({ length: 6 }, (_, idx) => officeImages[idx] ?? null);
+          setGalleryPhotos(normalized);
+          
+          
+        }
+      } catch (refetchError) {
+        console.error('[Profile] Failed to refetch after save:', refetchError);
+        // Fallback: set clean URLs (images will reappear on next app reload)
+        if (nextLogoUrl) setLogoPhoto(nextLogoUrl);
+        if (nextCoverPhotoUrl) setCoverPhoto(nextCoverPhotoUrl);
+        const normalized = Array.from({ length: 6 }, (_, idx) => uploadedOfficeImages[idx] ?? null);
+        setGalleryPhotos(normalized);
+      }
+      
+      setEditMode(false);
+    } catch (error) {
+      console.error('Failed to save company profile media:', error);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
   const pickLogo = async () => {
+    if (!isCompanyAdmin) return;
     const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.85 });
     if (!r.canceled) setLogoPhoto(r.assets[0].uri);
   };
 
   const pickCover = async () => {
+    if (!isCompanyAdmin) return;
     const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [3, 1], quality: 0.85 });
     if (!r.canceled) setCoverPhoto(r.assets[0].uri);
   };
 
   const pickGallery = async (i: number) => {
+    if (!isCompanyAdmin) return;
     const r = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, aspect: [4, 5], quality: 0.85 });
     if (!r.canceled) {
       const p = [...galleryPhotos];
@@ -583,6 +763,7 @@ export default function CompanyProfileScreen() {
   };
 
   const addPerk = () => {
+    if (!isCompanyAdmin) return;
     if (!newPerk.trim()) return;
     setPerks((prev) => [...prev, newPerk.trim()]);
     setNewPerk('');
@@ -597,6 +778,63 @@ export default function CompanyProfileScreen() {
     await clearToken();
     router.replace('/(auth)/login');
   };
+
+  useEffect(() => {
+    setIsProfileLoading(true);
+    api.get('/profile/company')
+      .then((data: any) => {
+        
+
+        const payload = data?.profile ?? data?.data?.profile ?? data?.data ?? data;
+        const profile = payload?.profile ?? payload;
+        if (!profile) return;
+
+        const resolvedCompanyName = profile.company_name ?? profile.name ?? profile.companyName ?? null;
+        setCompanyName(resolvedCompanyName ?? '');
+
+        const resolvedIndustry = profile.industry ?? profile.industry_name ?? null;
+        setCompanyIndustry(resolvedIndustry ?? '');
+
+        const resolvedDescription = profile.description ?? profile.about ?? null;
+        setCompanyAbout(resolvedDescription ?? '');
+
+        if (profile.company_size) setCompanySize(profile.company_size);
+        if (profile.website_url) setCompanyWebsite(profile.website_url);
+
+        const address = profile.address ?? {};
+        const locationParts = [
+          address.street,
+          address.city,
+          address.state ?? address.province,
+          address.country,
+        ].filter(Boolean);
+        setCompanyLocation(locationParts.length > 0 ? locationParts.join(', ') : '');
+
+        const resolvedLogoUrl = profile.logo_url ?? profile.logoUrl ?? null;
+        const resolvedCoverPhoto = profile.cover_photo ?? profile.coverPhoto ?? null;
+        if (resolvedLogoUrl) setLogoPhoto(resolvedLogoUrl);
+        if (resolvedCoverPhoto) setCoverPhoto(resolvedCoverPhoto);
+
+        const sourceOfficeImages = Array.isArray(profile.office_images)
+          ? profile.office_images
+          : Array.isArray(profile.officeImages)
+            ? profile.officeImages
+            : [];
+        const officeImages = sourceOfficeImages.filter(Boolean).slice(0, 6);
+        if (officeImages.length > 0) {
+          const normalized = Array.from({ length: 6 }, (_, idx) => officeImages[idx] ?? null);
+          setGalleryPhotos(normalized);
+        }
+
+        const benefits = Array.isArray(profile.benefits) ? profile.benefits : [];
+        if (benefits.length > 0) setPerks(benefits);
+
+        const verified = data?.is_verified ?? payload?.is_verified ?? false;
+        setIsVerified(Boolean(verified));
+      })
+      .catch((err) => { console.error('[Profile] Fetch error:', err); })
+      .finally(() => { setIsProfileLoading(false); });
+  }, []);
 
   const renderPlan = ({ item }: { item: Plan }) => {
     const isCurrent = item.id === 'free';
@@ -669,7 +907,9 @@ export default function CompanyProfileScreen() {
         visible={showSettings}
         onClose={() => setShowSettings(false)}
         team={team}
+        isCompanyAdmin={isCompanyAdmin}
         onInvite={({ email, role }) => {
+          if (!isCompanyAdmin) return;
           const selectedRole = TEAM_ROLE_OPTIONS.find((option) => option.value === role);
           const inviteName = formatInviteName(email);
 
@@ -688,7 +928,10 @@ export default function CompanyProfileScreen() {
             ];
           });
         }}
-        onRevoke={(memberId) => setTeam((prev) => prev.filter((member) => member.id !== memberId))}
+        onRevoke={(memberId) => {
+          if (!isCompanyAdmin) return;
+          setTeam((prev) => prev.filter((member) => member.id !== memberId));
+        }}
       />
 
       {showSignOutModal && (
@@ -739,7 +982,7 @@ export default function CompanyProfileScreen() {
             <MaterialCommunityIcons name="cog-outline" size={17} color="#fff" />
           </TouchableOpacity>
 
-          {editMode && (
+          {editMode && isCompanyAdmin && (
             <TouchableOpacity style={s.coverEditBtn} onPress={pickCover} activeOpacity={0.8}>
               <MaterialCommunityIcons name="camera-outline" size={13} color="#fff" />
               <Text style={s.coverEditText}>Edit cover</Text>
@@ -748,7 +991,7 @@ export default function CompanyProfileScreen() {
         </View>
 
         <View style={s.heroRow}>
-          <TouchableOpacity onPress={editMode ? pickLogo : undefined} activeOpacity={0.85} style={s.logoWrap}>
+          <TouchableOpacity onPress={editMode && isCompanyAdmin ? pickLogo : undefined} activeOpacity={0.85} style={s.logoWrap}>
             {logoPhoto ? (
               <Image source={{ uri: logoPhoto }} style={[s.logoImg, { borderColor: T.bg }]} />
             ) : (
@@ -756,7 +999,7 @@ export default function CompanyProfileScreen() {
                 <Text style={[s.logoInitials, { color: T.textPrimary }]}>AC</Text>
               </View>
             )}
-            {editMode && (
+            {editMode && isCompanyAdmin && (
               <View style={[s.camBadge, { backgroundColor: T.primary, borderColor: T.bg }]}>
                 <MaterialCommunityIcons name="camera" size={10} color="#fff" />
               </View>
@@ -769,29 +1012,56 @@ export default function CompanyProfileScreen() {
               { borderColor: T.border, backgroundColor: T.surfaceHigh },
               editMode && s.editBtnSaving,
             ]}
-            onPress={() => setEditMode((e) => !e)}
+            onPress={() => {
+              if (!isCompanyAdmin) return;
+              if (editMode) {
+                handleSaveProfile();
+                return;
+              }
+              setEditMode(true);
+            }}
             activeOpacity={0.8}
           >
             <MaterialCommunityIcons
-              name={editMode ? 'check' : 'pencil-outline'}
+              name={editMode ? 'check' : (isCompanyAdmin ? 'pencil-outline' : 'eye-outline')}
               size={13}
               color={editMode ? '#4ade80' : T.primary}
             />
             <Text style={[s.editBtnText, { color: T.primary }, editMode && { color: '#4ade80' }]}>
-              {editMode ? 'Save' : 'Edit'}
+              {editMode ? (isSavingProfile ? 'Saving...' : 'Save') : (isCompanyAdmin ? 'Edit' : 'View')}
             </Text>
           </TouchableOpacity>
         </View>
 
         <View style={s.heroInfo}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <Text style={[s.companyName, { color: T.textPrimary }]}>Accenture PH</Text>
-            <MaterialCommunityIcons name="check-decagram" size={15} color={T.primary} />
+            {isProfileLoading ? (
+              <View style={{ width: 140, height: 18, borderRadius: 6, backgroundColor: T.borderFaint }} />
+            ) : (
+              <Text style={[s.companyName, { color: T.textPrimary }]}>
+                {companyName || 'Your Company'}
+              </Text>
+            )}
+            {isVerified && (
+              <MaterialCommunityIcons name="check-decagram" size={15} color={T.primary} />
+            )}
           </View>
-          <Text style={[s.industry, { color: T.textSub }]}>Technology / Consulting</Text>
+          {isProfileLoading ? (
+            <View style={{ width: 90, height: 13, borderRadius: 4, backgroundColor: T.borderFaint, marginBottom: 4 }} />
+          ) : (
+            <Text style={[s.industry, { color: T.textSub }]}>
+              {companyIndustry || 'Industry not set'}
+            </Text>
+          )}
           <View style={s.locRow}>
             <MaterialCommunityIcons name="map-marker-outline" size={11} color={T.textHint} />
-            <Text style={[s.loc, { color: T.textHint }]}>BGC, Taguig, Philippines</Text>
+            {isProfileLoading ? (
+              <View style={{ width: 120, height: 11, borderRadius: 4, backgroundColor: T.borderFaint }} />
+            ) : (
+              <Text style={[s.loc, { color: T.textHint }]}>
+                {companyLocation || 'Location not set'}
+              </Text>
+            )}
           </View>
         </View>
 
@@ -816,8 +1086,7 @@ export default function CompanyProfileScreen() {
         <View style={s.section}>
           <SectionLabel title="About Us" />
           <Text style={[s.aboutText, { color: T.textSub }]}>
-            A global professional services company with leading capabilities in digital, cloud and security. We help
-            organisations grow, work efficiently and build lasting trust.
+            {companyAbout}
           </Text>
         </View>
 
@@ -830,7 +1099,10 @@ export default function CompanyProfileScreen() {
               <TouchableOpacity
                 key={i}
                 style={[s.photoSlot, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}
-                onPress={() => pickGallery(i)}
+                onPress={() => {
+                  if (!editMode || !isCompanyAdmin) return;
+                  pickGallery(i);
+                }}
                 activeOpacity={0.8}
               >
                 {uri ? (
@@ -846,32 +1118,6 @@ export default function CompanyProfileScreen() {
         <Sep />
 
         <View style={s.section}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-            <SectionLabel title="Tech Stack" />
-            {editMode && (
-              <TouchableOpacity style={[s.addBtn, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}>
-                <MaterialCommunityIcons name="plus" size={12} color={T.primary} />
-                <Text style={[s.addBtnText, { color: T.primary }]}>Add</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-
-          <View style={s.skillSegment}>
-            <View style={s.skillSegmentHeader}>
-              <MaterialCommunityIcons name="code-braces" size={13} color={T.primary} />
-              <Text style={[s.skillSegmentLabel, { color: T.primary }]}>Technologies We Use</Text>
-            </View>
-            <View style={s.chips}>
-              {TECH_STACK.map((sk, i) => (
-                <View key={i} style={[s.chip, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}>
-                  <Text style={[s.chipText, { color: T.primary }]}>{sk}</Text>
-                  {editMode && <MaterialCommunityIcons name="close" size={10} color={T.primary} style={{ marginLeft: 4 }} />}
-                </View>
-              ))}
-            </View>
-          </View>
-
-          <View style={[s.skillDivider, { backgroundColor: T.borderFaint }]} />
 
           <View style={s.skillSegment}>
             <View style={[s.skillSegmentHeader, { justifyContent: 'space-between' }]}>
@@ -879,7 +1125,7 @@ export default function CompanyProfileScreen() {
                 <MaterialCommunityIcons name="gift-outline" size={13} color="#4ade80" />
                 <Text style={[s.skillSegmentLabel, { color: '#4ade80' }]}>Perks & Benefits</Text>
               </View>
-              {editMode && (
+              {editMode && isCompanyAdmin && (
                 <TouchableOpacity
                   style={[s.addBtn, { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' }]}
                   onPress={() => setShowAddPerk((v) => !v)}
@@ -897,7 +1143,7 @@ export default function CompanyProfileScreen() {
                   style={[s.chip, { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' }]}
                 >
                   <Text style={[s.chipText, { color: '#4ade80' }]}>{p}</Text>
-                  {editMode && (
+                  {editMode && isCompanyAdmin && (
                     <TouchableOpacity
                       onPress={() => setPerks((prev) => prev.filter((_, idx) => idx !== i))}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
@@ -910,7 +1156,7 @@ export default function CompanyProfileScreen() {
               ))}
             </View>
 
-            {editMode && showAddPerk && (
+            {editMode && isCompanyAdmin && showAddPerk && (
               <View style={[s.addForm, { marginTop: 12, backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
                 <TextInput
                   style={[s.addInput, { backgroundColor: T.surface, borderColor: T.border, color: T.textPrimary }]}

@@ -160,6 +160,41 @@ class ProfileOnboardingService
         }
 
         if ($profile) {
+            $repair = [];
+
+            if (! $this->filled($profile->user_id ?? null)) {
+                $repair['user_id'] = $userId;
+            }
+
+            if (! $this->filled($profile->company_id ?? null)) {
+                $repair['company_id'] = $companyProfile->id;
+            }
+
+            foreach ([
+                'office_images',
+                'social_links',
+                'address',
+                'benefits',
+                'culture_tags',
+                'notification_preferences',
+                'verification_documents',
+            ] as $field) {
+                $value = $profile->{$field} ?? null;
+
+                if (! is_string($value)) {
+                    continue;
+                }
+
+                $decoded = json_decode($value, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $repair[$field] = $decoded;
+                }
+            }
+
+            if ($repair !== []) {
+                return $this->companyDocs->update($profile, $repair);
+            }
+
             return $profile;
         }
 

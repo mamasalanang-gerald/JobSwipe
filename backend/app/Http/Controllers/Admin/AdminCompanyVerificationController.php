@@ -3,8 +3,10 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Repositories\MongoDB\CompanyProfileDocumentRepository;
 use App\Repositories\PostgreSQL\CompanyProfileRepository;
 use App\Services\AdminService;
+use App\Services\FileUploadService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +16,8 @@ class AdminCompanyVerificationController extends Controller
     public function __construct(
         private AdminService $adminService,
         private CompanyProfileRepository $companyProfileRepository,
+        private CompanyProfileDocumentRepository $companyDocs,
+        private FileUploadService $fileUploads,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -27,6 +31,47 @@ class AdminCompanyVerificationController extends Controller
 
             $perPage = (int) $request->input('per_page', 20);
             $results = $this->companyProfileRepository->paginateByVerificationStatus($status, $perPage);
+
+            $results = $results->through(function ($company) {
+                $document = $this->companyDocs->findByCompanyId((string) $company->id);
+
+                $verificationDocuments = is_array($document?->verification_documents)
+                    ? $document->verification_documents
+                    : [];
+
+                $signedDocuments = array_values(array_map(
+                    fn (string $url) => $this->toSignedReadUrl($url),
+                    array_filter($verificationDocuments, fn ($value) => is_string($value) && $value !== '')
+                ));
+
+                return [
+                    'id' => (string) $company->id,
+                    'company_id' => (string) $company->id,
+                    'status' => (string) $company->verification_status,
+                    'submitted_at' => optional($company->updated_at)?->toISOString(),
+                    'reviewed_at' => null,
+                    'reviewed_by' => null,
+                    'rejection_reason' => $document?->verification_rejection_reason ?? null,
+                    'documents' => array_map(
+                        fn (string $url, int $idx) => [
+                            'id' => (string) ($idx + 1),
+                            'type' => 'other',
+                            'url' => $url,
+                            'status' => (string) $company->verification_status,
+                            'uploaded_at' => optional($company->updated_at)?->toISOString(),
+                        ],
+                        $signedDocuments,
+                        array_keys($signedDocuments)
+                    ),
+                    'company' => [
+                        'id' => (string) $company->id,
+                        'name' => (string) $company->company_name,
+                        'industry' => $document?->industry ?? null,
+                        'logo_url' => $this->toSignedReadUrl((string) ($document?->logo_url ?? '')),
+                        'verification_status' => (string) $company->verification_status,
+                    ],
+                ];
+            });
 
             return $this->success($results, 'Company verifications retrieved successfully.');
         } catch (Exception $e) {
@@ -97,5 +142,24 @@ class AdminCompanyVerificationController extends Controller
 
             return $this->error('ERROR', $message, 500);
         }
+    }
+
+    private function toSignedReadUrl(string $fileUrl): string
+    {
+        if ($fileUrl === '') {
+            return '';
+        }
+
+        try {
+            $result = $this->fileUploads->generatePresignedReadUrl($fileUrl);
+
+            if (is_array($result) && isset($result['read_url']) && is_string($result['read_url'])) {
+                return $result['read_url'];
+            }
+        } catch (\Throwable) {
+            return $fileUrl;
+        }
+
+        return $fileUrl;
     }
 }

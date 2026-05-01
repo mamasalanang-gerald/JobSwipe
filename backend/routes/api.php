@@ -261,7 +261,7 @@ Route::middleware('throttle:api-tiered')->group(function () {
             });
 
             // ── Admin: Verification, User lookup, Dashboard (moderator + super_admin) ──
-            Route::middleware('role:moderator,super_admin')->prefix('admin')->group(function () {
+            Route::middleware('role:moderator,admin,super_admin')->prefix('admin')->group(function () {
                 Route::get('dashboard/stats', [AdminDashboardController::class, 'stats']);
 
                 // ── Admin Analytics Endpoints ──────────────────────────────────

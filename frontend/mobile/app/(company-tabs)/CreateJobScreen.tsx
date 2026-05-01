@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import { useTheme } from '../../theme';
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
@@ -157,12 +157,6 @@ const PH_REGIONS: Record<string, Record<string, string[]>> = {
   },
 };
 
-type RouteParams = {
-  CreateJob: {
-    onJobCreated?: (job: any) => void;
-  };
-};
-
 // ─── Custom Picker ────────────────────────────────────────────────────────────
 function CustomPicker({
   selectedValue,
@@ -298,7 +292,6 @@ const cp = StyleSheet.create({
 export default function CreateJobScreen() {
   const T = useTheme();
   const navigation      = useNavigation<any>();
-  const route           = useRoute<RouteProp<RouteParams, 'CreateJob'>>();
   const { top, bottom } = useSafeAreaInsets();
 
   // ── Form state ──────────────────────────────────────────────────────────────
@@ -397,15 +390,16 @@ export default function CreateJobScreen() {
       //   body: JSON.stringify(payload),
       // });
 
-      route.params?.onJobCreated?.({
-        title:       payload.title,
-        dept:        payload.location_region || 'General',
-        description: payload.description,
-        icon:        'briefcase-outline' as any,
-        color:       T.primary,
+      navigation.navigate('applicants', {
+        newJob: {
+          localKey: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          title: payload.title,
+          dept: payload.location_region || 'General',
+          description: payload.description,
+          icon: 'briefcase-outline',
+          color: T.primary,
+        },
       });
-
-      navigation.goBack();
     } catch (err) {
       Alert.alert('Error', 'Failed to post job. Please try again.');
     } finally {

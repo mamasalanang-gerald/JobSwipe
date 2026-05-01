@@ -358,6 +358,7 @@ class ProfileController extends Controller
             'profile_photo_url',
             'portfolio_url',
             'logo_url',
+            'cover_photo',
         ];
 
         foreach ($data as $key => $value) {

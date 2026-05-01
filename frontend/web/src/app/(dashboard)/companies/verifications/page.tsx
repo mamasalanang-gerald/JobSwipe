@@ -86,74 +86,80 @@ export default function VerificationsPage() {
           </div>
         ) : (
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {pendingVerifications.map((verification) => (
-              <div key={verification.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
-                <div className="flex items-start gap-4">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-800">
-                    {verification.company.logoUrl ? (
-                      <img src={verification.company.logoUrl} alt={verification.company.name} className="h-full w-full object-cover rounded-lg" />
-                    ) : (
-                      <Building className="h-6 w-6 text-zinc-500" />
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-semibold text-zinc-100">{verification.company.name}</h3>
-                    <p className="text-sm text-zinc-400">{verification.company.industry || 'No industry'}</p>
-                  </div>
-                </div>
+            {pendingVerifications.map((verification) => {
+              const companyName = verification.company?.name ?? 'Unknown company';
+              const companyIndustry = verification.company?.industry || 'No industry';
+              const companyLogoUrl = verification.company?.logoUrl;
 
-                <div className="mt-4 space-y-2">
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-400">Documents</span>
-                    <span className="text-zinc-200">{verification.documents.length} files</span>
+              return (
+                <div key={verification.id} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+                  <div className="flex items-start gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-zinc-800">
+                      {companyLogoUrl ? (
+                        <img src={companyLogoUrl} alt={companyName} className="h-full w-full object-cover rounded-lg" />
+                      ) : (
+                        <Building className="h-6 w-6 text-zinc-500" />
+                      )}
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-zinc-100">{companyName}</h3>
+                      <p className="text-sm text-zinc-400">{companyIndustry}</p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-zinc-400">Submitted</span>
-                    <span className="text-zinc-200">{formatDateTime(verification.submittedAt)}</span>
-                  </div>
-                </div>
 
-                {/* Documents */}
-                <div className="mt-4 space-y-2">
-                  {verification.documents.slice(0, 3).map((doc) => (
-                    <a
-                      key={doc.id}
-                      href={doc.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 rounded-lg bg-zinc-800/50 p-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-zinc-400">Documents</span>
+                      <span className="text-zinc-200">{verification.documents.length} files</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-zinc-400">Submitted</span>
+                      <span className="text-zinc-200">{formatDateTime(verification.submittedAt)}</span>
+                    </div>
+                  </div>
+
+                  {/* Documents */}
+                  <div className="mt-4 space-y-2">
+                    {verification.documents.slice(0, 3).map((doc) => (
+                      <a
+                        key={doc.id}
+                        href={doc.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 rounded-lg bg-zinc-800/50 p-2 text-sm text-zinc-300 transition-colors hover:bg-zinc-800"
+                      >
+                        <FileText className="h-4 w-4" />
+                        <span className="truncate">{doc.type.replace('_', ' ')}</span>
+                      </a>
+                    ))}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="mt-4 flex gap-2">
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleApprove(verification.id)}
+                      isLoading={approveVerification.isPending}
                     >
-                      <FileText className="h-4 w-4" />
-                      <span className="truncate">{doc.type.replace('_', ' ')}</span>
-                    </a>
-                  ))}
+                      <CheckCircle className="h-4 w-4" />
+                      Approve
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleRejectClick(verification.id, companyName)}
+                      isLoading={rejectVerification.isPending}
+                    >
+                      <XCircle className="h-4 w-4" />
+                      Reject
+                    </Button>
+                  </div>
                 </div>
-
-                {/* Actions */}
-                <div className="mt-4 flex gap-2">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleApprove(verification.id)}
-                    isLoading={approveVerification.isPending}
-                  >
-                    <CheckCircle className="h-4 w-4" />
-                    Approve
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => handleRejectClick(verification.id, verification.company.name)}
-                    isLoading={rejectVerification.isPending}
-                  >
-                    <XCircle className="h-4 w-4" />
-                    Reject
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -172,22 +178,26 @@ export default function VerificationsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-800">
-                {reviewedVerifications.slice(0, 10).map((verification) => (
-                  <tr key={verification.id} className="hover:bg-zinc-800/30">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <Building className="h-5 w-5 text-zinc-500" />
-                        <span className="text-sm text-zinc-200">{verification.company.name}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={verification.status} />
-                    </td>
-                    <td className="px-4 py-3 text-sm text-zinc-400">
-                      {verification.reviewedAt ? formatDateTime(verification.reviewedAt) : '-'}
-                    </td>
-                  </tr>
-                ))}
+                {reviewedVerifications.slice(0, 10).map((verification) => {
+                  const companyName = verification.company?.name ?? 'Unknown company';
+
+                  return (
+                    <tr key={verification.id} className="hover:bg-zinc-800/30">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <Building className="h-5 w-5 text-zinc-500" />
+                          <span className="text-sm text-zinc-200">{companyName}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={verification.status} />
+                      </td>
+                      <td className="px-4 py-3 text-sm text-zinc-400">
+                        {verification.reviewedAt ? formatDateTime(verification.reviewedAt) : '-'}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

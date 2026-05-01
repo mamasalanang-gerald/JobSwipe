@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { api } from '../../services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   View,
@@ -21,15 +22,17 @@ import Svg, { Circle } from 'react-native-svg';
 import { CompanyLogo, CountBadge, Radii, Spacing, StatusPill } from '../../components/ui';
 import { useTheme } from '../../theme';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
+import { useAuthStore } from '../../store/authStore';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 type Status = 'applied' | 'screening' | 'interview' | 'offer';
 type MatchState = 'pending' | 'expired' | 'active' | 'closed';
+type MatchId = string;
 
 type MatchCompany = {
-  id: number;
+  id: MatchId;
   abbr: string;
   color: string;
   company: string;
@@ -42,8 +45,8 @@ type MatchCompany = {
 };
 
 type Conversation = {
-  id: number;
-  companyId: number;
+  id: MatchId;
+  companyId: MatchId;
   abbr: string;
   color: string;
   company: string;
@@ -64,7 +67,7 @@ type ChatMessage = {
 
 type Review = {
   id: number;
-  companyId: number;
+  companyId: MatchId;
   rating: number;
   title: string;
   body: string;
@@ -80,166 +83,34 @@ type CompanyReviewDetails = {
 
 const now = Date.now();
 
-const MATCH_COMPANIES: MatchCompany[] = [
-  {
-    id: 10,
-    abbr: 'IL',
-    color: '#7c3aed',
-    company: 'InnovateLabs',
-    role: 'Product Designer',
-    status: 'screening',
-    prompt: 'Hi Alex, we matched with your profile. If you are interested, send us a quick intro in the next 24 hours.',
-    matchCreatedAt: now - 4 * 60 * 60 * 1000,
-    badgeCount: 1,
-  },
-  {
-    id: 11,
-    abbr: 'PW',
-    color: '#9333ea',
-    company: 'Pixel Works',
-    role: 'iOS Engineer',
-    status: 'interview',
-    prompt: 'We would love to hear from you today so we can reserve an interview slot for this week.',
-    matchCreatedAt: now - 13 * 60 * 60 * 1000,
-    badgeCount: 1,
-  },
-  {
-    id: 12,
-    abbr: 'TF',
-    color: '#a855f7',
-    company: 'TechFlow Inc',
-    role: 'Senior RN Engineer',
-    status: 'applied',
-    prompt: 'We matched with your application and had a follow-up question, but the 24-hour reply window has passed.',
-    matchCreatedAt: now - 28 * 60 * 60 * 1000,
-    badgeCount: 1,
-  },
-];
+function mapBackendStatusToUiStatus(status?: string): Status {
+  switch (status) {
+    case 'accepted':
+      return 'interview';
+    case 'closed':
+      return 'offer';
+    case 'declined':
+      return 'screening';
+    case 'expired':
+      return 'screening';
+    case 'pending':
+    default:
+      return 'applied';
+  }
+}
 
-const INITIAL_CONVERSATIONS: Conversation[] = [
-  {
-    id: 201,
-    companyId: 13,
-    abbr: 'DS',
-    color: '#22c55e',
-    company: 'DataStream',
-    role: 'ML Engineer',
-    status: 'offer',
-    lastMsg: "We'd like to extend a formal offer. Congratulations!",
-    time: 'Yesterday',
-    unread: 0,
-    state: 'active',
-  },
-  {
-    id: 202,
-    companyId: 14,
-    abbr: 'NC',
-    color: '#06b6d4',
-    company: 'Northstar Cloud',
-    role: 'Frontend Engineer',
-    status: 'screening',
-    lastMsg: 'This conversation was closed by the company.',
-    time: '2d',
-    unread: 0,
-    state: 'closed',
-  },
-];
+function mapBackendStatusToConversationState(status?: string): 'active' | 'closed' | 'expired' {
+  if (status === 'closed') return 'closed';
+  if (status === 'declined' || status === 'expired') return 'expired';
+  return 'active';
+}
 
-const INITIAL_MESSAGES: Record<number, ChatMessage[]> = {
-  10: [
-    { id: 1, from: 'them', text: 'Hi Alex, we matched with your profile.', time: '9:10 AM' },
-    { id: 2, from: 'them', text: 'If you are interested, send us a quick intro in the next 24 hours.', time: '9:11 AM' },
-  ],
-  11: [
-    { id: 1, from: 'them', text: 'Thanks for applying to Pixel Works.', time: 'Yesterday' },
-    { id: 2, from: 'them', text: 'We would love to hear from you today so we can reserve an interview slot.', time: '1h ago' },
-  ],
-  12: [
-    { id: 1, from: 'them', text: 'We matched with your application and had a follow-up question.', time: 'Yesterday' },
-    { id: 2, from: 'them', text: 'This match expired because no message was sent within the 24-hour reply window.', time: 'Yesterday' },
-  ],
-  13: [
-    { id: 1, from: 'them', text: 'Your background looks strong for our ML team.', time: 'Mon' },
-    { id: 2, from: 'me', text: 'Thank you. I would love to learn more about the role.', time: 'Tue' },
-    { id: 3, from: 'them', text: "We'd like to extend a formal offer. Congratulations!", time: 'Yesterday' },
-  ],
-  14: [
-    { id: 1, from: 'them', text: 'Thanks for interviewing with us this week.', time: 'Fri' },
-    { id: 2, from: 'me', text: 'Thank you for the update and the time with the team.', time: 'Fri' },
-    { id: 3, from: 'them', text: 'This conversation has now been closed by the company.', time: 'Sat' },
-  ],
-};
-
-const AUTO_REPLIES: Record<number, string[]> = {
-  10: [
-    'Perfect. Thanks for reaching out first. We will follow up with time slots shortly.',
-    'Thanks, Alex. Our recruiter will send next steps today.',
-  ],
-  11: [
-    'Great, we can keep that interview slot open for you.',
-    'Thanks for the quick intro. The team will reply with scheduling details.',
-  ],
-  13: [
-    'Amazing. HR will send the formal offer packet soon.',
-    'Happy to answer any questions you have about the offer.',
-  ],
-};
-
-const COMPANY_REVIEW_DETAILS: Record<number, CompanyReviewDetails> = {
-  10: {
-    location: 'New York, NY · Hybrid',
-    about: 'InnovateLabs builds product experiences for fast-moving teams and gives designers space to shape the customer journey from research to release. The company culture is collaborative, visual, and deeply focused on craft.',
-    banner: require('../assets/images/alorica.jpg'),
-    photos: [
-      require('../assets/images/alorica.jpg'),
-      require('../assets/images/alorica2.jpg'),
-      require('../assets/images/alorica3.jpg'),
-    ],
-  },
-  11: {
-    location: 'Los Angeles, CA · Remote',
-    about: 'Pixel Works is a mobile-first company that values polished user experiences, clean engineering execution, and fast feedback between design, product, and development. Teams move quickly without losing attention to detail.',
-    banner: require('../assets/images/accenture.jpg'),
-    photos: [
-      require('../assets/images/accenture.jpg'),
-      require('../assets/images/accenture2.jpg'),
-      require('../assets/images/accenture3.jpg'),
-    ],
-  },
-  12: {
-    location: 'San Francisco, CA · Remote',
-    about: 'TechFlow Inc builds large-scale mobile products and invests in a strong engineering foundation, rapid delivery, and dependable customer experiences. Teams work cross-functionally and own features end to end.',
-    banner: require('../assets/images/accenture2.jpg'),
-    photos: [
-      require('../assets/images/accenture2.jpg'),
-      require('../assets/images/accenture.jpg'),
-      require('../assets/images/accenture3.jpg'),
-    ],
-  },
-  13: {
-    location: 'Boston, MA · On-site',
-    about: 'DataStream focuses on machine learning systems and applied research for enterprise use cases. The company is technical, ambitious, and collaborative, with teams that care about experimentation, reliability, and long-term impact.',
-    banner: require('../assets/images/socia.png'),
-    photos: [
-      require('../assets/images/socia.png'),
-      require('../assets/images/socia2.jpg'),
-      require('../assets/images/socia3.jpg'),
-    ],
-  },
-  14: {
-    location: 'Denver, CO · Remote',
-    about: 'Northstar Cloud supports modern digital products through scalable frontend systems, infrastructure, and internal tooling. The team emphasizes dependable execution, straightforward communication, and a thoughtful candidate experience.',
-    banner: require('../assets/images/alorica3.jpg'),
-    photos: [
-      require('../assets/images/alorica3.jpg'),
-      require('../assets/images/alorica.jpg'),
-      require('../assets/images/alorica2.jpg'),
-    ],
-  },
-};
+// ── Mock data replaced by API ─────────────────────────────────────────────────
+// MATCH_COMPANIES, INITIAL_CONVERSATIONS, INITIAL_MESSAGES, AUTO_REPLIES, COMPANY_REVIEW_DETAILS
+// are no longer hardcoded. All data is fetched from the backend.
 
 function getReviewDetails(conversation: Conversation): CompanyReviewDetails {
-  return COMPANY_REVIEW_DETAILS[conversation.companyId] ?? {
+  return {
     location: 'Remote',
     about: `${conversation.company} is hiring for ${conversation.role} and aims to provide a clear, respectful, and well-structured experience for candidates throughout the process.`,
     banner: require('../assets/images/accenture.jpg'),
@@ -355,7 +226,7 @@ function MatchCarousel({
 }: {
   matches: MatchCompany[];
   currentTime: number;
-  onOpen: (matchId: number) => void;
+  onOpen: (matchId: MatchId) => void;
 }) {
   const T = useTheme();
 
@@ -415,8 +286,8 @@ function MessagesList({
   onOpenReview,
 }: {
   conversations: Conversation[];
-  onOpenConversation: (conversationId: number) => void;
-  onOpenReview: (companyId: number) => void;
+  onOpenConversation: (conversationId: MatchId) => void;
+  onOpenReview: (companyId: MatchId) => void;
 }) {
   const T = useTheme();
 
@@ -517,17 +388,16 @@ function ConversationScreen({
   currentTime: number;
   tabBarHeight: number;
   onBack: () => void;
-  onSendFirstMessage: (companyId: number, text: string, time: string) => void;
-  onOpenReview: (companyId: number) => void;
+  onSendFirstMessage: (companyId: MatchId, text: string, time: string) => void;
+  onOpenReview: (companyId: MatchId) => void;
 }) {
   const T = useTheme();
+  const authRole = useAuthStore((s) => s.role);
   const { top: topInset } = useSafeAreaInsets();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [keyboardHeight, setKeyboardHeight] = useState(0);
-  const [isTyping, setIsTyping] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
-  const replyIndexRef = useRef(0);
 
   const fallbackCompany = company ?? (conversation ? {
     id: conversation.companyId,
@@ -550,8 +420,20 @@ function ConversationScreen({
 
   useEffect(() => {
     const targetId = fallbackCompany?.id;
-    setMessages(targetId ? (INITIAL_MESSAGES[targetId] ?? []) : []);
-  }, [fallbackCompany?.id]);
+    if (!targetId) { setMessages([]); return; }
+    api.get(`/matches/${targetId}/messages`)
+      .then((msgs: any) => {
+        const payload = Array.isArray(msgs) ? msgs : (Array.isArray(msgs?.data) ? msgs.data : []);
+        const items = payload.map((m: any) => ({
+          id: m.id,
+          from: m.sender?.role === authRole ? 'me' as const : 'them' as const,
+          text: m.body ?? '',
+          time: m.created_at ? new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '',
+        }));
+        setMessages(items);
+      })
+      .catch(() => setMessages([]));
+  }, [fallbackCompany?.id, authRole]);
 
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
@@ -601,24 +483,14 @@ function ConversationScreen({
     if (!text || !canChat) return;
 
     const sentAt = formatConversationTime();
-    setMessages((prev) => [...prev, { id: Date.now(), from: 'me', text, time: sentAt }]);
+    const tempMsg: ChatMessage = { id: Date.now(), from: 'me', text, time: sentAt };
+    setMessages((prev) => [...prev, tempMsg]);
     setDraft('');
     onSendFirstMessage(fallbackCompany.id, text, sentAt);
     scrollToBottom();
 
-    const replies = AUTO_REPLIES[fallbackCompany.id] ?? ['Thanks for your message.'];
-    const replyText = replies[replyIndexRef.current % replies.length];
-    replyIndexRef.current += 1;
-    setIsTyping(true);
-
-    setTimeout(() => {
-      setIsTyping(false);
-      setMessages((prev) => [
-        ...prev,
-        { id: Date.now() + 1, from: 'them', text: replyText, time: formatConversationTime() },
-      ]);
-      scrollToBottom();
-    }, 1200);
+    // Fire-and-forget: persist message to backend
+    api.post(`/matches/${fallbackCompany.id}/messages`, { body: text }).catch(() => {});
   };
 
   const bannerText = (() => {
@@ -713,18 +585,7 @@ function ConversationScreen({
           );
         })}
 
-        {isTyping ? (
-          <View style={[styles.bubbleWrap, styles.bubbleWrapThem, { marginTop: 8 }]}>
-            <View style={[styles.chatAvatar, { backgroundColor: fallbackCompany.color }]}>
-              <Text style={styles.chatAvatarText}>{fallbackCompany.abbr}</Text>
-            </View>
-            <View style={styles.typingBubble}>
-              <View style={styles.typingDot} />
-              <View style={[styles.typingDot, { opacity: 0.65 }]} />
-              <View style={[styles.typingDot, { opacity: 0.35 }]} />
-            </View>
-          </View>
-        ) : null}
+
       </ScrollView>
 
       {isClosedConversation ? (
@@ -941,12 +802,72 @@ export default function MatchesTab() {
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
   const [currentTime, setCurrentTime] = useState(Date.now());
-  const [matchCompanies, setMatchCompanies] = useState(MATCH_COMPANIES);
-  const [conversations, setConversations] = useState(INITIAL_CONVERSATIONS);
-  const [selectedConversationId, setSelectedConversationId] = useState<number | null>(null);
-  const [selectedMatchId, setSelectedMatchId] = useState<number | null>(null);
-  const [reviewCompanyId, setReviewCompanyId] = useState<number | null>(null);
+  const [matchCompanies, setMatchCompanies] = useState<MatchCompany[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversationId, setSelectedConversationId] = useState<MatchId | null>(null);
+  const [selectedMatchId, setSelectedMatchId] = useState<MatchId | null>(null);
+  const [reviewCompanyId, setReviewCompanyId] = useState<MatchId | null>(null);
   const [submittedReviews, setSubmittedReviews] = useState<Review[]>([]);
+
+  // ── Load matches and conversations from API ──────────────────────────────
+  useEffect(() => {
+    const COLORS = ['#7c3aed', '#9333ea', '#a855f7', '#6366f1', '#06b6d4', '#22c55e'];
+    const getColor = (i: number) => COLORS[i % COLORS.length];
+    const getAbbr = (name: string) => name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0, 2);
+
+    api.get('/applicant/matches').then((matchesRaw: any) => {
+      const items = Array.isArray(matchesRaw)
+        ? matchesRaw
+        : (Array.isArray(matchesRaw?.data) ? matchesRaw.data : []);
+
+      const matches = items.map((m: any, i: number) => {
+        const job = m.job_posting ?? m.jobPosting ?? {};
+        const company = job.company ?? {};
+        const companyName = company.company_name ?? m.company_name ?? 'Company';
+        const matchedAt = m.matched_at ?? m.created_at;
+        const status = m.status as string | undefined;
+        const startedAt = status && status !== 'pending' ? Date.now() : undefined;
+
+        return {
+        id: String(m.id),
+        abbr: getAbbr(companyName),
+        color: getColor(i),
+        company: companyName,
+        role: job.title ?? m.job_title ?? '',
+        status: mapBackendStatusToUiStatus(status),
+        prompt: m.initial_message ?? '',
+        startedAt,
+        matchCreatedAt: matchedAt ? new Date(matchedAt).getTime() : now,
+        badgeCount: m.unread_count ?? 0,
+      };});
+      setMatchCompanies(matches);
+
+      const convs = items
+        .filter((m: any) => (m.status ?? 'pending') !== 'pending')
+        .map((m: any, i: number) => {
+          const job = m.job_posting ?? m.jobPosting ?? {};
+          const company = job.company ?? {};
+          const companyName = company.company_name ?? m.company_name ?? 'Company';
+          const status = m.status as string | undefined;
+          const lastMessageAt = m.responded_at ?? m.matched_at ?? m.created_at;
+
+          return {
+            id: String(m.id),
+            companyId: String(m.id),
+            abbr: getAbbr(companyName),
+            color: getColor(i),
+            company: companyName,
+            role: job.title ?? m.job_title ?? '',
+            status: mapBackendStatusToUiStatus(status),
+            lastMsg: m.initial_message ?? 'Conversation started.',
+            time: lastMessageAt ? new Date(lastMessageAt).toLocaleDateString() : '',
+            unread: m.unread_count ?? 0,
+            state: mapBackendStatusToConversationState(status),
+          };
+        });
+      setConversations(convs);
+    }).catch(() => { /* keep empty arrays on error */ });
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(Date.now()), 60 * 1000);
@@ -963,7 +884,7 @@ export default function MatchesTab() {
   const expiredConversations: Conversation[] = matchCompanies
     .filter((match) => !match.startedAt && getMatchState(match, currentTime) === 'expired')
     .map((match) => ({
-      id: -match.id,
+      id: `expired-${match.id}`,
       companyId: match.id,
       abbr: match.abbr,
       color: match.color,
@@ -980,18 +901,18 @@ export default function MatchesTab() {
     ? visibleConversations.find((item) => item.id === selectedConversationId) ?? null
     : null;
 
-  const openPendingMatch = (matchId: number) => {
+  const openPendingMatch = (matchId: MatchId) => {
     setSelectedMatchId(matchId);
   };
 
-  const openConversation = (conversationId: number) => {
+  const openConversation = (conversationId: MatchId) => {
     setConversations((prev) =>
       prev.map((item) => (item.id === conversationId ? { ...item, unread: 0 } : item)),
     );
     setSelectedConversationId(conversationId);
   };
 
-  const handleSendFirstMessage = (companyId: number, text: string, time: string) => {
+  const handleSendFirstMessage = (companyId: MatchId, text: string, time: string) => {
     const existingConversation = conversations.find((item) => item.companyId === companyId);
 
     if (existingConversation) {
@@ -1009,7 +930,7 @@ export default function MatchesTab() {
     if (!match) return;
 
     const newConversation: Conversation = {
-      id: Date.now(),
+      id: String(Date.now()),
       companyId: match.id,
       abbr: match.abbr,
       color: match.color,
