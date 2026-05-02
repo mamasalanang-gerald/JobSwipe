@@ -72,7 +72,7 @@ export const companyService = {
         reason: string
     ): Promise<{ message: string }> => {
         const { data } = await api.post<{ message: string }>(
-            `/admin/verifications/${verificationId}/reject`,
+            `/admin/companies/verifications/${verificationId}/reject`,
             { reason }
         );
         return data;
@@ -80,7 +80,7 @@ export const companyService = {
 
     approveVerification: async (verificationId: string): Promise<{ message: string }> => {
         const { data } = await api.post<{ message: string }>(
-            `/admin/verifications/${verificationId}/approve`
+            `/admin/companies/verifications/${verificationId}/approve`
         );
         return data;
     },

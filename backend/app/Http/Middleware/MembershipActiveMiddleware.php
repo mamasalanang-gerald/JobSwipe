@@ -56,6 +56,16 @@ class MembershipActiveMiddleware
         $membership = $this->memberships->getMembership($company->id, $user->id);
 
         if (! $membership) {
+            $isLegacyOwner = (string) ($company->user_id ?? '') === (string) $user->id
+                || (string) ($company->owner_user_id ?? '') === (string) $user->id;
+
+            if ($isLegacyOwner) {
+                $membershipRole = $user->role === 'company_admin' ? 'company_admin' : 'hr';
+                $membership = $this->memberships->addMember($company->id, $user->id, $membershipRole);
+            }
+        }
+
+        if (! $membership) {
             return response()->json([
                 'success' => false,
                 'message' => 'No company membership found.',

@@ -30,10 +30,10 @@ const statusDotStyles: Record<StatusVariant, string> = {
 
 function getStatusVariant(status: string): StatusVariant {
   const lowerStatus = status?.toLowerCase();
-  if (['active', 'verified', 'published', 'completed', 'paid', 'delivered', 'accepted', 'high'].includes(lowerStatus)) {
+  if (['active', 'approved', 'verified', 'published', 'completed', 'paid', 'delivered', 'accepted', 'high'].includes(lowerStatus)) {
     return 'success';
   }
-  if (['pending', 'processing', 'retrying', 'medium', 'trialing'].includes(lowerStatus)) {
+  if (['pending', 'processing', 'retrying', 'medium', 'trialing', 'established'].includes(lowerStatus)) {
     return 'warning';
   }
   if (['banned', 'suspended', 'removed', 'failed', 'cancelled', 'expired', 'rejected', 'deleted', 'flagged', 'low', 'past_due'].includes(lowerStatus)) {

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { api } from '../../services/api';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useNavigation } from '@react-navigation/native';
@@ -17,6 +18,8 @@ import {
   Platform,
   LayoutChangeEvent,
   Switch,
+  ActivityIndicator,
+  type ImageSourcePropType,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTheme } from '../../theme';
@@ -47,7 +50,61 @@ const BADGE_BOTTOM   = OVERLAY_BOTTOM + 92;                  // match badge sits
 const PANEL_HEIGHT   = SH * 0.62;
 const BOTTOM_NAV     = Platform.OS === 'ios' ? 84 : 64;      // tab bar clearance
 
-const JOBS = [
+// ── API deck types ──────────────────────────────────────────────────────────
+type DeckJob = {
+  id: string;
+  company: { name: string; logo_url?: string; abbr: string };
+  role: string;
+  salary_range: string;
+  location: string;
+  tags: { label: string; variant: 'primary' | 'success' | 'warning' | 'neutral' | 'remote' }[];
+  match_percent: number;
+  distance_km: number;
+  about_role: string;
+  requirements: string;
+  company_photos: string[];
+  reviews: { name?: string; author?: string; role?: string; date?: string; rating: number; text: string }[];
+  // legacy compat shims used inside the render
+  position: string;
+  salary: string;
+  description: string;
+  lookingFor: string;
+  distanceKm: number;
+  matchPercent: number;
+  photos: ImageSourcePropType[];
+  logoColor: string;
+  rating: number;
+};
+
+type ApiDeckJob = Partial<DeckJob> & {
+  id: number | string;
+  title?: string;
+  work_type?: string;
+  company?: {
+    name?: string;
+    company_name?: string;
+    logo_url?: string;
+    abbr?: string;
+    office_images?: string[];
+  };
+  skills?: Array<{ name?: string; skill_name?: string }>;
+  relevance_score?: number;
+};
+type SwipeLimitsResponse = {
+  used?: number;
+  limit?: number;
+  resets_at?: string;
+  daily_swipes_used?: number;
+  daily_swipe_limit?: number;
+  swipe_reset_at?: string;
+};
+
+const PLACEHOLDER_JOBS: DeckJob[] = [];
+
+// ── Legacy JOBS constant removed — now fetched from API ────────────────────
+const JOBS = PLACEHOLDER_JOBS; // kept so filteredJobs refs compile; replaced at runtime
+/*
+  Original JOBS = [
   {
     id: 1,
     company: 'TechFlow Inc',
@@ -469,6 +526,7 @@ const JOBS = [
     ],
   },
 ] as const;
+*/
 
 export default function HomeTab() {
   const T = useTheme();
@@ -481,15 +539,18 @@ export default function HomeTab() {
   const badgeBottom    = overlayBottom + 92;
 
   const MAX_SWIPES = 15;
+  const [deckJobs, setDeckJobs]     = useState<DeckJob[]>([]);
+  const [deckLoading, setDeckLoading] = useState(true);
   const [swipesUsed, setSwipesUsed] = useState(0);
+  const [swipeLimit, setSwipeLimit] = useState(MAX_SWIPES);
   const [index, setIndex]           = useState(0);
   const indexRef = useRef(0);  // always reflects latest index for use inside closures
-  const growingJobRef = useRef<(typeof filteredJobs)[number] | null>(null);
+  const growingJobRef = useRef<DeckJob | null>(null);
   const [photoIndex, setPhotoIndex] = useState(0);
   const [timerKey, setTimerKey]     = useState(0);
-  const [liked, setLiked]           = useState<number[]>([]);
+  const [liked, setLiked]           = useState<string[]>([]);
   const [expanded, setExpanded]     = useState(false);
-  const [history, setHistory]       = useState<{ id: number; dir: number }[]>([]);
+  const [history, setHistory]       = useState<{ id: string; dir: number }[]>([]);
   const [cardSize, setCardSize]     = useState({ width: SW, height: SH });
   const [topBarHeight, setTopBarHeight] = useState(0);
   const [galleryIndex, setGalleryIndex] = useState(0);
@@ -517,10 +578,82 @@ export default function HomeTab() {
     settingsOpenRef.current = false;
     Animated.timing(settingsAnim, { toValue: 0, duration: 220, useNativeDriver: false }).start(() => setSettingsOpen(false));
   };
+  // ── Fetch deck + limits from API ────────────────────────────────────
+  const loadDeck = useCallback(async () => {
+    setDeckLoading(true);
+    try {
+      const [deck, limits] = await Promise.all([
+        api.get('/applicant/swipe/deck') as Promise<{ jobs?: ApiDeckJob[] } | ApiDeckJob[]>,
+        api.get('/applicant/swipe/limits') as Promise<SwipeLimitsResponse>,
+      ]);
+      const deckItems = Array.isArray(deck) ? deck : (deck?.jobs ?? []);
+      // Normalise API shape → legacy render field names
+      const normalised = deckItems.map((j) => {
+        const companyName = j.company?.name ?? j.company?.company_name ?? 'Company';
+        const companyAbbr = j.company?.abbr ?? companyName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
+        const sourcePhotos = j.company_photos ?? j.company?.office_images ?? [];
+        const photos = sourcePhotos
+          .filter((uri): uri is string => Boolean(uri))
+          .map((uri) => ({ uri }));
+        const tagList = j.tags ?? [
+          { label: (j.work_type ?? 'Flexible').toString().replace(/^./, (c) => c.toUpperCase()), variant: 'primary' as const },
+          { label: 'Full-time', variant: 'success' as const },
+          { label: 'Active', variant: 'neutral' as const },
+        ];
+        const derivedRequirements = j.requirements
+          ?? (Array.isArray(j.skills) ? j.skills.map((s) => s.skill_name ?? s.name).filter(Boolean).join(' · ') : '')
+          ?? '';
+        const matchScore = j.match_percent
+          ?? (typeof j.relevance_score === 'number' ? Math.max(1, Math.min(99, Math.round(j.relevance_score * 100))) : 75);
+        const distance = j.distance_km ?? 0;
+
+        return {
+          ...j,
+          id: String(j.id),
+          company: {
+            name: companyName,
+            logo_url: j.company?.logo_url,
+            abbr: companyAbbr || 'CO',
+          },
+          role: j.role ?? j.title ?? 'Open Role',
+          salary_range: j.salary_range ?? 'Compensation discussed in interview',
+          location: j.location ?? 'Location not specified',
+          tags: tagList,
+          match_percent: matchScore,
+          distance_km: distance,
+          about_role: j.about_role ?? j.description ?? 'No role summary provided yet.',
+          requirements: derivedRequirements || 'General professional experience',
+          company_photos: sourcePhotos,
+          reviews: j.reviews ?? [],
+          position: j.role ?? j.title ?? 'Open Role',
+          salary: j.salary_range ?? 'Compensation discussed in interview',
+          description: j.about_role ?? j.description ?? 'No role summary provided yet.',
+          lookingFor: derivedRequirements || 'General professional experience',
+          distanceKm: distance,
+          matchPercent: matchScore,
+          photos,
+          logoColor: Colors.primary,
+          rating: 0,
+        };
+      });
+      setDeckJobs(normalised);
+      if (limits) {
+        setSwipesUsed(limits.daily_swipes_used ?? limits.used ?? 0);
+        setSwipeLimit(limits.daily_swipe_limit ?? limits.limit ?? MAX_SWIPES);
+      }
+    } catch {
+      // network error — keep empty deck, user sees empty state
+    } finally {
+      setDeckLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { void loadDeck(); }, [loadDeck]);
+
   const applySettings = () => {
     setMaxDistanceKm(draftDistance);
     setUseKm(draftUseKm);
-    setIndex(0); indexRef.current = 0;  // reset card deck so the new filter takes effect from the start
+    setIndex(0); indexRef.current = 0;
     setPhotoIndex(0);
     closeSettings();
   };
@@ -534,10 +667,10 @@ export default function HomeTab() {
   // Label shown in the panel header uses the draft value
   const draftLabel = draftUseKm ? `${draftDistance} km` : `${(draftDistance * 0.621371).toFixed(0)} mi`;
   // Preview count using draft (shown before Apply)
-  const draftFilteredCount = JOBS.filter(j => j.distanceKm <= draftDistance).length;
+  const draftFilteredCount = deckJobs.filter(j => j.distance_km <= draftDistance).length;
 
   // Filtered jobs use the committed/applied value
-  const filteredJobs = JOBS.filter(j => j.distanceKm <= maxDistanceKm);
+  const filteredJobs = deckJobs.filter(j => j.distance_km <= maxDistanceKm);
   const filteredJobsRef = useRef(filteredJobs);
   filteredJobsRef.current = filteredJobs; // always up to date, safe inside stale closures
 
@@ -642,22 +775,22 @@ export default function HomeTab() {
   ).current;
 
   const commitSwipe = (dir: number) => {
-    if (swipesUsed >= MAX_SWIPES) return;
+    if (swipesUsed >= swipeLimit) return;
     collapsePanel();
-    // Snapshot the card that is currently behind — this is the one that will
-    // grow into view. We capture it now before index increments.
     const upcomingJob = filteredJobsRef.current[indexRef.current + 1] ?? null;
     Animated.timing(position, {
       toValue: { x: dir * SW * 1.5, y: 0 },
       duration: 280,
       useNativeDriver: false,
     }).start(() => {
-      // Step 1: hide current card instantly
       cardOpacity.setValue(0);
-      // Step 2: reset position while card is invisible
       position.setValue({ x: 0, y: 0 });
-      // Step 3: flush state — index increments
       const currentJob = filteredJobsRef.current[indexRef.current];
+      if (currentJob) {
+        // Fire-and-forget swipe action
+        const endpoint = dir > 0 ? `/applicant/swipe/right/${currentJob.id}` : `/applicant/swipe/left/${currentJob.id}`;
+        api.post(endpoint, {}).catch(() => {});
+      }
       if (currentJob && dir > 0) setLiked(prev => [...prev, currentJob.id]);
       if (currentJob) setHistory(prev => [...prev, { id: currentJob.id, dir }]);
       setPhotoIndex(0);
@@ -734,6 +867,17 @@ export default function HomeTab() {
     }
   };
 
+  // ── Loading state ────────────────────────────────────────────────────────────
+  if (deckLoading) {
+    return (
+      <View style={s.emptyScreen}>
+        <StatusBar barStyle="dark-content" />
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={[s.emptySub, { marginTop: 16 }]}>Loading your job matches…</Text>
+      </View>
+    );
+  }
+
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (filteredJobs.length === 0) {
     // No jobs match the current distance filter
@@ -744,9 +888,9 @@ export default function HomeTab() {
           <MaterialCommunityIcons name="map-marker-off-outline" size={40} color={Colors.primary} />
         </View>
         <Text style={s.emptyTitle}>No jobs nearby</Text>
-        <Text style={s.emptySub}>There are no listings within your current distance. Try increasing the range in filters.</Text>
-        <TouchableOpacity style={s.refreshBtn} onPress={openSettings} activeOpacity={0.85}>
-          <Text style={s.refreshBtnText}>Adjust filters</Text>
+        <Text style={s.emptySub}>{deckJobs.length === 0 ? 'No job listings available right now. Check back soon!' : 'There are no listings within your current distance. Try increasing the range in filters.'}</Text>
+        <TouchableOpacity style={s.refreshBtn} onPress={deckJobs.length === 0 ? loadDeck : openSettings} activeOpacity={0.85}>
+          <Text style={s.refreshBtnText}>{deckJobs.length === 0 ? 'Refresh' : 'Adjust filters'}</Text>
         </TouchableOpacity>
         {settingsOpen && (
           <TouchableOpacity style={s.settingsBackdrop} activeOpacity={1} onPress={closeSettings} />
@@ -974,7 +1118,7 @@ export default function HomeTab() {
           <View style={s.nameRow}>
             <View style={{ flex: 1 }}>
               <View style={s.companyNameRow}>
-                <Text style={s.companyName}>{job.company}</Text>
+                <Text style={s.companyName}>{job.company.name}</Text>
                 <MaterialCommunityIcons name="check-decagram" size={22} color="#60A5FA" style={s.verifiedIcon} />
               </View>
               <View style={s.verifiedRow}>
@@ -1125,33 +1269,39 @@ export default function HomeTab() {
             <Text style={[s.reviewsCount, { color: T.textHint }]}>{job.reviews.length} reviews</Text>
           </View>
           <View style={{ gap: 10 }}>
-            {job.reviews.slice(0, 3).map((review, i) => (
-              <View key={i} style={[s.reviewCard, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint }, i === 2 && s.reviewCardFaded]}>
-                <View style={s.reviewHeader}>
-                  <View style={[s.reviewAvatar, { backgroundColor: T.primary + '25', borderColor: T.primary + '55' }]}>
-                    <Text style={[s.reviewAvatarText, { color: T.primary }]}>{review.author.charAt(0)}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[s.reviewAuthor, { color: T.textPrimary }]}>{review.author}</Text>
-                    <Text style={[s.reviewRole, { color: T.textHint }]}>{review.role}</Text>
-                  </View>
-                  <View style={s.reviewMeta}>
-                    <View style={s.reviewStars}>
-                      {Array.from({ length: 5 }).map((_, si) => (
-                        <MaterialCommunityIcons
-                          key={si}
-                          name={si < review.rating ? 'star' : 'star-outline'}
-                          size={11}
-                          color={si < review.rating ? T.gold : T.borderFaint}
-                        />
-                      ))}
+            {job.reviews.slice(0, 3).map((review, i) => {
+              const reviewerName = review.author ?? review.name ?? 'Anonymous';
+              const reviewerRole = review.role ?? 'Employee';
+              const reviewDate = review.date ?? 'Recent';
+
+              return (
+                <View key={i} style={[s.reviewCard, { backgroundColor: T.surfaceHigh, borderColor: T.borderFaint }, i === 2 && s.reviewCardFaded]}>
+                  <View style={s.reviewHeader}>
+                    <View style={[s.reviewAvatar, { backgroundColor: T.primary + '25', borderColor: T.primary + '55' }]}>
+                      <Text style={[s.reviewAvatarText, { color: T.primary }]}>{reviewerName.charAt(0)}</Text>
                     </View>
-                    <Text style={[s.reviewDate, { color: T.textHint }]}>{review.date}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.reviewAuthor, { color: T.textPrimary }]}>{reviewerName}</Text>
+                      <Text style={[s.reviewRole, { color: T.textHint }]}>{reviewerRole}</Text>
+                    </View>
+                    <View style={s.reviewMeta}>
+                      <View style={s.reviewStars}>
+                        {Array.from({ length: 5 }).map((_, si) => (
+                          <MaterialCommunityIcons
+                            key={si}
+                            name={si < review.rating ? 'star' : 'star-outline'}
+                            size={11}
+                            color={si < review.rating ? T.gold : T.borderFaint}
+                          />
+                        ))}
+                      </View>
+                      <Text style={[s.reviewDate, { color: T.textHint }]}>{reviewDate}</Text>
+                    </View>
                   </View>
+                  <Text style={[s.reviewText, { color: T.textSub }, i === 2 && { opacity: 0.35 }]}>{review.text}</Text>
                 </View>
-                <Text style={[s.reviewText, { color: T.textSub }, i === 2 && { opacity: 0.35 }]}>{review.text}</Text>
-              </View>
-            ))}
+              );
+            })}
           </View>
 
           {/* Locked "View more reviews" button */}

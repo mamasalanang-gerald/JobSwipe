@@ -19,6 +19,7 @@ class ProfileService
         private CompanyProfileRepository $companyProfiles,
         private ApplicantProfileDocumentRepository $applicantDocs,
         private CompanyProfileDocumentRepository $companyDocs,
+        private CompanyMembershipService $memberships,
         private PointService $points,
         private ProfileCompletionService $completion,
         private ProfileOnboardingService $onboarding,
@@ -214,6 +215,8 @@ class ProfileService
             'profile_completion_percentage' => $completion,
             'subscription_status' => $companyProfile->subscription_status,
             'subscription_tier' => $companyProfile->subscription_tier,
+            'is_verified' => (bool) $companyProfile->is_verified,
+            'verification_status' => $companyProfile->verification_status,
         ];
     }
 
@@ -232,6 +235,9 @@ class ProfileService
             'website_url',
             'address',
             'social_links',
+            'cover_photo',
+            'office_images',
+            'benefits',
         ]));
 
         if (array_key_exists('company_name', $allowed)) {
@@ -372,6 +378,7 @@ class ProfileService
     {
         $companyProfile = $this->companyProfiles->create([
             'user_id' => $user->id,
+            'owner_user_id' => $user->role === 'company_admin' ? $user->id : null,
             'company_name' => '',
             'is_verified' => false,
             'verification_status' => 'unverified',
@@ -382,6 +389,16 @@ class ProfileService
             'listing_cap' => 0,
             'active_listings_count' => 0,
         ]);
+
+        // Some PostgreSQL UUID defaults may not be hydrated on the first model instance.
+        if (! $this->filled($companyProfile->id ?? null)) {
+            $companyProfile = $this->companyProfiles->findByUserId($user->id) ?? $companyProfile;
+        }
+
+        if ($this->filled($companyProfile->id ?? null)) {
+            $membershipRole = $user->role === 'company_admin' ? 'company_admin' : 'hr';
+            $this->memberships->addMember($companyProfile->id, $user->id, $membershipRole);
+        }
 
         $this->companyDocs->create([
             'user_id' => $user->id,

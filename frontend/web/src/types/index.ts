@@ -17,8 +17,8 @@ export interface User {
 }
 
 // Company types
-export type CompanyVerificationStatus = 'pending' | 'verified' | 'rejected' | 'expired';
-export type CompanyTrustLevel = 'low' | 'medium' | 'high';
+export type CompanyVerificationStatus = 'pending' | 'approved' | 'verified' | 'rejected' | 'expired' | 'unverified';
+export type CompanyTrustLevel = 'low' | 'medium' | 'high' | 'established';
 export type CompanySubscriptionTier = 'free' | 'basic' | 'premium' | 'enterprise';
 export type CompanyStatus = 'active' | 'suspended' | 'inactive';
 

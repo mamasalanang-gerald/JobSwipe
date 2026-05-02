@@ -56,6 +56,10 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'cdn.example.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'pub-e3f1f354550246a8b0967278ae7d8042.r2.dev',
+      },
     ],
     formats: ['image/avif', 'image/webp'],
   },

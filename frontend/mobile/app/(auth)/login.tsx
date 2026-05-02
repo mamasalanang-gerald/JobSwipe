@@ -14,6 +14,7 @@ import { Link, router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
+import { api } from '../../services/api';
 import { useTheme } from '../../theme';
 import {
   SectionCard,
@@ -25,13 +26,7 @@ import {
   Shadows,
 } from '../../components/ui';
 
-// ─── MOCK AUTH ────────────────────────────────────────────────────────────────
-// TODO: Remove this block once the backend is live.
-const MOCK_AUTH      = true; // flip to false to re-enable the real API call
-const MOCK_APPLICANT = { email: 'demo@example.com',    password: 'password'   };
-const MOCK_COMPANY   = { email: 'company@example.com', password: 'company123' };
-const MOCK_TOKEN     = 'mock-token-123';
-// ─────────────────────────────────────────────────────────────────────────────
+
 
 export default function LoginScreen() {
   const T                               = useTheme();
@@ -49,39 +44,18 @@ export default function LoginScreen() {
     setError('');
     setLoading(true);
 
-    // ── Mock path ──────────────────────────────────────────────────────────
-    if (MOCK_AUTH) {
-      await new Promise((r) => setTimeout(r, 600));
-
-      if (email === MOCK_APPLICANT.email && password === MOCK_APPLICANT.password) {
-        await setToken(MOCK_TOKEN, 'applicant');
-        router.replace('/(tabs)');
-      } else if (email === MOCK_COMPANY.email && password === MOCK_COMPANY.password) {
-        await setToken(MOCK_TOKEN, 'hr');
-        router.replace('/(company-tabs)');
-      } else {
-        setError('Invalid credentials. Use one of the demo accounts shown above.');
-      }
-      setLoading(false);
-      return;
-    }
-    // ── Real API path (restored when MOCK_AUTH = false) ────────────────────
-
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json();
-      if (data.success) {
-        await setToken(data.data.token, data.data.role === 'hr' ? 'hr' : 'applicant');
-        router.replace(data.data.role === 'hr' ? '/(company-tabs)' : '/(tabs)');
-      } else {
-        setError(data.message || 'Invalid email or password.');
+      const data = await api.post('/auth/login', { email, password });
+      // api interceptor unwraps { success, data } → data automatically
+      const { token, user } = data as unknown as { token: string; user: { role: string } };
+      const role = user?.role;
+      if (role !== 'applicant' && role !== 'hr' && role !== 'company_admin') {
+        throw new Error('Unable to determine account role. Please try again.');
       }
-    } catch {
-      setError('Could not connect to server. Please try again.');
+      await setToken(token, role as any);
+      router.replace(role === 'applicant' ? '/(tabs)' : '/(company-tabs)');
+    } catch (err: any) {
+      setError(err?.message || 'Invalid email or password.');
     } finally {
       setLoading(false);
     }
@@ -142,42 +116,7 @@ export default function LoginScreen() {
           </View>
         </View>
 
-        {/* ── Mock-mode hint banner ── */}
-        {MOCK_AUTH && (
-          <View style={{ backgroundColor: T.warningLight, borderWidth: 1, borderColor: T.warning + '55', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'], gap: Spacing['2'] }}>
 
-            {/* Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-              <MaterialCommunityIcons name="information-outline" size={15} color={T.warning} />
-              <Text style={{ color: T.textSub, fontSize: Typography.sm, fontWeight: Typography.semibold as any }}>Mock mode — demo accounts</Text>
-            </View>
-
-            {/* Applicant row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], paddingLeft: Spacing['1'] }}>
-              <MaterialCommunityIcons name="account-outline" size={13} color={T.textSub} />
-              <Text style={{ color: T.textSub, fontSize: Typography.sm }}>
-                Applicant:{' '}
-                <Text style={{ fontWeight: Typography.semibold as any }}>{MOCK_APPLICANT.email}</Text>
-                {' / '}
-                <Text style={{ fontWeight: Typography.semibold as any }}>{MOCK_APPLICANT.password}</Text>
-              </Text>
-            </View>
-
-            {/* Company row */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], paddingLeft: Spacing['1'] }}>
-              <MaterialCommunityIcons name="office-building-outline" size={13} color={T.textSub} />
-              <Text style={{ color: T.textSub, fontSize: Typography.sm }}>
-                Company:{' '}
-                <Text style={{ fontWeight: Typography.semibold as any }}>{MOCK_COMPANY.email}</Text>
-                {' / '}
-                <Text style={{ fontWeight: Typography.semibold as any }}>{MOCK_COMPANY.password}</Text>
-              </Text>
-            </View>
-
-          </View>
-        )}
-
-        {/* ── Error banner ── */}
         {error ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
             <MaterialCommunityIcons name="alert-circle-outline" size={15} color={T.danger} />

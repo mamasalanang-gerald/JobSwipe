@@ -92,7 +92,7 @@ export const CountBadge: React.FC<CountBadgeProps> = ({
 // ─── TagBadge ──────────────────────────────────────────────────────────────
 interface TagBadgeProps {
   label: string;
-  variant?: 'primary' | 'success' | 'warning' | 'neutral';
+  variant?: 'primary' | 'success' | 'warning' | 'neutral' | 'remote';
 }
 
 const TAG_VARIANTS = {
@@ -100,6 +100,7 @@ const TAG_VARIANTS = {
   success: { bg: Colors.successLight,  text: '#166534'          },
   warning: { bg: Colors.warningLight,  text: '#9A3412'          },
   neutral: { bg: Colors.gray100,       text: Colors.gray600     },
+  remote:  { bg: Colors.primaryLight,  text: Colors.primaryDark },
 };
 
 export const TagBadge: React.FC<TagBadgeProps> = ({ label, variant = 'neutral' }) => {
