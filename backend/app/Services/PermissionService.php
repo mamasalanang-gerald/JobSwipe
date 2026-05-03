@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Redis;
 class PermissionService
 {
     private const CACHE_PREFIX = 'admin:permissions';
+
     private const CACHE_TTL = 1800; // 30 minutes
 
     /**
@@ -17,7 +18,7 @@ class PermissionService
     public function hasPermission(User $user, string $permission): bool
     {
         // Non-admin users have no admin permissions
-        if (!$this->isAdminUser($user)) {
+        if (! $this->isAdminUser($user)) {
             return false;
         }
 
@@ -68,11 +69,10 @@ class PermissionService
 
     /**
      * Context-aware permission check with additional validation.
-     * 
-     * @param User $user The user performing the action
-     * @param string $action The action being performed (e.g., 'user_ban', 'company_suspend')
-     * @param Model|null $target The target resource (optional)
-     * @return bool
+     *
+     * @param  User  $user  The user performing the action
+     * @param  string  $action  The action being performed (e.g., 'user_ban', 'company_suspend')
+     * @param  Model|null  $target  The target resource (optional)
      */
     public function canPerformAction(User $user, string $action, ?Model $target = null): bool
     {
@@ -107,7 +107,7 @@ class PermissionService
         }
 
         // Check base permission
-        if (!$this->hasPermission($user, $permission)) {
+        if (! $this->hasPermission($user, $permission)) {
             return false;
         }
 
@@ -171,11 +171,11 @@ class PermissionService
     {
         // Clear specific known cache keys
         $roles = ['super_admin', 'admin', 'moderator'];
-        
+
         foreach ($roles as $role) {
             Redis::del($this->getCacheKey("role:{$role}"));
         }
-        
+
         Redis::del($this->getCacheKey('matrix'));
     }
 
@@ -192,6 +192,6 @@ class PermissionService
      */
     private function getCacheKey(string $suffix): string
     {
-        return self::CACHE_PREFIX . ':' . $suffix;
+        return self::CACHE_PREFIX.':'.$suffix;
     }
 }

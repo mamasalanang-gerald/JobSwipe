@@ -200,29 +200,29 @@ class MatchRepository
     {
         $query = MatchRecord::with(['applicant.user', 'jobPosting.company', 'hrUser']);
 
-        if (!empty($filters['status'])) {
+        if (! empty($filters['status'])) {
             $query->where('status', $filters['status']);
         }
 
-        if (!empty($filters['applicant_id'])) {
+        if (! empty($filters['applicant_id'])) {
             $query->where('applicant_id', $filters['applicant_id']);
         }
 
-        if (!empty($filters['job_posting_id'])) {
+        if (! empty($filters['job_posting_id'])) {
             $query->where('job_posting_id', $filters['job_posting_id']);
         }
 
-        if (!empty($filters['company_id'])) {
+        if (! empty($filters['company_id'])) {
             $query->whereHas('jobPosting', function ($q) use ($filters) {
                 $q->where('company_id', $filters['company_id']);
             });
         }
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->where('matched_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->where('matched_at', '<=', $filters['date_to']);
         }
 

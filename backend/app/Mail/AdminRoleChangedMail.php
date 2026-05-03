@@ -45,7 +45,7 @@ class AdminRoleChangedMail extends Mailable
                 'newRoleLabel' => $newRoleLabel,
                 'changedBy' => $this->changedBy,
                 'isPromotion' => $isPromotion,
-                'loginUrl' => config('app.frontend_url') . '/admin/login',
+                'loginUrl' => config('app.frontend_url').'/admin/login',
             ]);
     }
 

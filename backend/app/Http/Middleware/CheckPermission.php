@@ -10,9 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class CheckPermission
 {
-    public function __construct(private PermissionService $permissions)
-    {
-    }
+    public function __construct(private PermissionService $permissions) {}
 
     public function handle(Request $request, Closure $next, string $permission): Response
     {

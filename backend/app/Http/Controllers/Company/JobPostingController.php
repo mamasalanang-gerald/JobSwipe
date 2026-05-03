@@ -273,7 +273,7 @@ class JobPostingController extends Controller
      * Permanently delete a job posting (hard delete).
      * This is irreversible and should only be used by admins for compliance reasons.
      * Requires super_admin role.
-     * 
+     *
      * Requirements: 5.6
      */
     public function forceDestroy(Request $request, string $id): JsonResponse

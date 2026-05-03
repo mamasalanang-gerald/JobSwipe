@@ -14,14 +14,13 @@ class AuditService
      *
      * Requirements: 12.1, 12.4
      *
-     * @param string $actionType The type of action performed (e.g., 'user_ban', 'company_suspend')
-     * @param string $resourceType The type of resource affected (e.g., 'user', 'company', 'job')
-     * @param string $resourceId The ID of the affected resource
-     * @param User $actor The user performing the action
-     * @param array|null $metadata Additional action-specific metadata
-     * @param array|null $beforeState State of the resource before the action
-     * @param array|null $afterState State of the resource after the action
-     * @return AuditLog
+     * @param  string  $actionType  The type of action performed (e.g., 'user_ban', 'company_suspend')
+     * @param  string  $resourceType  The type of resource affected (e.g., 'user', 'company', 'job')
+     * @param  string  $resourceId  The ID of the affected resource
+     * @param  User  $actor  The user performing the action
+     * @param  array|null  $metadata  Additional action-specific metadata
+     * @param  array|null  $beforeState  State of the resource before the action
+     * @param  array|null  $afterState  State of the resource after the action
      */
     public function log(
         string $actionType,
@@ -56,46 +55,45 @@ class AuditService
      *
      * Requirements: 12.2, 12.7
      *
-     * @param array $filters Filtering options:
-     *   - actor_id: Filter by admin user ID
-     *   - action_type: Filter by action type
-     *   - resource_type: Filter by resource type
-     *   - resource_id: Filter by specific resource ID
-     *   - date_from: Filter logs from this date (Y-m-d format)
-     *   - date_to: Filter logs until this date (Y-m-d format)
-     * @param int $perPage Number of results per page (default: 20)
-     * @return LengthAwarePaginator
+     * @param  array  $filters  Filtering options:
+     *                          - actor_id: Filter by admin user ID
+     *                          - action_type: Filter by action type
+     *                          - resource_type: Filter by resource type
+     *                          - resource_id: Filter by specific resource ID
+     *                          - date_from: Filter logs from this date (Y-m-d format)
+     *                          - date_to: Filter logs until this date (Y-m-d format)
+     * @param  int  $perPage  Number of results per page (default: 20)
      */
     public function query(array $filters, int $perPage = 20): LengthAwarePaginator
     {
         $query = AuditLog::query()->with('actor');
 
         // Filter by actor (admin user)
-        if (!empty($filters['actor_id'])) {
+        if (! empty($filters['actor_id'])) {
             $query->where('actor_id', $filters['actor_id']);
         }
 
         // Filter by action type
-        if (!empty($filters['action_type'])) {
+        if (! empty($filters['action_type'])) {
             $query->where('action_type', $filters['action_type']);
         }
 
         // Filter by resource type
-        if (!empty($filters['resource_type'])) {
+        if (! empty($filters['resource_type'])) {
             $query->where('resource_type', $filters['resource_type']);
         }
 
         // Filter by specific resource ID
-        if (!empty($filters['resource_id'])) {
+        if (! empty($filters['resource_id'])) {
             $query->where('resource_id', $filters['resource_id']);
         }
 
         // Filter by date range
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 
@@ -107,9 +105,6 @@ class AuditService
 
     /**
      * Find audit log by ID.
-     *
-     * @param string $id
-     * @return AuditLog|null
      */
     public function findById(string $id): ?AuditLog
     {
@@ -121,7 +116,7 @@ class AuditService
      *
      * Requirements: 12.8
      *
-     * @param array $filters Same filtering options as query() method
+     * @param  array  $filters  Same filtering options as query() method
      * @return string Path to the generated CSV file
      */
     public function export(array $filters): string
@@ -130,27 +125,27 @@ class AuditService
         $query = AuditLog::query()->with('actor');
 
         // Apply same filters as query method
-        if (!empty($filters['actor_id'])) {
+        if (! empty($filters['actor_id'])) {
             $query->where('actor_id', $filters['actor_id']);
         }
 
-        if (!empty($filters['action_type'])) {
+        if (! empty($filters['action_type'])) {
             $query->where('action_type', $filters['action_type']);
         }
 
-        if (!empty($filters['resource_type'])) {
+        if (! empty($filters['resource_type'])) {
             $query->where('resource_type', $filters['resource_type']);
         }
 
-        if (!empty($filters['resource_id'])) {
+        if (! empty($filters['resource_id'])) {
             $query->where('resource_id', $filters['resource_id']);
         }
 
-        if (!empty($filters['date_from'])) {
+        if (! empty($filters['date_from'])) {
             $query->whereDate('created_at', '>=', $filters['date_from']);
         }
 
-        if (!empty($filters['date_to'])) {
+        if (! empty($filters['date_to'])) {
             $query->whereDate('created_at', '<=', $filters['date_to']);
         }
 
@@ -162,19 +157,17 @@ class AuditService
         $csvContent = $this->generateCsvContent($logs);
 
         // Generate unique filename
-        $filename = 'audit_logs_' . now()->format('Y-m-d_His') . '.csv';
-        $path = 'exports/' . $filename;
+        $filename = 'audit_logs_'.now()->format('Y-m-d_His').'.csv';
+        $path = 'exports/'.$filename;
 
         // Store the CSV file
         Storage::disk('local')->put($path, $csvContent);
 
-        return storage_path('app/' . $path);
+        return storage_path('app/'.$path);
     }
 
     /**
      * Get all available action types from configuration.
-     *
-     * @return array
      */
     public function getActionTypes(): array
     {
@@ -184,8 +177,7 @@ class AuditService
     /**
      * Generate CSV content from audit logs.
      *
-     * @param \Illuminate\Support\Collection $logs
-     * @return string
+     * @param  \Illuminate\Support\Collection  $logs
      */
     private function generateCsvContent($logs): string
     {

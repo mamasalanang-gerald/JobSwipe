@@ -28,10 +28,11 @@ class AdminUserService
      *
      * Requirements: 10.1, 10.2, 15.1, 15.2
      *
-     * @param string $email Email address for the new admin user
-     * @param string $role Role to assign (admin or moderator)
-     * @param User $creator The super_admin creating the user
+     * @param  string  $email  Email address for the new admin user
+     * @param  string  $role  Role to assign (admin or moderator)
+     * @param  User  $creator  The super_admin creating the user
      * @return array ['user' => User, 'invitation' => AdminInvitation]
+     *
      * @throws \Exception
      */
     public function createAdminUser(string $email, string $role, User $creator): array
@@ -43,7 +44,7 @@ class AdminUserService
         }
 
         // Validate role
-        if (!in_array($role, ['admin', 'moderator'], true)) {
+        if (! in_array($role, ['admin', 'moderator'], true)) {
             throw new \Exception('Invalid role. Only admin and moderator can be created via invitation.');
         }
 
@@ -98,17 +99,18 @@ class AdminUserService
      *
      * Requirements: 10.5, 14.1-14.5
      *
-     * @param string $userId ID of the user to update
-     * @param string $newRole New role to assign
-     * @param User $actor The super_admin performing the update
+     * @param  string  $userId  ID of the user to update
+     * @param  string  $newRole  New role to assign
+     * @param  User  $actor  The super_admin performing the update
      * @return User Updated user
+     *
      * @throws \Exception
      */
     public function updateRole(string $userId, string $newRole, User $actor): User
     {
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw new \Exception('User not found');
         }
 
@@ -118,7 +120,7 @@ class AdminUserService
         }
 
         // Validate role transition
-        if (!$this->validateRoleTransition($user->role, $newRole)) {
+        if (! $this->validateRoleTransition($user->role, $newRole)) {
             throw new InvalidRoleTransitionException(
                 $user->role,
                 $newRole,
@@ -130,7 +132,7 @@ class AdminUserService
         if ($user->role === 'super_admin' && $newRole !== 'super_admin') {
             $superAdminCount = $this->userRepository->countByRole('super_admin');
             if ($superAdminCount <= 1) {
-                throw new LastSuperAdminException();
+                throw new LastSuperAdminException;
             }
         }
 
@@ -176,16 +178,17 @@ class AdminUserService
      *
      * Requirements: 10.6
      *
-     * @param string $userId ID of the user to deactivate
-     * @param User $actor The super_admin performing the action
+     * @param  string  $userId  ID of the user to deactivate
+     * @param  User  $actor  The super_admin performing the action
      * @return bool Success status
+     *
      * @throws \Exception
      */
     public function deactivateAdminUser(string $userId, User $actor): bool
     {
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw new \Exception('User not found');
         }
 
@@ -199,9 +202,9 @@ class AdminUserService
             $activeSuperAdminCount = User::where('role', 'super_admin')
                 ->where('is_active', true)
                 ->count();
-            
+
             if ($activeSuperAdminCount <= 1) {
-                throw new LastSuperAdminException();
+                throw new LastSuperAdminException;
             }
         }
 
@@ -232,16 +235,17 @@ class AdminUserService
      *
      * Requirements: 10.7
      *
-     * @param string $userId ID of the user to reactivate
-     * @param User $actor The super_admin performing the action
+     * @param  string  $userId  ID of the user to reactivate
+     * @param  User  $actor  The super_admin performing the action
      * @return bool Success status
+     *
      * @throws \Exception
      */
     public function reactivateAdminUser(string $userId, User $actor): bool
     {
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw new \Exception('User not found');
         }
 
@@ -269,8 +273,7 @@ class AdminUserService
      *
      * Requirements: 10.3
      *
-     * @param array $filters Filtering options (role, is_active, search)
-     * @return LengthAwarePaginator
+     * @param  array  $filters  Filtering options (role, is_active, search)
      */
     public function listAdminUsers(array $filters): LengthAwarePaginator
     {
@@ -278,7 +281,7 @@ class AdminUserService
         $adminRoles = ['super_admin', 'admin', 'moderator'];
 
         // If role filter is provided, validate it's an admin role
-        if (!empty($filters['role']) && !in_array($filters['role'], $adminRoles, true)) {
+        if (! empty($filters['role']) && ! in_array($filters['role'], $adminRoles, true)) {
             $filters['role'] = null;
         }
 
@@ -294,8 +297,8 @@ class AdminUserService
                 $query->where('is_active', (bool) $filters['is_active']);
             }
 
-            if (!empty($filters['search'])) {
-                $term = '%' . strtolower(trim($filters['search'])) . '%';
+            if (! empty($filters['search'])) {
+                $term = '%'.strtolower(trim($filters['search'])).'%';
                 $query->where('email', 'ilike', $term);
             }
 
@@ -310,15 +313,16 @@ class AdminUserService
      *
      * Requirements: 10.4
      *
-     * @param string $userId ID of the user
+     * @param  string  $userId  ID of the user
      * @return array User details with additional metadata
+     *
      * @throws \Exception
      */
     public function getAdminUserDetails(string $userId): array
     {
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw new \Exception('User not found');
         }
 
@@ -346,8 +350,8 @@ class AdminUserService
      *
      * Requirements: 14.5
      *
-     * @param string $currentRole Current role
-     * @param string $newRole Desired new role
+     * @param  string  $currentRole  Current role
+     * @param  string  $newRole  Desired new role
      * @return bool Whether the transition is valid
      */
     public function validateRoleTransition(string $currentRole, string $newRole): bool
@@ -371,10 +375,9 @@ class AdminUserService
      *
      * Requirements: 15.2
      *
-     * @param User $user The user being invited
-     * @param AdminInvitation $invitation The invitation record
-     * @param User $inviter The user sending the invitation
-     * @return void
+     * @param  User  $user  The user being invited
+     * @param  AdminInvitation  $invitation  The invitation record
+     * @param  User  $inviter  The user sending the invitation
      */
     public function sendInvitation(User $user, AdminInvitation $invitation, User $inviter): void
     {
@@ -393,16 +396,17 @@ class AdminUserService
      *
      * Requirements: 15.6
      *
-     * @param string $userId ID of the user
-     * @param User $actor The super_admin resending the invitation
+     * @param  string  $userId  ID of the user
+     * @param  User  $actor  The super_admin resending the invitation
      * @return AdminInvitation New invitation
+     *
      * @throws \Exception
      */
     public function resendInvitation(string $userId, User $actor): void
     {
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw new \Exception('User not found');
         }
 
@@ -411,7 +415,7 @@ class AdminUserService
             ->orderBy('created_at', 'desc')
             ->first();
 
-        if (!$oldInvitation) {
+        if (! $oldInvitation) {
             throw new \Exception('No invitation found for this user');
         }
 
@@ -461,16 +465,16 @@ class AdminUserService
      *
      * Requirements: 15.7
      *
-     * @param string $userId ID of the user
-     * @param User $actor The super_admin revoking the invitation
-     * @return void
+     * @param  string  $userId  ID of the user
+     * @param  User  $actor  The super_admin revoking the invitation
+     *
      * @throws \Exception
      */
     public function revokeInvitation(string $userId, User $actor): void
     {
         $user = $this->userRepository->findById($userId);
 
-        if (!$user) {
+        if (! $user) {
             throw new \Exception('User not found');
         }
 
@@ -481,7 +485,7 @@ class AdminUserService
             ->orderBy('created_at', 'desc')
             ->first();
 
-        if (!$invitation) {
+        if (! $invitation) {
             throw new \Exception('No active invitation found for this user');
         }
 
@@ -508,8 +512,6 @@ class AdminUserService
 
     /**
      * Generate a secure invitation token.
-     *
-     * @return string
      */
     private function generateInvitationToken(): string
     {

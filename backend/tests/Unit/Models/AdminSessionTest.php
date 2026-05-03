@@ -14,7 +14,7 @@ class AdminSessionTest extends TestCase
     /** @test */
     public function it_has_correct_fillable_fields(): void
     {
-        $session = new AdminSession();
+        $session = new AdminSession;
         $fillable = $session->getFillable();
 
         $this->assertContains('user_id', $fillable);
@@ -28,7 +28,7 @@ class AdminSessionTest extends TestCase
     /** @test */
     public function it_casts_datetime_fields_correctly(): void
     {
-        $session = new AdminSession();
+        $session = new AdminSession;
         $casts = $session->getCasts();
 
         $this->assertEquals('datetime', $casts['last_activity_at']);
@@ -38,7 +38,7 @@ class AdminSessionTest extends TestCase
     /** @test */
     public function it_uses_uuid_as_primary_key(): void
     {
-        $session = new AdminSession();
+        $session = new AdminSession;
 
         $this->assertFalse($session->getIncrementing());
         $this->assertEquals('string', $session->getKeyType());

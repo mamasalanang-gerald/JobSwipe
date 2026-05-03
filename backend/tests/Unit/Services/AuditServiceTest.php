@@ -6,7 +6,6 @@ use App\Models\PostgreSQL\AuditLog;
 use App\Models\PostgreSQL\User;
 use App\Services\AuditService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AuditServiceTest extends TestCase
@@ -18,7 +17,7 @@ class AuditServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->auditService = new AuditService();
+        $this->auditService = new AuditService;
     }
 
     public function test_log_creates_audit_log_with_all_fields(): void
