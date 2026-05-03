@@ -63,6 +63,7 @@ class AdminSession extends Model
     public function isInactive(): bool
     {
         $timeout = config('admin.session.inactivity_timeout_minutes', 120);
+
         return $this->last_activity_at < now()->subMinutes($timeout);
     }
 

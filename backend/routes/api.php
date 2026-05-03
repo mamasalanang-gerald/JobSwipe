@@ -228,10 +228,10 @@ Route::middleware('throttle:api-tiered')->group(function () {
             Route::prefix('admin/reviews')->group(function () {
                 // List all reviews with filtering - accessible by moderator, admin, super_admin
                 Route::middleware('role:moderator,admin,super_admin')->get('/', [AdminReviewController::class, 'index']);
-                
+
                 // View flagged reviews - accessible by moderator, admin, super_admin
                 Route::middleware('role:moderator,admin,super_admin')->get('flagged', [AdminReviewController::class, 'getFlaggedReviews']);
-                
+
                 // Unflag and remove reviews - accessible by admin, super_admin only
                 Route::middleware('role:admin,super_admin')->group(function () {
                     Route::post('{id}/unflag', [AdminReviewController::class, 'unflag']);
@@ -246,14 +246,14 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::get('/', [AdminJobController::class, 'index']);
                     Route::get('{id}', [AdminJobController::class, 'show']);
                 });
-                
+
                 // Moderation endpoints - accessible by admin, super_admin
                 Route::middleware('role:admin,super_admin')->group(function () {
                     Route::post('{id}/flag', [AdminJobController::class, 'flag']);
                     Route::post('{id}/unflag', [AdminJobController::class, 'unflag']);
                     Route::post('{id}/close', [AdminJobController::class, 'close']);
                 });
-                
+
                 // Destructive endpoint - accessible by super_admin only
                 Route::middleware('role:super_admin')->group(function () {
                     Route::delete('{id}/force', [JobPostingController::class, 'forceDestroy']);

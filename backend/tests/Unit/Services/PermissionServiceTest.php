@@ -14,8 +14,8 @@ class PermissionServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->service = new PermissionService();
-        
+        $this->service = new PermissionService;
+
         // Clear Redis cache before each test
         Redis::flushdb();
     }
@@ -28,7 +28,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_has_permission_returns_true_for_valid_permission(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-1';
         $user->role = 'super_admin';
 
@@ -39,7 +39,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_has_permission_returns_false_for_invalid_permission(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-2';
         $user->role = 'moderator';
 
@@ -50,7 +50,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_has_permission_returns_false_for_non_admin_user(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-3';
         $user->role = 'applicant';
 
@@ -61,7 +61,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_has_role_returns_true_for_matching_role(): void
     {
-        $user = new User();
+        $user = new User;
         $user->role = 'admin';
 
         $result = $this->service->hasRole($user, 'admin');
@@ -71,7 +71,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_has_role_returns_true_for_matching_role_in_array(): void
     {
-        $user = new User();
+        $user = new User;
         $user->role = 'moderator';
 
         $result = $this->service->hasRole($user, ['admin', 'moderator']);
@@ -81,7 +81,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_has_role_returns_false_for_non_matching_role(): void
     {
-        $user = new User();
+        $user = new User;
         $user->role = 'moderator';
 
         $result = $this->service->hasRole($user, 'super_admin');
@@ -139,7 +139,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_can_perform_action_returns_true_for_valid_action(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-1';
         $user->role = 'super_admin';
 
@@ -150,7 +150,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_can_perform_action_returns_false_for_invalid_permission(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-2';
         $user->role = 'moderator';
 
@@ -161,11 +161,11 @@ class PermissionServiceTest extends TestCase
 
     public function test_can_perform_action_prevents_self_modification(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-1';
         $user->role = 'super_admin';
 
-        $target = new User();
+        $target = new User;
         $target->id = 'user-1';
         $target->role = 'admin';
 
@@ -176,11 +176,11 @@ class PermissionServiceTest extends TestCase
 
     public function test_can_perform_action_prevents_non_super_admin_from_banning_super_admin(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-1';
         $user->role = 'admin';
 
-        $target = new User();
+        $target = new User;
         $target->id = 'user-2';
         $target->role = 'super_admin';
 
@@ -191,11 +191,11 @@ class PermissionServiceTest extends TestCase
 
     public function test_can_perform_action_allows_super_admin_to_modify_admin(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-1';
         $user->role = 'super_admin';
 
-        $target = new User();
+        $target = new User;
         $target->id = 'user-2';
         $target->role = 'admin';
 
@@ -206,7 +206,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_can_perform_action_returns_false_for_unknown_action(): void
     {
-        $user = new User();
+        $user = new User;
         $user->id = 'user-1';
         $user->role = 'super_admin';
 
@@ -261,7 +261,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_moderator_has_read_only_permissions(): void
     {
-        $user = new User();
+        $user = new User;
         $user->role = 'moderator';
 
         // Should have view permissions
@@ -277,7 +277,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_admin_has_mid_level_permissions(): void
     {
-        $user = new User();
+        $user = new User;
         $user->role = 'admin';
 
         // Should have view permissions
@@ -297,7 +297,7 @@ class PermissionServiceTest extends TestCase
 
     public function test_super_admin_has_all_permissions(): void
     {
-        $user = new User();
+        $user = new User;
         $user->role = 'super_admin';
 
         // Should have all permissions

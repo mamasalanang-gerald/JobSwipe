@@ -25,7 +25,7 @@ class AdminInvitationMail extends Mailable
             default => ucfirst($this->role),
         };
 
-        $invitationUrl = config('app.frontend_url') . '/admin/accept-invitation?token=' . $this->token;
+        $invitationUrl = config('app.frontend_url').'/admin/accept-invitation?token='.$this->token;
 
         return $this->subject("You've been invited to join JobSwipe as {$roleLabel}")
             ->view('emails.admin_invitation')

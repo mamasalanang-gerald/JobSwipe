@@ -63,7 +63,7 @@ class UserRBACTest extends TestCase
     /** @test */
     public function it_checks_fillable_fields_include_role_and_is_active(): void
     {
-        $user = new User();
+        $user = new User;
         $fillable = $user->getFillable();
 
         $this->assertContains('role', $fillable);

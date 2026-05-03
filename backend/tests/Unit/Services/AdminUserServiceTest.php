@@ -6,10 +6,7 @@ use App\Mail\AdminInvitationMail;
 use App\Mail\AdminRoleChangedMail;
 use App\Models\PostgreSQL\AdminInvitation;
 use App\Models\PostgreSQL\User;
-use App\Repositories\PostgreSQL\UserRepository;
 use App\Services\AdminUserService;
-use App\Services\AuditService;
-use App\Services\TokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
@@ -19,6 +16,7 @@ class AdminUserServiceTest extends TestCase
     use RefreshDatabase;
 
     private AdminUserService $service;
+
     private User $superAdmin;
 
     protected function setUp(): void
@@ -135,7 +133,7 @@ class AdminUserServiceTest extends TestCase
         // - To demote a super_admin, the actor must be a super_admin (permission requirement)
         // - If there's only 1 super_admin and the actor is also a super_admin, count >= 2
         // - Therefore, we can never have exactly 1 super_admin when attempting demotion
-        // 
+        //
         // The check in the service (if count <= 1, prevent) is correct and will prevent
         // demotion when count is 1, but this scenario cannot occur in practice due to
         // the permission requirements.

@@ -82,6 +82,6 @@ class AdminInvitation extends Model
      */
     public function isValid(): bool
     {
-        return !$this->isExpired() && !$this->isAccepted() && !$this->isRevoked();
+        return ! $this->isExpired() && ! $this->isAccepted() && ! $this->isRevoked();
     }
 }

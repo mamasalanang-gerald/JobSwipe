@@ -36,6 +36,7 @@ class CheckRole
             if ($response instanceof JsonResponse) {
                 $response->headers->set('X-User-Role', $user->role);
             }
+
             return $response;
         }
 
