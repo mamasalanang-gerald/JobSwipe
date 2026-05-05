@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useTheme } from '../../theme';
 
@@ -10,6 +11,7 @@ const SEED_PRIMARY = '#a855f7';
 
 export type JobPost = {
   id: number;
+  localKey?: string;
   title: string;
   dept: string;
   description: string;
@@ -91,6 +93,18 @@ export const INITIAL_JOBS: JobPost[] = [
 ];
 
 type Filter = 'all' | 'open' | 'paused';
+type ApplicantsRouteParams = {
+  applicants: {
+    newJob?: {
+      localKey: string;
+      title: string;
+      dept: string;
+      description: string;
+      icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
+      color: string;
+    };
+  };
+};
 
 // ─── Shared job store (so matches.tsx can read updated jobs) ──────────────────
 // In a real app this would be a context/store. For now we export a mutable ref.
@@ -102,6 +116,8 @@ export default function JobPostingsScreen() {
   const tabBarHeight = useTabBarHeight();
   const { top: topInset } = useSafeAreaInsets();
   const router = useRouter();
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<ApplicantsRouteParams, 'applicants'>>();
 
   const [jobs, setJobs] = useState<JobPost[]>(INITIAL_JOBS);
   const [filter, setFilter] = useState<Filter>('all');
@@ -116,6 +132,33 @@ export default function JobPostingsScreen() {
       return next;
     });
   };
+  useEffect(() => {
+    const incoming = route.params?.newJob;
+    if (!incoming) return;
+
+    setJobs((prev) => {
+      if (prev.some((job) => job.localKey === incoming.localKey)) {
+        return prev;
+      }
+
+      return [
+        ...prev,
+        {
+          id: Date.now(),
+          localKey: incoming.localKey,
+          title: incoming.title,
+          dept: incoming.dept || 'General',
+          description: incoming.description || '',
+          icon: incoming.icon ?? 'briefcase-outline',
+          color: incoming.color ?? T.primary,
+          applicants: 0,
+          status: 'open',
+        },
+      ];
+    });
+
+    navigation.setParams({ newJob: undefined });
+  }, [navigation, route.params?.newJob, T.primary]);
 
   const toggleStatus = (id: number) => {
     updateJobs((prev) =>
@@ -142,7 +185,7 @@ export default function JobPostingsScreen() {
         </View>
         <TouchableOpacity
           style={[s.addBtn, { borderColor: T.border, backgroundColor: T.surfaceHigh }]}
-          onPress={() => router.push('/(company-tabs)/CreateJobScreen' as any)}
+          onPress={() => navigation.navigate('CreateJobScreen')}
           activeOpacity={0.8}
         >
           <MaterialCommunityIcons name="plus" size={14} color={T.primary} />

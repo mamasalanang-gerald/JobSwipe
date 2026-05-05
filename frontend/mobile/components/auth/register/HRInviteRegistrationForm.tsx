@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Divider, Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
 import type { AuthRole } from '../../../store/authStore';
+import { api } from '../../../services/api';
 
 type Props = {
   T: any;
@@ -18,6 +19,7 @@ type Props = {
   jobTitleOptions: string[];
   setToken: (token: string, role?: AuthRole | null) => Promise<void>;
   inviteCode: string;
+  onOtpSent: () => void;
   onBack: () => void;
 };
 
@@ -32,6 +34,7 @@ export function HRInviteRegistrationForm({
   jobTitleOptions,
   setToken,
   inviteCode,
+  onOtpSent,
   onBack,
 }: Props) {
   const [firstName, setFirstName] = useState('');
@@ -105,29 +108,21 @@ export function HRInviteRegistrationForm({
 
     setSubmitting(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          role: 'hr',
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          job_title: resolvedTitle,
-          photo_url: profilePhoto?.uri ?? null,
-          company_invite_token: inviteCode,
-        }),
-      });
-      const data = await response.json();
-      if (!data.success) {
-        setFormError(data.message || 'Registration failed. Please try again.');
-        return;
+      const data = await api.post('/auth/register', {
+        email,
+        password,
+        role: 'hr',
+        company_invite_token: inviteCode,
+      }) as unknown as { token?: string };
+
+      if (data?.token) {
+        await setToken(data.token, 'hr');
+        router.replace('/(company-tabs)');
+      } else {
+        onOtpSent();
       }
-      await setToken(data.data.token, 'hr');
-      router.replace('/(company-tabs)');
-    } catch {
-      setFormError('Network error. Please check your connection.');
+    } catch (err: any) {
+      setFormError(err?.message || 'Registration failed. Please try again.');
     } finally {
       setSubmitting(false);
     }

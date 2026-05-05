@@ -9,6 +9,13 @@ import { Divider, Radii, SectionCard, Spacing, Typography } from '../../ui';
 import { COMPANY_SIZE_OPTIONS, INDUSTRY_OPTIONS, Step, WorkEntry, EducationEntry } from './types';
 import { COUNTRIES, getProvincesForCountry, getProvincesForRegion, getCitiesForProvince } from '../../../constants/locations';
 
+type LocalUploadFile = {
+  uri: string;
+  name: string;
+  mimeType?: string | null;
+  size?: number;
+};
+
 type Props = {
   T: any;
   stepKey: Step;
@@ -39,8 +46,8 @@ type Props = {
   setLocationProvince: (value: string) => void;
   setLocationCountry: (value: string) => void;
   setBio: (value: string) => void;
-  resumeFile: { uri: string; name: string } | null;
-  setResumeFile: (value: { uri: string; name: string } | null) => void;
+  resumeFile: LocalUploadFile | null;
+  setResumeFile: (value: LocalUploadFile | null) => void;
   hardSkills: string[];
   softSkills: string[];
   hardSkillInput: string;
@@ -55,8 +62,8 @@ type Props = {
   setWorkEntries: (value: WorkEntry[] | ((prev: WorkEntry[]) => WorkEntry[])) => void;
   educationEntries: EducationEntry[];
   setEducationEntries: (value: EducationEntry[] | ((prev: EducationEntry[]) => EducationEntry[])) => void;
-  photoFile: { uri: string; name: string } | null;
-  setPhotoFile: (value: { uri: string; name: string } | null) => void;
+  photoFile: LocalUploadFile | null;
+  setPhotoFile: (value: LocalUploadFile | null) => void;
   linkedinUrl: string;
   githubUrl: string;
   portfolioUrl: string;
@@ -93,12 +100,12 @@ type Props = {
   setAddressCountry: (value: string) => void;
   setAddressPostal: (value: string) => void;
   setCompanySocialLinks: (value: string[] | ((prev: string[]) => string[])) => void;
-  verificationDocs: { uri: string; name: string }[];
-  setVerificationDocs: (value: { uri: string; name: string }[] | ((prev: { uri: string; name: string }[]) => { uri: string; name: string }[])) => void;
-  logoFile: { uri: string; name: string } | null;
-  setLogoFile: (value: { uri: string; name: string } | null) => void;
-  officeImages: { uri: string; name: string }[];
-  setOfficeImages: (value: { uri: string; name: string }[] | ((prev: { uri: string; name: string }[]) => { uri: string; name: string }[])) => void;
+  verificationDocs: LocalUploadFile[];
+  setVerificationDocs: (value: LocalUploadFile[] | ((prev: LocalUploadFile[]) => LocalUploadFile[])) => void;
+  logoFile: LocalUploadFile | null;
+  setLogoFile: (value: LocalUploadFile | null) => void;
+  officeImages: LocalUploadFile[];
+  setOfficeImages: (value: LocalUploadFile[] | ((prev: LocalUploadFile[]) => LocalUploadFile[])) => void;
   setError: (value: string) => void;
 };
 
@@ -422,12 +429,17 @@ export function RegisterStepContent(props: Props) {
               }}
               onPress={async () => {
                 const result = await DocumentPicker.getDocumentAsync({
-                  type: ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                  type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
                   copyToCacheDirectory: true,
                 });
                 if (!result.canceled && result.assets?.[0]) {
                   const asset = result.assets[0];
-                  setResumeFile({ uri: asset.uri, name: asset.name });
+                  setResumeFile({
+                    uri: asset.uri,
+                    name: asset.name,
+                    mimeType: asset.mimeType ?? null,
+                    size: asset.size,
+                  });
                 }
               }}
             >
@@ -435,7 +447,7 @@ export function RegisterStepContent(props: Props) {
               <Text style={{ fontSize: Typography.base, fontWeight: Typography.semibold as any, color: resumeFile ? T.success : T.textPrimary }}>
                 {resumeFile ? resumeFile.name : 'Tap to upload resume'}
               </Text>
-              <Text style={{ fontSize: Typography.xs, color: T.textHint }}>PDF/DOC/DOCX - Max 5MB</Text>
+              <Text style={{ fontSize: Typography.xs, color: T.textHint }}>PDF/DOCX - Max 5MB</Text>
             </TouchableOpacity>
             {resumeFile && (
               <TouchableOpacity onPress={() => setResumeFile(null)} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['1'], alignSelf: 'center' }}>
@@ -717,7 +729,12 @@ export function RegisterStepContent(props: Props) {
                 if (!result.canceled && result.assets?.[0]) {
                   const asset = result.assets[0];
                   const name = asset.uri.split('/').pop() ?? 'photo.jpg';
-                  setPhotoFile({ uri: asset.uri, name });
+                  setPhotoFile({
+                    uri: asset.uri,
+                    name,
+                    mimeType: asset.mimeType ?? null,
+                    size: asset.fileSize,
+                  });
                 }
               }}
               style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderStyle: 'dashed' as any, borderColor: photoFile ? T.success : T.border, backgroundColor: photoFile ? T.successLight : T.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
@@ -992,7 +1009,15 @@ export function RegisterStepContent(props: Props) {
               const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/jpeg', 'image/png'], multiple: false });
               if (!result.canceled && result.assets?.[0]) {
                 const asset = result.assets[0];
-                setVerificationDocs((prev) => (prev.length >= 5 ? prev : [...prev, { uri: asset.uri, name: asset.name }]));
+                setVerificationDocs((prev) => (prev.length >= 5 ? prev : [
+                  ...prev,
+                  {
+                    uri: asset.uri,
+                    name: asset.name,
+                    mimeType: asset.mimeType ?? null,
+                    size: asset.size,
+                  },
+                ]));
               }
             }}
           >
@@ -1042,7 +1067,12 @@ export function RegisterStepContent(props: Props) {
                   const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 });
                   if (!result.canceled && result.assets?.[0]) {
                     const asset = result.assets[0];
-                    setLogoFile({ uri: asset.uri, name: asset.uri.split('/').pop() ?? 'logo.jpg' });
+                    setLogoFile({
+                      uri: asset.uri,
+                      name: asset.uri.split('/').pop() ?? 'logo.jpg',
+                      mimeType: asset.mimeType ?? null,
+                      size: asset.fileSize,
+                    });
                   }
                 }}
                 style={{ width: 110, height: 110, borderRadius: Radii.xl, borderWidth: 2, borderStyle: 'dashed' as any, borderColor: logoFile ? T.success : T.border, backgroundColor: logoFile ? T.successLight : T.surfaceHigh, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
@@ -1078,7 +1108,12 @@ export function RegisterStepContent(props: Props) {
                   setOfficeImages((prev) => {
                     const remaining = 6 - prev.length;
                     if (remaining <= 0) return prev;
-                    const next = result.assets.slice(0, remaining).map((asset) => ({ uri: asset.uri, name: asset.uri.split('/').pop() ?? 'office.jpg' }));
+                    const next = result.assets.slice(0, remaining).map((asset) => ({
+                      uri: asset.uri,
+                      name: asset.uri.split('/').pop() ?? 'office.jpg',
+                      mimeType: asset.mimeType ?? null,
+                      size: asset.fileSize,
+                    }));
                     return [...prev, ...next];
                   });
                 }

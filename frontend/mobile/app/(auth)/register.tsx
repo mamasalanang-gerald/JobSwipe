@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ExpoLinking from 'expo-linking';
 import { useAuthStore } from '../../store/authStore';
+import { api } from '../../services/api';
 import { useTheme } from '../../theme';
 import { Divider, Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../components/ui';
 import { RegisterEmailGate } from '../../components/auth/register/RegisterEmailGate';
@@ -16,36 +17,14 @@ import { RegisterStepProgressBar } from '../../components/auth/register/Register
 import { RegisterOtpVerificationScreen } from '../../components/auth/register/RegisterOtpVerificationScreen';
 import { APPLICANT_STEPS, HARD_SKILL_SUGGESTIONS, HR_STEPS, JOB_TITLE_OPTIONS, Role, SOFT_SKILL_SUGGESTIONS, STEP_LABELS, WorkEntry, EducationEntry } from '../../components/auth/register/types';
 
-const MOCK_COMPANIES: Record<string, { name: string; validCodes: string[] }> = {
-  'google.com': { name: 'Google', validCodes: ['GOOGLE-2024', 'GOOG-HR-01'] },
-  'microsoft.com': { name: 'Microsoft', validCodes: ['MS-INVITE-99', 'MSFT-HR-01'] },
-  'apple.com': { name: 'Apple', validCodes: ['APPLE-HR-2024', 'APL-INVITE'] },
+type LocalUploadFile = {
+  uri: string;
+  name: string;
+  mimeType?: string | null;
+  size?: number;
 };
 
-const INVITE_CODE_EMAIL_MAP: Record<string, { email: string; domain: string }> = {
-  'GOOGLE-2024': { email: 'newhr@google.com', domain: 'google.com' },
-  'GOOG-HR-01': { email: 'recruit@google.com', domain: 'google.com' },
-  'MS-INVITE-99': { email: 'newhr@microsoft.com', domain: 'microsoft.com' },
-  'MSFT-HR-01': { email: 'hr@microsoft.com', domain: 'microsoft.com' },
-  'APPLE-HR-2024': { email: 'newhr@apple.com', domain: 'apple.com' },
-  'APL-INVITE': { email: 'recruit@apple.com', domain: 'apple.com' },
-};
 
-const getCompanyFromEmail = (email: string) => {
-  const domain = email.split('@')[1]?.toLowerCase();
-  return domain ? MOCK_COMPANIES[domain] ?? null : null;
-};
-
-const getInfoFromInviteCode = (code: string): { email: string; company: { name: string; validCodes: string[] } } | null => {
-  const entry = INVITE_CODE_EMAIL_MAP[code.trim().toUpperCase()];
-  if (!entry) return null;
-  const company = MOCK_COMPANIES[entry.domain] ?? null;
-  return company ? { email: entry.email, company } : null;
-};
-
-const MOCK_APPLICANT_OTP = true;
-const MOCK_APPLICANT_OTP_CODE = '123456';
-const MOCK_APPLICANT_OTP_TOKEN = 'mock-applicant-otp-token';
 
 export default function RegisterScreen() {
   const T = useTheme();
@@ -67,14 +46,14 @@ export default function RegisterScreen() {
   const [locationProvince, setLocationProvince] = useState('');
   const [locationCountry, setLocationCountry] = useState('');
   const [bio, setBio] = useState('');
-  const [resumeFile, setResumeFile] = useState<{ uri: string; name: string } | null>(null);
+  const [resumeFile, setResumeFile] = useState<LocalUploadFile | null>(null);
   const [hardSkills, setHardSkills] = useState<string[]>([]);
   const [softSkills, setSoftSkills] = useState<string[]>([]);
   const [hardSkillInput, setHardSkillInput] = useState('');
   const [softSkillInput, setSoftSkillInput] = useState('');
   const [workEntries, setWorkEntries] = useState<WorkEntry[]>([{ company: '', position: '', start_date: '', end_date: '', description: '' }]);
   const [educationEntries, setEducationEntries] = useState<EducationEntry[]>([{ school: '', degree: '', field_of_study: '', start_date: '', end_date: '' }]);
-  const [photoFile, setPhotoFile] = useState<{ uri: string; name: string } | null>(null);
+  const [photoFile, setPhotoFile] = useState<LocalUploadFile | null>(null);
   const [linkedinUrl, setLinkedinUrl] = useState('');
   const [githubUrl, setGithubUrl] = useState('');
   const [portfolioUrl, setPortfolioUrl] = useState('');
@@ -94,9 +73,9 @@ export default function RegisterScreen() {
   const [addressCountry, setAddressCountry] = useState('');
   const [addressPostal, setAddressPostal] = useState('');
   const [companySocialLinks, setCompanySocialLinks] = useState<string[]>(['']);
-  const [verificationDocs, setVerificationDocs] = useState<{ uri: string; name: string }[]>([]);
-  const [logoFile, setLogoFile] = useState<{ uri: string; name: string } | null>(null);
-  const [officeImages, setOfficeImages] = useState<{ uri: string; name: string }[]>([]);
+  const [verificationDocs, setVerificationDocs] = useState<LocalUploadFile[]>([]);
+  const [logoFile, setLogoFile] = useState<LocalUploadFile | null>(null);
+  const [officeImages, setOfficeImages] = useState<LocalUploadFile[]>([]);
 
   const [roleSelected, setRoleSelected] = useState(false);
   const [emailDone, setEmailDone] = useState(false);
@@ -114,6 +93,7 @@ export default function RegisterScreen() {
   const [inviteCode, setInviteCode] = useState('');
   const [inviteError, setInviteError] = useState('');
   const [isInvitedHR, setIsInvitedHR] = useState(false);
+  const [pendingAuthRole, setPendingAuthRole] = useState<'applicant' | 'hr' | 'company_admin' | null>(null);
 
   const steps = role === 'applicant' ? APPLICANT_STEPS : HR_STEPS;
   const stepKey = steps[currentStep];
@@ -151,6 +131,90 @@ export default function RegisterScreen() {
     color: T.textSub,
     letterSpacing: 0.2,
     marginBottom: Spacing['2'],
+  };
+
+  const IMAGE_MIME_BY_EXTENSION: Record<string, string> = {
+    jpg: 'image/jpeg',
+    jpeg: 'image/jpeg',
+    png: 'image/png',
+    webp: 'image/webp',
+    heic: 'image/heic',
+    heif: 'image/heif',
+  };
+
+  const DOCUMENT_MIME_BY_EXTENSION: Record<string, string> = {
+    pdf: 'application/pdf',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  };
+
+  const getFileExtension = (value: string): string => {
+    const cleanValue = value.split('?')[0];
+    const fileName = cleanValue.split('/').pop() ?? cleanValue;
+    const parts = fileName.split('.');
+    return parts.length > 1 ? parts.pop()!.toLowerCase() : '';
+  };
+
+  const inferMimeType = (file: LocalUploadFile, uploadType: 'image' | 'document'): string => {
+    if (file.mimeType) return file.mimeType;
+
+    const extension = getFileExtension(file.name) || getFileExtension(file.uri);
+    if (uploadType === 'image') return IMAGE_MIME_BY_EXTENSION[extension] ?? 'image/jpeg';
+    return DOCUMENT_MIME_BY_EXTENSION[extension] ?? 'application/pdf';
+  };
+
+  const isImageLikeFile = (file: LocalUploadFile): boolean => {
+    if (file.mimeType?.startsWith('image/')) return true;
+    const extension = getFileExtension(file.name) || getFileExtension(file.uri);
+    return ['jpg', 'jpeg', 'png', 'webp'].includes(extension);
+  };
+
+  const IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
+
+  const isSupportedImageFile = (file: LocalUploadFile): boolean => {
+    const extension = getFileExtension(file.name) || getFileExtension(file.uri);
+    const normalizedMimeType = (file.mimeType ?? '').toLowerCase();
+
+    const hasSupportedExtension = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'].includes(extension);
+    const hasSupportedMime = normalizedMimeType === '' || IMAGE_MIME_TYPES.has(normalizedMimeType);
+
+    return hasSupportedExtension && hasSupportedMime;
+  };
+
+  const uploadSingleFile = async (file: LocalUploadFile, uploadType: 'image' | 'document'): Promise<string> => {
+    if (uploadType === 'image' && !isSupportedImageFile(file)) {
+      throw new Error('Unsupported image format. Please use JPG, PNG, WEBP, or HEIC.');
+    }
+
+    const fileName = file.name || `upload.${uploadType === 'image' ? 'jpg' : 'pdf'}`;
+    const fileType = inferMimeType(file, uploadType);
+
+    const localFileResponse = await fetch(file.uri);
+    const localFileBlob = await localFileResponse.blob();
+    const fileSize = typeof file.size === 'number' && file.size > 0 ? file.size : localFileBlob.size;
+
+    if (!fileSize || fileSize < 1) {
+      throw new Error('Selected file appears empty. Please choose another file.');
+    }
+
+    const uploadMeta = await api.post('/files/upload-url', {
+      file_name: fileName,
+      file_type: fileType,
+      file_size: fileSize,
+      upload_type: uploadType,
+    }) as { upload_url: string; public_url: string };
+
+    const uploadResponse = await fetch(uploadMeta.upload_url, {
+      method: 'PUT',
+      headers: { 'Content-Type': fileType },
+      body: localFileBlob,
+    });
+
+    if (!uploadResponse.ok) {
+      throw new Error('Unable to upload file to storage.');
+    }
+
+    await api.post('/files/confirm-upload', { file_url: uploadMeta.public_url });
+    return uploadMeta.public_url;
   };
 
   const addSkill = (type: 'hard' | 'soft', value?: string) => {
@@ -262,128 +326,57 @@ export default function RegisterScreen() {
 
   const handleSubmit = async () => {
     if (role === 'applicant') {
-      if (MOCK_APPLICANT_OTP) {
-        setError('');
-        setOtpCode('');
-        setOtpSent(true);
-        return;
-      }
-
       setLoading(true);
       try {
-        const response = await fetch('http://localhost:8000/api/v1/auth/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            password,
-            role,
-          }),
-        });
-        const data = await response.json();
-
-        if (!data.success) {
-          setError(data.message || 'Registration failed. Please try again.');
-          return;
-        }
-
+        setPendingAuthRole('applicant');
+        await api.post('/auth/register', { email, password, role, company_invite_token: null });
         setError('');
         setOtpCode('');
         setOtpSent(true);
-        return;
-      } catch {
-        setError('Could not connect to server. Please try again.');
-        return;
+      } catch (err: any) {
+        setError(err?.message || 'Registration failed. Please try again.');
       } finally {
         setLoading(false);
       }
+      return;
     }
 
     setLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          password,
-          role,
-          first_name: firstName,
-          last_name: lastName,
-          location,
-          location_city: locationCity,
-          location_region: locationRegion,
-          bio,
-          skills: [...hardSkills, ...softSkills],
-          resume_url: resumeFile?.uri ?? null,
-          photo_url: photoFile?.uri ?? null,
-          linkedin_url: linkedinUrl,
-          github_url: githubUrl,
-          portfolio_url: portfolioUrl,
-          twitter_url: twitterUrl,
-        }),
-      });
-      const data = await response.json();
-      if (!data.success) {
-        setError(data.message || 'Registration failed. Please try again.');
-        setCurrentStep(0);
+      const registrationRole: 'hr' | 'company_admin' = isInvitedHR ? 'hr' : 'company_admin';
+      setPendingAuthRole(registrationRole);
+      const data = await api.post('/auth/register', {
+        email,
+        password,
+        role: registrationRole,
+        company_invite_token: inviteCode || null,
+      }) as { token?: string; user?: { role?: string } };
+
+      // Some flows (e.g. magic-link verified invites) return a token immediately.
+      if (data?.token) {
+        const nextRole: 'hr' | 'company_admin' = data.user?.role === 'company_admin'
+          ? 'company_admin'
+          : data.user?.role === 'hr'
+            ? 'hr'
+            : registrationRole;
+        await setToken(data.token, nextRole);
+
+        if (nextRole === 'company_admin') {
+          await completeCompanyOnboarding();
+          // Wait for MongoDB to propagate the changes before navigating
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+
+        router.replace('/(company-tabs)/index');
         return;
       }
 
-      const token = data.data.token;
-
-      if (role === 'hr') {
-        await fetch('http://localhost:8000/api/v1/profile/onboarding/step/1', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({
-            company_name: companyName,
-            tagline: companyTagline,
-            description: companyDescription,
-            industry: companyIndustry,
-            company_size: companySize,
-            founded_year: foundedYear ? parseInt(foundedYear) : null,
-            website_url: websiteUrl || null,
-            address: {
-              street: addressStreet,
-              city: addressCity,
-              state: addressState,
-              country: addressCountry,
-              postal_code: addressPostal,
-            },
-            social_links: companySocialLinks.filter(Boolean),
-          }),
-        });
-
-        if (verificationDocs.length > 0) {
-          const formData2 = new FormData();
-          verificationDocs.forEach((doc) => {
-            formData2.append('verification_documents', { uri: doc.uri, name: doc.name, type: 'application/octet-stream' } as any);
-          });
-          await fetch('http://localhost:8000/api/v1/profile/onboarding/step/2', {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: formData2,
-          });
-        }
-
-        const formData3 = new FormData();
-        if (logoFile) formData3.append('logo_url', { uri: logoFile.uri, name: logoFile.name, type: 'image/jpeg' } as any);
-        officeImages.forEach((image) => {
-          formData3.append('office_images', { uri: image.uri, name: image.name, type: 'image/jpeg' } as any);
-        });
-        await fetch('http://localhost:8000/api/v1/profile/onboarding/step/3', {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData3,
-        });
-      }
-
-      await setToken(token, role);
-      router.replace(role === 'hr' ? '/(company-tabs)' : '/(tabs)');
-    } catch {
-      setError('Could not connect to server. Please try again.');
-      setCurrentStep(0);
+      // Standard API flow: registration sends OTP and verify-email returns token.
+      setError('');
+      setOtpCode('');
+      setOtpSent(true);
+    } catch (err: any) {
+      setError(err?.message || 'Could not connect to server. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -395,68 +388,80 @@ export default function RegisterScreen() {
     else handleSubmit();
   };
 
-  const completeApplicantOnboarding = async (token: string) => {
-    const headers = {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    };
+  const completeApplicantOnboarding = async () => {
+    const resumeUrl = resumeFile ? await uploadSingleFile(resumeFile, 'document') : null;
+    const profilePhotoUrl = photoFile ? await uploadSingleFile(photoFile, 'image') : null;
 
     const stepPayloads = [
-      {
-        step: 1,
-        step_data: {
-          first_name: firstName,
-          last_name: lastName,
-          location,
-          location_city: locationCity || null,
-          location_region: locationRegion || null,
-          bio: bio || null,
-        },
-      },
-      {
-        step: 2,
-        step_data: {
-          resume_url: resumeFile?.uri ?? null,
-        },
-      },
-      {
-        step: 3,
-        step_data: {
-          skills: [...hardSkills, ...softSkills],
-        },
-      },
-      {
-        step: 4,
-        step_data: {
-          work_experience: normalizedWorkEntries,
-          education: normalizedEducationEntries,
-        },
-      },
-      {
-        step: 5,
-        step_data: {
-          profile_photo_url: photoFile?.uri ?? null,
-        },
-      },
-      {
-        step: 6,
-        step_data: {
-          social_links: normalizedSocialLinks,
-        },
-      },
+      { step: 1, step_data: { first_name: firstName, last_name: lastName, location, location_city: locationCity || null, location_region: locationRegion || null, bio: bio || null } },
+      { step: 2, step_data: { resume_url: resumeUrl } },
+      { step: 3, step_data: { skills: [...hardSkills, ...softSkills] } },
+      { step: 4, step_data: { work_experience: normalizedWorkEntries, education: normalizedEducationEntries } },
+      { step: 5, step_data: { profile_photo_url: profilePhotoUrl } },
+      { step: 6, step_data: { social_links: normalizedSocialLinks } },
     ];
 
     for (const payload of stepPayloads) {
-      const response = await fetch('http://localhost:8000/api/v1/profile/onboarding/complete-step', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(payload),
-      });
-      const data = await response.json();
+      await api.post('/profile/onboarding/complete-step', payload);
+    }
+  };
 
-      if (!data.success) {
-        throw new Error(data.message || 'Could not complete applicant onboarding.');
-      }
+  const completeCompanyOnboarding = async () => {
+    const onboardingStatus = await api.get('/profile/onboarding/status') as { onboarding_step?: number | string };
+    const rawStep = onboardingStatus?.onboarding_step;
+    const currentStep = rawStep === 'completed'
+      ? 4
+      : typeof rawStep === 'number'
+        ? rawStep
+        : Number.parseInt(String(rawStep ?? '1'), 10) || 1;
+
+    if (currentStep <= 1) {
+      await api.post('/profile/onboarding/complete-step', {
+        step: 1,
+        step_data: {
+          company_name: companyName,
+          tagline: companyTagline || null,
+          description: companyDescription,
+          industry: companyIndustry,
+          company_size: companySize,
+          founded_year: foundedYear ? parseInt(foundedYear, 10) : null,
+          website_url: websiteUrl || null,
+          address: {
+            street: addressStreet || null,
+            city: addressCity || null,
+            state: (addressCountry === 'Philippines' ? (addressProvince || addressState) : addressState) || null,
+            region: addressState || null,
+            province: addressProvince || null,
+            country: addressCountry || null,
+            postal_code: addressPostal || null,
+          },
+          social_links: companySocialLinks.filter(Boolean),
+        },
+      });
+    }
+
+    if (currentStep <= 2) {
+      const verificationDocumentUrls = await Promise.all(
+        verificationDocs.map((file) => uploadSingleFile(file, isImageLikeFile(file) ? 'image' : 'document'))
+      );
+      await api.post('/profile/onboarding/complete-step', {
+        step: 2,
+        step_data: { verification_documents: verificationDocumentUrls },
+      });
+    }
+
+    if (currentStep <= 3) {
+      const logoUrl = logoFile ? await uploadSingleFile(logoFile, 'image') : null;
+      const officeImageUrls = await Promise.all(
+        officeImages.map((file) => uploadSingleFile(file, 'image'))
+      );
+      await api.post('/profile/onboarding/complete-step', {
+        step: 3,
+        step_data: {
+          logo_url: logoUrl,
+          office_images: officeImageUrls,
+        },
+      });
     }
   };
 
@@ -467,54 +472,42 @@ export default function RegisterScreen() {
       return;
     }
 
-    if (MOCK_APPLICANT_OTP) {
-      if (otpCode.trim() !== MOCK_APPLICANT_OTP_CODE) {
-        setError('Invalid test OTP. Use the temporary testing code.');
-        setErrorTimestamp(Date.now());
-        return;
-      }
-
-      setError('');
-      await setToken(MOCK_APPLICANT_OTP_TOKEN, 'applicant');
-      router.replace('/(tabs)');
-      return;
-    }
-
     setOtpLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/verify-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email,
-          code: otpCode.trim(),
-        }),
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        setError(data.message || 'Verification failed. Please try again.');
-        setErrorTimestamp(Date.now());
-        return;
-      }
-
-      const token = data?.data?.token;
+      const data = await api.post('/auth/verify-email', { email, code: otpCode.trim() }) as { token?: string; user?: { role?: string } };
+      const token = data?.token;
       if (!token) {
         setError('Verification succeeded, but no session token was returned.');
         setErrorTimestamp(Date.now());
         return;
       }
+      const fallbackCompanyRole: 'hr' | 'company_admin' = isInvitedHR ? 'hr' : 'company_admin';
+      const resolvedRole = data.user?.role === 'company_admin'
+        ? 'company_admin'
+        : data.user?.role === 'hr'
+          ? 'hr'
+          : pendingAuthRole === 'company_admin'
+            ? 'company_admin'
+            : pendingAuthRole === 'hr'
+              ? 'hr'
+              : role === 'hr'
+                ? fallbackCompanyRole
+                : 'applicant';
+      await setToken(token, resolvedRole);
 
-      await setToken(token, 'applicant');
-      try {
-        await completeApplicantOnboarding(token);
-      } catch {
-        // The account is already created and verified at this point.
+      if (resolvedRole === 'applicant') {
+        try { await completeApplicantOnboarding(); } catch { /* account verified, continue */ }
+        router.replace('/(tabs)');
+      } else {
+        if (resolvedRole === 'company_admin') {
+          await completeCompanyOnboarding();
+          // Wait for MongoDB to propagate the changes before navigating
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        router.replace('/(company-tabs)/index');
       }
-      router.replace('/(tabs)');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Could not complete verification. Please try again.';
-      setError(message);
+    } catch (err: any) {
+      setError(err?.message || 'Could not complete verification. Please try again.');
       setErrorTimestamp(Date.now());
     } finally {
       setOtpLoading(false);
@@ -522,28 +515,12 @@ export default function RegisterScreen() {
   };
 
   const handleResendOtp = async () => {
-    if (MOCK_APPLICANT_OTP) {
-      setError('');
-      return;
-    }
-
     setResendLoading(true);
     try {
-      const response = await fetch('http://localhost:8000/api/v1/auth/resend-verification', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-      const data = await response.json();
-
-      if (!data.success) {
-        setError(data.message || 'Could not resend the verification code.');
-        return;
-      }
-
+      await api.post('/auth/resend-verification', { email });
       setError('');
-    } catch {
-      setError('Could not resend the verification code. Please try again.');
+    } catch (err: any) {
+      setError(err?.message || 'Could not resend the verification code. Please try again.');
     } finally {
       setResendLoading(false);
     }
@@ -633,6 +610,7 @@ export default function RegisterScreen() {
     setInviteCode('');
     setInviteError('');
     setIsInvitedHR(false);
+    setPendingAuthRole(null);
   };
 
   if (!roleSelected) {
@@ -659,31 +637,59 @@ export default function RegisterScreen() {
           setInviteCode(value);
           setInviteError('');
         }}
-        onVerify={() => {
+        onVerify={async () => {
           if (!inviteCode.trim()) {
             setInviteError('Please enter your invite code.');
             return;
           }
-          const inviteInfo = getInfoFromInviteCode(inviteCode.trim());
-          if (inviteInfo) {
-            setEmail(inviteInfo.email);
-            setDetectedCompany(inviteInfo.company);
-            setIsInvitedHR(true);
-            setShowInvitePrompt(false);
-            setEmailDone(true);
-            return;
+          try {
+            const data = await api.post('/company/invites/validate', { email, token: inviteCode.trim() }) as { company_name: string; role: string; valid: boolean };
+            if (data.valid) {
+              setDetectedCompany({ name: data.company_name, validCodes: [] });
+              setIsInvitedHR(true);
+              setShowInvitePrompt(false);
+              setEmailDone(true);
+            } else {
+              setInviteError('Invalid invite code. Please check with your company admin.');
+            }
+          } catch {
+            setInviteError('Invalid invite code. Please check with your company admin.');
           }
-          if (detectedCompany && detectedCompany.validCodes.includes(inviteCode.trim().toUpperCase())) {
-            setIsInvitedHR(true);
-            setShowInvitePrompt(false);
-            setEmailDone(true);
-            return;
-          }
-          setInviteError('Invalid invite code. Please check with your company admin.');
         }}
         onRequestInvite={() => {
           setInviteError('');
           alert(`Contact your ${detectedCompany ? detectedCompany.name : 'company'} admin to receive an invite link to your work email.`);
+        }}
+      />
+    );
+  }
+
+  if (otpSent) {
+    return (
+      <RegisterOtpVerificationScreen
+        T={T}
+        topInset={topInset}
+        email={email}
+        code={otpCode}
+        error={error}
+        errorTimestamp={errorTimestamp}
+        helperMessage={undefined}
+        verifying={otpLoading}
+        resending={resendLoading}
+        fieldLabelStyle={fieldLabelStyle}
+        inputRowStyle={inputRowStyle}
+        inputStyle={inputStyle}
+        onBack={() => {
+          setOtpSent(false);
+          setOtpCode('');
+          setError('');
+        }}
+        onChangeCode={setOtpCode}
+        onVerify={() => {
+          void handleVerifyOtp();
+        }}
+        onResend={() => {
+          void handleResendOtp();
         }}
       />
     );
@@ -702,43 +708,18 @@ export default function RegisterScreen() {
         jobTitleOptions={JOB_TITLE_OPTIONS}
         setToken={setToken}
         inviteCode={inviteCode}
+        onOtpSent={() => {
+          setError('');
+          setOtpCode('');
+          setIsInvitedHR(false);
+          setOtpSent(true);
+        }}
         onBack={() => {
           setEmailDone(false);
           setIsInvitedHR(false);
           setInviteCode('');
           setInviteError('');
           setShowInvitePrompt(false);
-        }}
-      />
-    );
-  }
-
-  if (role === 'applicant' && otpSent) {
-    return (
-      <RegisterOtpVerificationScreen
-        T={T}
-        topInset={topInset}
-        email={email}
-        code={otpCode}
-        error={error}
-        errorTimestamp={errorTimestamp}
-        helperMessage={MOCK_APPLICANT_OTP ? `Temporary OTP testing mode is enabled. Use code ${MOCK_APPLICANT_OTP_CODE}. No email or verification API call will be made.` : undefined}
-        verifying={otpLoading}
-        resending={resendLoading}
-        fieldLabelStyle={fieldLabelStyle}
-        inputRowStyle={inputRowStyle}
-        inputStyle={inputStyle}
-        onBack={() => {
-          setOtpSent(false);
-          setOtpCode('');
-          setError('');
-        }}
-        onChangeCode={setOtpCode}
-        onVerify={() => {
-          void handleVerifyOtp();
-        }}
-        onResend={() => {
-          void handleResendOtp();
         }}
       />
     );
@@ -775,11 +756,6 @@ export default function RegisterScreen() {
             return;
           }
           setError('');
-          const company = getCompanyFromEmail(email);
-          if (company) {
-            setError(`The domain @${email.split('@')[1]} is already in use by ${company.name}. Please register via invite code or use a different email.`);
-            return;
-          }
           setEmailDone(true);
         }}
         onInviteCode={() => {
