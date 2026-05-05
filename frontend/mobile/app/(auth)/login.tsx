@@ -3,16 +3,17 @@ import {
   Text,
   TextInput,
   TouchableOpacity,
-  KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
   StatusBar,
   Animated,
   Easing,
+  Keyboard,
+  ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Link, router } from 'expo-router';
-import { useRef, useState, useEffect } from 'react';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../services/api';
@@ -192,6 +193,8 @@ export default function LoginScreen() {
   const { top, bottom }                 = useSafeAreaInsets();
   const setToken                        = useAuthStore((s) => s.setToken);
   const passwordRef                     = useRef<TextInput>(null);
+  const scrollViewRef                   = useRef<ScrollView>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   // Entrance animations
   const heroOpacity  = useRef(new Animated.Value(0)).current;
@@ -199,6 +202,34 @@ export default function LoginScreen() {
   const sheetSlide   = useRef(new Animated.Value(80)).current;
   const sheetOpacity = useRef(new Animated.Value(0)).current;
   const arrowNudge   = useRef(new Animated.Value(0)).current;
+
+  // Dismiss keyboard and reset layout when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      Keyboard.dismiss();
+      setKeyboardVisible(false);
+      return () => {
+        Keyboard.dismiss();
+      };
+    }, [])
+  );
+
+  // Track keyboard visibility
+  useEffect(() => {
+    const showSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setKeyboardVisible(true)
+    );
+    const hideSubscription = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setKeyboardVisible(false)
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     Animated.parallel([
@@ -263,7 +294,7 @@ export default function LoginScreen() {
 
   return (
     // flex: 1 + overflow hidden = the root never grows beyond the screen
-    <View style={{ flex: 1, backgroundColor: '#0D0520', overflow: 'hidden' }}>
+    <View style={{ flex: 1, backgroundColor: '#0D0520' }}>
       <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
       {/* ── Orbs ──────────────────────────────────────────────────────── */}
@@ -333,29 +364,27 @@ export default function LoginScreen() {
         </Text>
       </Animated.View>
 
-      {/* ── Sheet — pinned to the bottom, keyboard-aware ───────────────── */}
-      {/*
-        KeyboardAvoidingView with justifyContent:"flex-end" keeps the sheet
-        glued to the bottom at rest. When the keyboard opens it pushes the
-        sheet up exactly enough to stay visible. No ScrollView means no
-        bounce / over-scroll — the hero behind is always locked in place.
-      */}
-      <KeyboardAvoidingView
-        style={{ flex: 1, justifyContent: 'flex-end' }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <Animated.View style={{
-          backgroundColor: '#fff',
-          borderTopLeftRadius: 32,
-          borderTopRightRadius: 32,
-          paddingHorizontal: 28,
-          paddingTop: 28,
-          // Respect home indicator on notched devices
-          paddingBottom: Math.max(bottom, 24) + 8,
-          maxHeight: '65%', // Limit sheet height so hero content is visible
-          transform: [{ translateY: sheetSlide }],
-          opacity: sheetOpacity,
-        }}>
+      {/* ── Sheet — pinned to the bottom ───────────────────────────────── */}
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <ScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+          keyboardShouldPersistTaps="handled"
+          scrollEnabled={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View style={{
+            backgroundColor: '#fff',
+            borderTopLeftRadius: 32,
+            borderTopRightRadius: 32,
+            paddingHorizontal: 28,
+            paddingTop: 28,
+            // Respect home indicator on notched devices
+            paddingBottom: Math.max(bottom, 24) + 8,
+            minHeight: '60%', // Ensure sheet always reaches bottom
+            transform: [{ translateY: sheetSlide }],
+            opacity: sheetOpacity,
+          }}>
 
           {/* Drag handle (decorative only — sheet does not actually drag) */}
           <View style={{
@@ -500,7 +529,8 @@ export default function LoginScreen() {
           </View>
 
         </Animated.View>
-      </KeyboardAvoidingView>
+        </ScrollView>
+      </View>
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Animated, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View, Keyboard } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
 import { TEST_MODE_ENABLED, TEST_OTP_CODE } from '../../../constants/testAccounts';
@@ -84,11 +84,14 @@ export function RegisterOtpVerificationScreen({
     };
   }, [errorTimestamp, error, shakeAnimation]);
 
+  useEffect(() => {
+    return () => {
+      Keyboard.dismiss();
+    };
+  }, []);
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}>
       <StatusBar barStyle="light-content" />
 
       <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['5'] }}>
@@ -239,6 +242,6 @@ export function RegisterOtpVerificationScreen({
 
         <Spacer size="xl" />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
