@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
-import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useCallback } from 'react';
+import { Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View, Keyboard } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SvgXml } from 'react-native-svg';
 import { Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
@@ -58,11 +58,15 @@ export function RegisterEmailGate({
   onInviteCode,
   onToggleTestMode,
 }: Props) {
+  // Dismiss keyboard when component unmounts
+  useEffect(() => {
+    return () => {
+      Keyboard.dismiss();
+    };
+  }, []);
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}>
       <StatusBar barStyle="light-content" />
       <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['5'] }}>
         <TouchableOpacity
@@ -234,6 +238,6 @@ export function RegisterEmailGate({
 
         <Spacer size="xl" />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

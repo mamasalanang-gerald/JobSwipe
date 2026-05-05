@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { StatusBar, Text, TouchableOpacity, View, Animated, Easing, Platform, KeyboardAvoidingView } from 'react-native';
+import { StatusBar, Text, TouchableOpacity, View, Animated, Easing, Platform, Keyboard } from 'react-native';
 import { useRef, useEffect } from 'react';
 import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -242,7 +242,7 @@ export function RegisterRoleSplash({ T, topInset, bottomInset, role, setRole, on
       </Animated.View>
 
       {/* ── Sheet ─────────────────────────────────────────────────────── */}
-      <KeyboardAvoidingView style={{ flex: 1, justifyContent: 'flex-end' }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
         <Animated.View
           style={{
             backgroundColor: '#fff',
@@ -251,7 +251,7 @@ export function RegisterRoleSplash({ T, topInset, bottomInset, role, setRole, on
             paddingHorizontal: 28,
             paddingTop: 28,
             paddingBottom: Math.max(bottomInset, 24) + 8,
-            maxHeight: '70%', // Limit sheet height so hero content is visible
+            minHeight: '60%', // Ensure sheet always reaches bottom
             transform: [{ translateY: sheetSlide }],
             opacity: sheetOpacity,
           }}
@@ -402,7 +402,7 @@ export function RegisterRoleSplash({ T, topInset, bottomInset, role, setRole, on
             </Link>
           </View>
         </Animated.View>
-      </KeyboardAvoidingView>
+      </View>
     </View>
   );
 }

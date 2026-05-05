@@ -1,7 +1,7 @@
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View, Keyboard } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Link, router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { Link, router, useFocusEffect } from 'expo-router';
+import { useEffect, useState, useCallback } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ExpoLinking from 'expo-linking';
 import { useAuthStore } from '../../store/authStore';
@@ -96,6 +96,15 @@ export default function RegisterScreen() {
   const [isInvitedHR, setIsInvitedHR] = useState(false);
   const [pendingAuthRole, setPendingAuthRole] = useState<'applicant' | 'hr' | 'company_admin' | null>(null);
   const [testMode, setTestMode] = useState(TEST_MODE_ENABLED);
+
+  // HR form state (lifted to preserve across navigation)
+  const [hrFirstName, setHrFirstName] = useState('');
+  const [hrLastName, setHrLastName] = useState('');
+  const [hrJobTitle, setHrJobTitle] = useState('');
+  const [hrCustomJobTitle, setHrCustomJobTitle] = useState('');
+  const [hrProfilePhoto, setHrProfilePhoto] = useState<{ uri: string; name: string } | null>(null);
+  const [hrPassword, setHrPassword] = useState('');
+  const [hrConfirmPassword, setHrConfirmPassword] = useState('');
 
   const steps = role === 'applicant' ? APPLICANT_STEPS : HR_STEPS;
   const stepKey = steps[currentStep];
@@ -259,6 +268,16 @@ export default function RegisterScreen() {
     ...(githubUrl.trim().startsWith('https://') ? { github: githubUrl.trim() } : {}),
     ...(portfolioUrl.trim().startsWith('https://') ? { portfolio: portfolioUrl.trim() } : {}),
   };
+
+  // Dismiss keyboard and reset layout when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      Keyboard.dismiss();
+      return () => {
+        Keyboard.dismiss();
+      };
+    }, [])
+  );
 
   useEffect(() => {
     const completeGoogleAuth = async (url: string | null) => {
@@ -693,10 +712,11 @@ export default function RegisterScreen() {
         autoDetected={!!detectedCompany}
         userEmail={email}
         onBack={() => {
+          // Go back to HR form without clearing company detection
           setShowInvitePrompt(false);
           setInviteCode('');
           setInviteError('');
-          setDetectedCompany(null);
+          // Keep detectedCompany and isInvitedHR so form data is preserved
         }}
         onChangeInviteCode={(value) => {
           setInviteCode(value);
@@ -785,6 +805,21 @@ export default function RegisterScreen() {
         setToken={setToken}
         inviteCode={inviteCode}
         requiresInviteCode={!!detectedCompany} // Require invite code if company was detected
+        // Pass lifted state
+        firstName={hrFirstName}
+        setFirstName={setHrFirstName}
+        lastName={hrLastName}
+        setLastName={setHrLastName}
+        jobTitle={hrJobTitle}
+        setJobTitle={setHrJobTitle}
+        customJobTitle={hrCustomJobTitle}
+        setCustomJobTitle={setHrCustomJobTitle}
+        profilePhoto={hrProfilePhoto}
+        setProfilePhoto={setHrProfilePhoto}
+        password={hrPassword}
+        setPassword={setHrPassword}
+        confirmPassword={hrConfirmPassword}
+        setConfirmPassword={setHrConfirmPassword}
         onFormComplete={() => {
           // Form is complete, now show invite code prompt
           setInviteCode(''); // Clear any existing code
@@ -869,7 +904,8 @@ export default function RegisterScreen() {
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
     >
       <StatusBar barStyle="light-content" />
 

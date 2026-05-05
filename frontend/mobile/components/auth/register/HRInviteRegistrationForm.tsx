@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { router } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View, Keyboard } from 'react-native';
 import { Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -19,10 +19,25 @@ type Props = {
   jobTitleOptions: string[];
   setToken: (token: string, role?: AuthRole | null) => Promise<void>;
   inviteCode: string;
-  requiresInviteCode?: boolean; // New prop to indicate if invite code is required after form
+  requiresInviteCode?: boolean;
+  // Lifted state props
+  firstName: string;
+  setFirstName: (value: string) => void;
+  lastName: string;
+  setLastName: (value: string) => void;
+  jobTitle: string;
+  setJobTitle: (value: string) => void;
+  customJobTitle: string;
+  setCustomJobTitle: (value: string) => void;
+  profilePhoto: { uri: string; name: string } | null;
+  setProfilePhoto: (value: { uri: string; name: string } | null) => void;
+  password: string;
+  setPassword: (value: string) => void;
+  confirmPassword: string;
+  setConfirmPassword: (value: string) => void;
   onOtpSent: () => void;
   onBack: () => void;
-  onFormComplete?: () => void; // New callback when form is complete but needs invite code
+  onFormComplete?: () => void;
 };
 
 export function HRInviteRegistrationForm({
@@ -37,22 +52,37 @@ export function HRInviteRegistrationForm({
   setToken,
   inviteCode,
   requiresInviteCode = false,
+  // Lifted state
+  firstName,
+  setFirstName,
+  lastName,
+  setLastName,
+  jobTitle,
+  setJobTitle,
+  customJobTitle,
+  setCustomJobTitle,
+  profilePhoto,
+  setProfilePhoto,
+  password,
+  setPassword,
+  confirmPassword,
+  setConfirmPassword,
   onOtpSent,
   onBack,
   onFormComplete,
 }: Props) {
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [jobTitle, setJobTitle] = useState('');
-  const [customJobTitle, setCustomJobTitle] = useState('');
+  // Only keep UI state local
   const [showJobTitleDropdown, setShowJobTitleDropdown] = useState(false);
-  const [profilePhoto, setProfilePhoto] = useState<{ uri: string; name: string } | null>(null);
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    return () => {
+      Keyboard.dismiss();
+    };
+  }, []);
 
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
@@ -139,10 +169,7 @@ export function HRInviteRegistrationForm({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}>
       <StatusBar barStyle="light-content" />
       <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['3'] }}>
         <TouchableOpacity onPress={onBack} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], alignSelf: 'flex-start' }} activeOpacity={0.7}>
@@ -351,6 +378,6 @@ export function HRInviteRegistrationForm({
 
         <Spacer size="xl" />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

@@ -1,7 +1,7 @@
-import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View, Keyboard } from 'react-native';
+import React, { useEffect } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
+import { Radii, Shadows, Spacing, Typography } from '../../ui';
 
 type CompanyInfo = { name: string; validCodes: string[] } | null;
 
@@ -15,7 +15,6 @@ type Props = {
   inputRowStyle: any;
   inputStyle: any;
   autoDetected?: boolean;
-  userEmail?: string;
   onBack: () => void;
   onChangeInviteCode: (value: string) => void;
   onVerify: () => void;
@@ -32,19 +31,23 @@ export function RegisterInviteCodeScreen({
   inputRowStyle,
   inputStyle,
   autoDetected = false,
-  userEmail = '',
   onBack,
   onChangeInviteCode,
   onVerify,
   onRequestInvite,
 }: Props) {
+  useEffect(() => {
+    return () => {
+      Keyboard.dismiss();
+    };
+  }, []);
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
+    <View style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}>
       <StatusBar barStyle="light-content" />
-      <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['5'] }}>
+      
+      {/* Header */}
+      <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['3'] }}>
         <TouchableOpacity
           onPress={onBack}
           style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], alignSelf: 'flex-start' }}
@@ -55,42 +58,66 @@ export function RegisterInviteCodeScreen({
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['4'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {autoDetected && detectedCompany ? (
-          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: Spacing['2'], backgroundColor: T.primary + '15', borderWidth: 1, borderColor: T.primary + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="information-outline" size={18} color={T.primary} style={{ marginTop: 2 }} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ color: T.textPrimary, fontSize: Typography.sm, fontWeight: Typography.semibold as any }}>
-                Almost Done!
-              </Text>
-              <Text style={{ color: T.textSub, fontSize: Typography.xs, marginTop: 4, lineHeight: 18 }}>
-                Your registration form is complete. We detected that {detectedCompany.name} already exists. Enter your invite code below to finalize joining the team.
-              </Text>
+      <ScrollView 
+        contentContainerStyle={{ 
+          paddingHorizontal: Spacing['5'], 
+          paddingBottom: Spacing['8'],
+          flexGrow: 1,
+          justifyContent: 'center'
+        }} 
+        keyboardShouldPersistTaps="handled" 
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Main Content Card */}
+        <View style={{ 
+          backgroundColor: T.surface, 
+          borderRadius: Radii.xl, 
+          padding: Spacing['6'],
+          ...Shadows.lg
+        }}>
+          {/* Icon & Title */}
+          <View style={{ alignItems: 'center', marginBottom: Spacing['6'] }}>
+            <View style={{ 
+              width: 72, 
+              height: 72, 
+              borderRadius: Radii.full, 
+              backgroundColor: T.primary + '18', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              marginBottom: Spacing['4']
+            }}>
+              <MaterialCommunityIcons name="office-building" size={36} color={T.primary} />
             </View>
-          </View>
-        ) : null}
-
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['2'] }}>
-            <View style={{ width: 56, height: 56, borderRadius: Radii.xl, backgroundColor: T.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialCommunityIcons name="office-building" size={28} color={T.primary} />
-            </View>
-            <Text style={{ fontSize: Typography.lg, fontWeight: Typography.bold as any, color: T.textPrimary, textAlign: 'center' }}>
-              {autoDetected ? `Verify Your Access to ${detectedCompany?.name || 'Company'}` : 'Join with an invite code'}
+            
+            <Text style={{ 
+              fontSize: Typography.xl, 
+              fontWeight: Typography.bold as any, 
+              color: T.textPrimary, 
+              textAlign: 'center',
+              marginBottom: Spacing['2']
+            }}>
+              {autoDetected ? `Join ${detectedCompany?.name || 'Company'}` : 'Enter Invite Code'}
             </Text>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, textAlign: 'center', lineHeight: 20 }}>
+            
+            <Text style={{ 
+              fontSize: Typography.sm, 
+              color: T.textSub, 
+              textAlign: 'center', 
+              lineHeight: 20 
+            }}>
               {autoDetected 
-                ? `You've completed your registration form. To finalize joining ${detectedCompany?.name || 'this company'} as an HR member, please enter the invite code provided by your company administrator.`
-                : 'Enter the code from your company admin. We\'ll use it to verify your company and work email.'}
+                ? `Enter your invite code to complete registration and join the team`
+                : 'Enter the code from your company admin to verify your access'}
             </Text>
           </View>
-        </SectionCard>
 
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Finalize Registration">
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={fieldLabelStyle}>Company invite token</Text>
+          {/* Input Section */}
+          <View style={{ marginBottom: Spacing['5'] }}>
+            <Text style={[fieldLabelStyle, { marginBottom: Spacing['2'] }]}>
+              Invite Code
+            </Text>
             <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="ticket-outline" size={16} color={T.textHint} />
+              <MaterialCommunityIcons name="ticket-outline" size={20} color={T.textHint} />
               <TextInput
                 style={inputStyle}
                 placeholder="e.g. COMPANY-HR-2024"
@@ -101,53 +128,100 @@ export function RegisterInviteCodeScreen({
                 autoFocus={!autoDetected}
               />
             </View>
-            {autoDetected && (
-              <Text style={{ fontSize: Typography.xs, color: T.textHint, lineHeight: 16 }}>
-                Enter the invite code from your {detectedCompany?.name || 'company'} administrator to complete your registration and join the team.
+            {inviteError ? (
+              <Text style={{ 
+                fontSize: Typography.xs, 
+                color: T.danger, 
+                marginTop: Spacing['2'] 
+              }}>
+                {inviteError}
               </Text>
-            )}
-            {inviteError ? <Text style={{ fontSize: Typography.xs, color: T.danger }}>{inviteError}</Text> : null}
+            ) : null}
           </View>
-        </SectionCard>
 
-        <TouchableOpacity
-          style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: T.primary, borderRadius: Radii.lg, paddingVertical: Spacing['4'], ...Shadows.colored(T.primary) }}
-          onPress={onVerify}
-          activeOpacity={0.85}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-            <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>
-              {autoDetected ? 'Complete Registration' : 'Verify & Continue'}
+          {/* Primary Action Button */}
+          <TouchableOpacity
+            style={{ 
+              alignItems: 'center', 
+              justifyContent: 'center', 
+              backgroundColor: T.primary, 
+              borderRadius: Radii.lg, 
+              paddingVertical: Spacing['4'],
+              marginBottom: Spacing['4'],
+              ...Shadows.colored(T.primary) 
+            }}
+            onPress={onVerify}
+            activeOpacity={0.85}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
+              <Text style={{ 
+                color: T.white, 
+                fontSize: Typography.md, 
+                fontWeight: Typography.semibold as any 
+              }}>
+                {autoDetected ? 'Complete Registration' : 'Verify & Continue'}
+              </Text>
+              <MaterialCommunityIcons name="check-circle" size={20} color={T.white} />
+            </View>
+          </TouchableOpacity>
+
+          {/* Divider */}
+          <View style={{ 
+            flexDirection: 'row', 
+            alignItems: 'center', 
+            marginVertical: Spacing['4'] 
+          }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: T.border }} />
+            <Text style={{ 
+              marginHorizontal: Spacing['3'], 
+              fontSize: Typography.xs, 
+              color: T.textHint 
+            }}>
+              OR
             </Text>
-            <MaterialCommunityIcons name="check-circle" size={18} color={T.white} />
+            <View style={{ flex: 1, height: 1, backgroundColor: T.border }} />
           </View>
-        </TouchableOpacity>
 
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ gap: Spacing['3'] }}>
-            <Text style={{ fontSize: Typography.sm, fontWeight: Typography.semibold as any, color: T.textPrimary }}>
-              {autoDetected ? 'Need an invite code?' : 'Don\'t have an invite code?'}
+          {/* Request Invite Section */}
+          <View style={{ alignItems: 'center' }}>
+            <Text style={{ 
+              fontSize: Typography.sm, 
+              color: T.textSub, 
+              textAlign: 'center',
+              marginBottom: Spacing['3'],
+              lineHeight: 20
+            }}>
+              Don't have an invite code? Contact your company administrator to request access.
             </Text>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, lineHeight: 20 }}>
-              {autoDetected 
-                ? `Your company administrator can provide you with an invite code. Contact them to request access to join ${detectedCompany?.name || 'the company'} as an HR team member.`
-                : `Ask your company admin to send you an invite link, or contact ${detectedCompany ? detectedCompany.name : 'your company'}'s HR team to get access.`}
-            </Text>
+            
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing['2'], borderWidth: 1, borderColor: T.primary, borderRadius: Radii.lg, paddingVertical: Spacing['3'] }}
+              style={{ 
+                flexDirection: 'row', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                gap: Spacing['2'], 
+                borderWidth: 1.5, 
+                borderColor: T.primary, 
+                borderRadius: Radii.lg, 
+                paddingVertical: Spacing['3'],
+                paddingHorizontal: Spacing['4'],
+                minWidth: 200
+              }}
               onPress={onRequestInvite}
               activeOpacity={0.8}
             >
-              <MaterialCommunityIcons name="email-arrow-right-outline" size={16} color={T.primary} />
-              <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.semibold as any }}>
-                {autoDetected ? 'Request invite code' : 'Request an invite link'}
+              <MaterialCommunityIcons name="email-arrow-right-outline" size={18} color={T.primary} />
+              <Text style={{ 
+                fontSize: Typography.sm, 
+                color: T.primary, 
+                fontWeight: Typography.semibold as any 
+              }}>
+                Request Invite
               </Text>
             </TouchableOpacity>
           </View>
-        </SectionCard>
-
-        <Spacer size="xl" />
+        </View>
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
