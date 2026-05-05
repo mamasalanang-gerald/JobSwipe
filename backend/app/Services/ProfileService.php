@@ -81,7 +81,14 @@ class ProfileService
     public function updateApplicantSkills(string $userId, array $skills): array
     {
         $profile = $this->ensureApplicantDocument($userId);
-        $updated = $this->applicantDocs->update($profile, ['skills' => array_values($skills)]);
+
+        // Ensure skills has the correct structure
+        $skillsData = [
+            'hard_skills' => $skills['hard_skills'] ?? [],
+            'soft_skills' => $skills['soft_skills'] ?? [],
+        ];
+
+        $updated = $this->applicantDocs->update($profile, ['skills' => $skillsData]);
 
         return $this->withApplicantCompletion($updated);
     }
@@ -194,12 +201,47 @@ class ProfileService
         return $this->withApplicantCompletion($updated);
     }
 
+    public function updateApplicantCoverPhoto(string $userId, string $coverUrl): array
+    {
+        $profile = $this->ensureApplicantDocument($userId);
+        $updated = $this->applicantDocs->update($profile, ['cover_url' => $coverUrl]);
+
+        return $this->withApplicantCompletion($updated);
+    }
+
+    public function updateApplicantPhotos(string $userId, array $photos): array
+    {
+        $profile = $this->ensureApplicantDocument($userId);
+        $updated = $this->applicantDocs->update($profile, ['photos' => $photos]);
+
+        return $this->withApplicantCompletion($updated);
+    }
+
     public function updateSocialLinks(string $userId, array $socialLinks): array
     {
         $this->validateSocialLinks($socialLinks);
 
         $profile = $this->ensureApplicantDocument($userId);
         $updated = $this->applicantDocs->update($profile, ['social_links' => $socialLinks]);
+
+        return $this->withApplicantCompletion($updated);
+    }
+
+    public function updateJobPreferences(string $userId, array $jobPreferences): array
+    {
+        $profile = $this->ensureApplicantDocument($userId);
+
+        // Validate and structure job preferences
+        $preferencesData = [
+            'desired_position' => $jobPreferences['desired_position'] ?? null,
+            'preferred_locations' => $jobPreferences['preferred_locations'] ?? [],
+            'work_type' => $jobPreferences['work_type'] ?? [],
+            'employment_type' => $jobPreferences['employment_type'] ?? [],
+            'salary_expectation' => $jobPreferences['salary_expectation'] ?? null,
+            'willing_to_relocate' => $jobPreferences['willing_to_relocate'] ?? null,
+        ];
+
+        $updated = $this->applicantDocs->update($profile, ['job_preferences' => $preferencesData]);
 
         return $this->withApplicantCompletion($updated);
     }
@@ -349,7 +391,7 @@ class ProfileService
             'subscription_status' => 'inactive',
             'total_points' => 0,
             'daily_swipes_used' => 0,
-            'daily_swipe_limit' => 15,
+            'daily_swipe_limit' => 65,
             'extra_swipe_balance' => 0,
         ]);
 
@@ -358,15 +400,17 @@ class ProfileService
             'first_name' => '',
             'last_name' => '',
             'profile_photo_url' => $avatarUrl,
+            'cover_url' => null,
+            'photos' => [],
             'bio' => null,
             'location' => null,
             'location_city' => null,
             'location_region' => null,
-            'skills' => [],
+            'skills' => ['hard_skills' => [], 'soft_skills' => []],
+            'job_preferences' => null,
             'work_experience' => [],
             'education' => [],
             'social_links' => [],
-            'completed_profile_fields' => [],
             'notification_preferences' => [],
             'onboarding_step' => 1,
             'onboarding_completed_at' => null,

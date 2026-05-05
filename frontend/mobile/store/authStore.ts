@@ -18,16 +18,19 @@ type AuthState = {
   token: string | null;
   role: AuthRole | null;
   hydrated: boolean;
+  isOnboarding: boolean;
 
   setToken: (token: string | null, role?: AuthRole | null) => Promise<void>;
   clearToken: () => Promise<void>;
   hydrate: () => Promise<void>;
+  setOnboarding: (value: boolean) => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: null,
   role: null,
   hydrated: false,
+  isOnboarding: false,
 
   setToken: async (token, role = null) => {
     if (token) {
@@ -71,5 +74,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       set({ token: null, role: null, hydrated: true });
     }
+  },
+
+  setOnboarding: (value) => {
+    set({ isOnboarding: value });
   },
 }));
