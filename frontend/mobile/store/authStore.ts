@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const TOKEN_KEY = 'auth_token';
 const ROLE_KEY = 'auth_role';
 
-export type AuthRole = 'applicant' | 'hr';
+export type AuthRole = 'applicant' | 'hr' | 'company_admin';
 
 type AuthState = {
   token: string | null;
@@ -65,7 +65,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
       set({
         token: token ?? null,
-        role: role === 'hr' || role === 'applicant' ? role : null,
+        role: role === 'hr' || role === 'applicant' || role === 'company_admin' ? (role as AuthRole) : null,
         hydrated: true,
       });
     } catch {

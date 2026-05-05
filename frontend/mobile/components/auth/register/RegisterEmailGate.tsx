@@ -159,7 +159,7 @@ export function RegisterEmailGate({
             >
               <GoogleIcon />
               <Text style={{ fontSize: Typography.md, fontWeight: Typography.semibold as any, color: T.textPrimary }}>
-                {googleLoading ? 'Opening Google...' : 'Register with Google'}
+                {googleLoading ? 'Opening Google...' : 'Continue with Google'}
               </Text>
             </TouchableOpacity>
           </>

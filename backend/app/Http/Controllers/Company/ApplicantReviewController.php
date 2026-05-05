@@ -9,6 +9,7 @@ use App\Models\PostgreSQL\ApplicantProfile;
 use App\Models\PostgreSQL\Application;
 use App\Models\PostgreSQL\JobPosting;
 use App\Repositories\PostgreSQL\ApplicationRepository;
+use App\Services\FileUploadService;
 use App\Services\SwipeService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class ApplicantReviewController extends Controller
     public function __construct(
         private ApplicationRepository $applications,
         private SwipeService $swipe,
+        private ?FileUploadService $fileUploads = null,
     ) {}
 
     public function getApplicants(Request $request, string $jobId): JsonResponse
@@ -28,7 +30,7 @@ class ApplicantReviewController extends Controller
 
         foreach ($applicants as $application) {
             $mongoProfile = ApplicantProfileDocument::where('user_id', $application->applicant->user_id)->first();
-            $application->applicant->profile_data = $mongoProfile;
+            $application->applicant->profile_data = $this->signApplicantProfile($mongoProfile);
             $application->applicant->skill_match_percentage = $this->calculateSkillMatchPercentage($job, $mongoProfile);
         }
 
@@ -54,7 +56,7 @@ class ApplicantReviewController extends Controller
             );
         }
 
-        $application->applicant->profile_data = $mongoProfile;
+        $application->applicant->profile_data = $this->signApplicantProfile($mongoProfile);
         $application->applicant->skill_match_percentage = $this->calculateSkillMatchPercentage($job, $mongoProfile);
 
         return $this->success(data: $application);
@@ -78,8 +80,10 @@ class ApplicantReviewController extends Controller
         );
 
         return match ($result['status']) {
+            'matched' => $this->success(message: 'Match created. Applicant can now respond within 24 hours.'),
             'invited' => $this->success(message: 'Interview invitation sent'),
             'already_swiped' => $this->error('ALREADY_SWIPED', 'Already swiped on this applicant', 409),
+            'application_not_found' => $this->error('APPLICATION_NOT_FOUND', 'Applicant has no active application for this job', 404),
             default => $this->error('SWIPE_FAILED', 'Unable to process swipe.', 500),
         };
     }
@@ -177,5 +181,56 @@ class ApplicantReviewController extends Controller
         $matched = $jobSkills->filter(fn ($skill) => $applicantSkills->contains($skill))->count();
 
         return (int) round(($matched / $jobSkills->count()) * 100);
+    }
+
+    private function signApplicantProfile(?ApplicantProfileDocument $profile): ?array
+    {
+        if (! $profile) {
+            return null;
+        }
+
+        $data = $profile->toArray();
+
+        $singleFileFields = ['resume_url', 'cover_letter_url', 'profile_photo_url', 'portfolio_url'];
+
+        foreach ($singleFileFields as $field) {
+            if (! isset($data[$field]) || ! is_string($data[$field]) || $data[$field] === '') {
+                continue;
+            }
+
+            $data[$field] = $this->toSignedReadUrl($data[$field]);
+        }
+
+        return $data;
+    }
+
+    private function toSignedReadUrl(string $fileUrl): string
+    {
+        if ($fileUrl === '') {
+            return $fileUrl;
+        }
+
+        try {
+            $result = $this->fileUploads()->generatePresignedReadUrl($fileUrl);
+
+            if (isset($result['read_url']) && is_string($result['read_url'])) {
+                return $result['read_url'];
+            }
+        } catch (\Throwable) {
+            return $fileUrl;
+        }
+
+        return $fileUrl;
+    }
+
+    private function fileUploads(): FileUploadService
+    {
+        if ($this->fileUploads instanceof FileUploadService) {
+            return $this->fileUploads;
+        }
+
+        $this->fileUploads = app(FileUploadService::class);
+
+        return $this->fileUploads;
     }
 }

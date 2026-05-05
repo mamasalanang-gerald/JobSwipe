@@ -12,7 +12,7 @@ return [
 
     'allowed_origins_patterns' => [],
 
-    'allowed_headers' => ['Content-Type', 'Authorization', 'Accept'],
+    'allowed_headers' => ['Content-Type', 'Authorization', 'Accept', 'Idempotency-Key'],
 
     'exposed_headers' => [],
 

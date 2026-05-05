@@ -1,7 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   output: 'standalone', // Required for Docker deployment
   
   // Environment variables
@@ -46,9 +45,22 @@ const nextConfig = {
     ];
   },
 
-  // Image optimization
+  // Image optimization - using remotePatterns instead of deprecated domains
   images: {
-    domains: ['localhost', 'cdn.example.com'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.example.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'pub-e3f1f354550246a8b0967278ae7d8042.r2.dev',
+      },
+    ],
     formats: ['image/avif', 'image/webp'],
   },
 
@@ -63,10 +75,9 @@ const nextConfig = {
     ];
   },
 
-  // Webpack configuration to fix Windows path case sensitivity warnings
-  webpack: (config, { isServer }) => {
-    config.cache = false;
-    return config;
+  // Turbopack configuration (empty config to silence the error)
+  turbopack: {
+    root: '/Users/apple/Desktop/DevWork/Project/JobSwipe/JobSwipe/frontend/web',
   },
 };
 

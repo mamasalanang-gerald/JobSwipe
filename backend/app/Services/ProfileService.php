@@ -19,27 +19,12 @@ class ProfileService
         private CompanyProfileRepository $companyProfiles,
         private ApplicantProfileDocumentRepository $applicantDocs,
         private CompanyProfileDocumentRepository $companyDocs,
+        private CompanyMembershipService $memberships,
         private PointService $points,
-        ?ProfileCompletionService $completion = null,
-        ?ProfileOnboardingService $onboarding = null,
-        ?ProfileSocialLinksValidator $socialLinksValidator = null,
-    ) {
-        $this->completion = $completion ?? new ProfileCompletionService;
-        $this->socialLinksValidator = $socialLinksValidator ?? new ProfileSocialLinksValidator;
-        $this->onboarding = $onboarding ?? new ProfileOnboardingService(
-            $this->applicantDocs,
-            $this->companyDocs,
-            $this->companyProfiles,
-            $this->completion,
-            $this->socialLinksValidator,
-        );
-    }
-
-    private ProfileCompletionService $completion;
-
-    private ProfileOnboardingService $onboarding;
-
-    private ProfileSocialLinksValidator $socialLinksValidator;
+        private ProfileCompletionService $completion,
+        private ProfileOnboardingService $onboarding,
+        private ProfileSocialLinksValidator $socialLinksValidator,
+    ) {}
 
     public function createProfileForUser(User $user, ?string $avatarUrl = null): void
     {
@@ -48,6 +33,21 @@ class ProfileService
             'hr', 'company_admin' => $this->createCompanyProfile($user),
             default => null,
         };
+    }
+
+    public function setCompanyEmailDomain(string $userId, string $email): void
+    {
+        $companyProfile = $this->companyProfiles->findByUserId($userId);
+        if (! $companyProfile) {
+            return;
+        }
+
+        $validation = app(CompanyEmailValidator::class)->validate($email);
+
+        $this->companyProfiles->update($companyProfile, [
+            'company_domain' => $validation['domain'],
+            'is_free_email_domain' => $validation['is_free'],
+        ]);
     }
 
     public function getApplicantProfile(string $userId): array
@@ -215,6 +215,8 @@ class ProfileService
             'profile_completion_percentage' => $completion,
             'subscription_status' => $companyProfile->subscription_status,
             'subscription_tier' => $companyProfile->subscription_tier,
+            'is_verified' => (bool) $companyProfile->is_verified,
+            'verification_status' => $companyProfile->verification_status,
         ];
     }
 
@@ -233,6 +235,9 @@ class ProfileService
             'website_url',
             'address',
             'social_links',
+            'cover_photo',
+            'office_images',
+            'benefits',
         ]));
 
         if (array_key_exists('company_name', $allowed)) {
@@ -373,13 +378,27 @@ class ProfileService
     {
         $companyProfile = $this->companyProfiles->create([
             'user_id' => $user->id,
+            'owner_user_id' => $user->role === 'company_admin' ? $user->id : null,
             'company_name' => '',
             'is_verified' => false,
-            'verification_status' => 'pending',
-            'subscription_tier' => 'none',
-            'subscription_status' => 'inactive',
+            'verification_status' => 'unverified',
+            'subscription_tier' => 'free',
+            'subscription_status' => 'active',
+            'trust_score' => 0,
+            'trust_level' => 'untrusted',
+            'listing_cap' => 0,
             'active_listings_count' => 0,
         ]);
+
+        // Some PostgreSQL UUID defaults may not be hydrated on the first model instance.
+        if (! $this->filled($companyProfile->id ?? null)) {
+            $companyProfile = $this->companyProfiles->findByUserId($user->id) ?? $companyProfile;
+        }
+
+        if ($this->filled($companyProfile->id ?? null)) {
+            $membershipRole = $user->role === 'company_admin' ? 'company_admin' : 'hr';
+            $this->memberships->addMember($companyProfile->id, $user->id, $membershipRole);
+        }
 
         $this->companyDocs->create([
             'user_id' => $user->id,

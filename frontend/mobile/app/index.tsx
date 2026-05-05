@@ -13,7 +13,8 @@ export default function Index() {
   useEffect(() => {
     if (!hydrated) return;
     if (token && role) {
-      router.replace(role === 'hr' ? '/(company-tabs)' : '/(tabs)');
+      const isCompanyRole = role === 'hr' || role === 'company_admin';
+      router.replace(isCompanyRole ? '/(company-tabs)' : '/(tabs)');
     } else {
       router.replace('/(auth)/login');
     }
