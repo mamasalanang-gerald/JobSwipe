@@ -16,6 +16,7 @@ import { RegisterStepContent } from '../../components/auth/register/RegisterStep
 import { RegisterStepProgressBar } from '../../components/auth/register/RegisterStepProgressBar';
 import { RegisterOtpVerificationScreen } from '../../components/auth/register/RegisterOtpVerificationScreen';
 import { APPLICANT_STEPS, HARD_SKILL_SUGGESTIONS, HR_STEPS, JOB_TITLE_OPTIONS, Role, SOFT_SKILL_SUGGESTIONS, STEP_LABELS, WorkEntry, EducationEntry } from '../../components/auth/register/types';
+import { TEST_MODE_ENABLED, TEST_OTP_CODE, mockRegistrationResponse, mockOtpVerificationResponse, mockInviteValidation, findTestAccount, getCompanyByEmailDomain } from '../../constants/testAccounts';
 
 type LocalUploadFile = {
   uri: string;
@@ -94,6 +95,7 @@ export default function RegisterScreen() {
   const [inviteError, setInviteError] = useState('');
   const [isInvitedHR, setIsInvitedHR] = useState(false);
   const [pendingAuthRole, setPendingAuthRole] = useState<'applicant' | 'hr' | 'company_admin' | null>(null);
+  const [testMode, setTestMode] = useState(TEST_MODE_ENABLED);
 
   const steps = role === 'applicant' ? APPLICANT_STEPS : HR_STEPS;
   const stepKey = steps[currentStep];
@@ -329,6 +331,17 @@ export default function RegisterScreen() {
       setLoading(true);
       try {
         setPendingAuthRole('applicant');
+        
+        // Test mode: Skip API call
+        if (testMode) {
+          mockRegistrationResponse(email, role);
+          setError('');
+          setOtpCode('');
+          setOtpSent(true);
+          setLoading(false);
+          return;
+        }
+        
         await api.post('/auth/register', { email, password, role, company_invite_token: null });
         setError('');
         setOtpCode('');
@@ -345,6 +358,17 @@ export default function RegisterScreen() {
     try {
       const registrationRole: 'hr' | 'company_admin' = isInvitedHR ? 'hr' : 'company_admin';
       setPendingAuthRole(registrationRole);
+      
+      // Test mode: Skip API call
+      if (testMode) {
+        mockRegistrationResponse(email, registrationRole);
+        setError('');
+        setOtpCode('');
+        setOtpSent(true);
+        setLoading(false);
+        return;
+      }
+      
       const data = await api.post('/auth/register', {
         email,
         password,
@@ -384,6 +408,10 @@ export default function RegisterScreen() {
 
   const handleNext = () => {
     if (!validateCurrentStep()) return;
+    
+    // No longer check after password step
+    // Let them proceed to fill the HR form
+    
     if (currentStep < totalSteps - 1) setCurrentStep((value) => value + 1);
     else handleSubmit();
   };
@@ -474,6 +502,33 @@ export default function RegisterScreen() {
 
     setOtpLoading(true);
     try {
+      // Test mode: Use mock verification
+      if (testMode) {
+        const mockData = mockOtpVerificationResponse(email, otpCode.trim());
+        const token = mockData.token;
+        const fallbackCompanyRole: 'hr' | 'company_admin' = isInvitedHR ? 'hr' : 'company_admin';
+        const resolvedRole = mockData.user?.role === 'company_admin'
+          ? 'company_admin'
+          : mockData.user?.role === 'hr'
+            ? 'hr'
+            : pendingAuthRole === 'company_admin'
+              ? 'company_admin'
+              : pendingAuthRole === 'hr'
+                ? 'hr'
+                : role === 'hr'
+                  ? fallbackCompanyRole
+                  : 'applicant';
+        await setToken(token, resolvedRole);
+
+        if (resolvedRole === 'applicant') {
+          router.replace('/(tabs)');
+        } else {
+          router.replace('/(company-tabs)/index');
+        }
+        setOtpLoading(false);
+        return;
+      }
+      
       const data = await api.post('/auth/verify-email', { email, code: otpCode.trim() }) as { token?: string; user?: { role?: string } };
       const token = data?.token;
       if (!token) {
@@ -517,6 +572,13 @@ export default function RegisterScreen() {
   const handleResendOtp = async () => {
     setResendLoading(true);
     try {
+      // Test mode: Skip API call
+      if (testMode) {
+        setError('');
+        setResendLoading(false);
+        return;
+      }
+      
       await api.post('/auth/resend-verification', { email });
       setError('');
     } catch (err: any) {
@@ -628,10 +690,13 @@ export default function RegisterScreen() {
         fieldLabelStyle={fieldLabelStyle}
         inputRowStyle={inputRowStyle}
         inputStyle={inputStyle}
+        autoDetected={!!detectedCompany}
+        userEmail={email}
         onBack={() => {
           setShowInvitePrompt(false);
           setInviteCode('');
           setInviteError('');
+          setDetectedCompany(null);
         }}
         onChangeInviteCode={(value) => {
           setInviteCode(value);
@@ -643,6 +708,16 @@ export default function RegisterScreen() {
             return;
           }
           try {
+            // Test mode: Use mock validation
+            if (testMode) {
+              const data = mockInviteValidation(inviteCode.trim());
+              setDetectedCompany({ name: data.company_name, validCodes: [] });
+              setIsInvitedHR(true);
+              setShowInvitePrompt(false);
+              setEmailDone(true);
+              return;
+            }
+            
             const data = await api.post('/company/invites/validate', { email, token: inviteCode.trim() }) as { company_name: string; role: string; valid: boolean };
             if (data.valid) {
               setDetectedCompany({ name: data.company_name, validCodes: [] });
@@ -679,6 +754,7 @@ export default function RegisterScreen() {
         fieldLabelStyle={fieldLabelStyle}
         inputRowStyle={inputRowStyle}
         inputStyle={inputStyle}
+        testMode={testMode}
         onBack={() => {
           setOtpSent(false);
           setOtpCode('');
@@ -708,6 +784,12 @@ export default function RegisterScreen() {
         jobTitleOptions={JOB_TITLE_OPTIONS}
         setToken={setToken}
         inviteCode={inviteCode}
+        requiresInviteCode={!!detectedCompany} // Require invite code if company was detected
+        onFormComplete={() => {
+          // Form is complete, now show invite code prompt
+          setInviteCode(''); // Clear any existing code
+          setShowInvitePrompt(true);
+        }}
         onOtpSent={() => {
           setError('');
           setOtpCode('');
@@ -720,6 +802,7 @@ export default function RegisterScreen() {
           setInviteCode('');
           setInviteError('');
           setShowInvitePrompt(false);
+          setDetectedCompany(null);
         }}
       />
     );
@@ -737,6 +820,7 @@ export default function RegisterScreen() {
         fieldLabelStyle={fieldLabelStyle}
         inputRowStyle={inputRowStyle}
         inputStyle={inputStyle}
+        testMode={testMode}
         onBack={() => {
           resetForm();
           setRoleSelected(false);
@@ -751,10 +835,22 @@ export default function RegisterScreen() {
             setError('Please enter your email address.');
             return;
           }
-          if (!emailRegex.test(email)) {
+          if (!testMode && !emailRegex.test(email)) {
             setError('Please enter a valid email address.');
             return;
           }
+          
+          // In test mode for HR role, check for company domain
+          // If detected, mark as invited HR and proceed to HR form
+          if (testMode && role === 'hr') {
+            const company = getCompanyByEmailDomain(email);
+            if (company) {
+              setDetectedCompany({ name: company.company_name, validCodes: [company.code] });
+              setIsInvitedHR(true); // Mark as invited HR to show HR form
+              // Don't show invite prompt yet, let them fill the form first
+            }
+          }
+          
           setError('');
           setEmailDone(true);
         }}
@@ -763,6 +859,7 @@ export default function RegisterScreen() {
           setEmail('');
           setShowInvitePrompt(true);
         }}
+        onToggleTestMode={() => setTestMode(!testMode)}
       />
     );
   }

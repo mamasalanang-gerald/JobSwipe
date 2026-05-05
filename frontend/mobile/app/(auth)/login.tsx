@@ -25,6 +25,7 @@ import {
   Radii,
   Shadows,
 } from '../../components/ui';
+import { TEST_MODE_ENABLED, validateTestCredentials } from '../../constants/testAccounts';
 
 
 
@@ -35,6 +36,7 @@ export default function LoginScreen() {
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [testMode, setTestMode]         = useState(TEST_MODE_ENABLED);
   const { top: topInset }               = useSafeAreaInsets();
   const setToken                        = useAuthStore((s) => s.setToken);
   const passwordInputRef                = useRef<TextInput>(null);
@@ -45,6 +47,18 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
+      // Test mode: Use mock credentials
+      if (testMode) {
+        const testAccount = validateTestCredentials(email, password);
+        if (!testAccount) {
+          throw new Error('Invalid test credentials. Try: applicant@test.com / Test1234');
+        }
+        await setToken(testAccount.token, testAccount.role);
+        router.replace(testAccount.role === 'applicant' ? '/(tabs)' : '/(company-tabs)');
+        return;
+      }
+
+      // Production mode: Use API
       const data = await api.post('/auth/login', { email, password });
       // api interceptor unwraps { success, data } → data automatically
       const { token, user } = data as unknown as { token: string; user: { role: string } };
@@ -116,6 +130,29 @@ export default function LoginScreen() {
           </View>
         </View>
 
+
+        {/* Test Mode Toggle */}
+        {TEST_MODE_ENABLED && (
+          <TouchableOpacity
+            onPress={() => setTestMode(!testMode)}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: testMode ? T.warningLight : T.surfaceHigh, borderWidth: 1, borderColor: testMode ? T.warning : T.border, borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}
+          >
+            <MaterialCommunityIcons name={testMode ? 'flask' : 'flask-outline'} size={16} color={testMode ? T.warning : T.textHint} />
+            <Text style={{ flex: 1, color: testMode ? T.warning : T.textSub, fontSize: Typography.sm, fontWeight: Typography.medium as any }}>
+              {testMode ? 'Test Mode Active' : 'Test Mode Disabled'}
+            </Text>
+            <Text style={{ fontSize: Typography.xs, color: testMode ? T.warning : T.textHint }}>Tap to toggle</Text>
+          </TouchableOpacity>
+        )}
+
+        {testMode && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.primary + '15', borderWidth: 1, borderColor: T.primary + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
+            <MaterialCommunityIcons name="information-outline" size={15} color={T.primary} />
+            <Text style={{ flex: 1, color: T.textSub, fontSize: Typography.xs }}>
+              Test accounts: applicant@test.com, hr@test.com, admin@test.com (password: Test1234)
+            </Text>
+          </View>
+        )}
 
         {error ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
