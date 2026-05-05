@@ -19,8 +19,10 @@ type Props = {
   jobTitleOptions: string[];
   setToken: (token: string, role?: AuthRole | null) => Promise<void>;
   inviteCode: string;
+  requiresInviteCode?: boolean; // New prop to indicate if invite code is required after form
   onOtpSent: () => void;
   onBack: () => void;
+  onFormComplete?: () => void; // New callback when form is complete but needs invite code
 };
 
 export function HRInviteRegistrationForm({
@@ -34,8 +36,10 @@ export function HRInviteRegistrationForm({
   jobTitleOptions,
   setToken,
   inviteCode,
+  requiresInviteCode = false,
   onOtpSent,
   onBack,
+  onFormComplete,
 }: Props) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -106,6 +110,12 @@ export function HRInviteRegistrationForm({
       return;
     }
 
+    // If invite code is required (company detected), show invite code prompt instead of submitting
+    if (requiresInviteCode && onFormComplete) {
+      onFormComplete();
+      return;
+    }
+
     setSubmitting(true);
     try {
       const data = await api.post('/auth/register', {
@@ -147,21 +157,23 @@ export function HRInviteRegistrationForm({
             <MaterialCommunityIcons name="office-building" size={20} color={T.primary} />
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: Typography.sm, fontWeight: Typography.semibold as any, color: T.primary }}>
-                Joining {detectedCompany.name}
+                Registering for {detectedCompany.name}
               </Text>
-              <Text style={{ fontSize: Typography.xs, color: T.textSub }}>HR team member via invite</Text>
+              <Text style={{ fontSize: Typography.xs, color: T.textSub }}>Complete your profile to join the HR team</Text>
             </View>
-            <MaterialCommunityIcons name="check-circle" size={18} color={T.success} />
+            <MaterialCommunityIcons name="account-check" size={18} color={T.primary} />
           </View>
         )}
 
         <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
           <View style={{ gap: Spacing['1'] }}>
             <Text style={{ fontSize: Typography['2xl'], fontWeight: Typography.bold as any, color: T.textPrimary, letterSpacing: -0.3 }}>
-              HR registration
+              {detectedCompany ? 'Complete your HR profile' : 'HR registration'}
             </Text>
             <Text style={{ fontSize: Typography.sm, color: T.textSub, lineHeight: 20 }}>
-              Finish your invite-based registration to join the company team.
+              {detectedCompany 
+                ? `Fill out your information to join ${detectedCompany.name}. You'll verify your access with an invite code after completing this form.`
+                : 'Finish your invite-based registration to join the company team.'}
             </Text>
           </View>
         </SectionCard>
@@ -329,8 +341,10 @@ export function HRInviteRegistrationForm({
             <MaterialCommunityIcons name="loading" size={18} color={T.white} />
           ) : (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-              <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>Create account</Text>
-              <MaterialCommunityIcons name="check" size={18} color={T.white} />
+              <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>
+                {requiresInviteCode ? 'Continue to verification' : 'Create account'}
+              </Text>
+              <MaterialCommunityIcons name={requiresInviteCode ? 'arrow-right' : 'check'} size={18} color={T.white} />
             </View>
           )}
         </TouchableOpacity>

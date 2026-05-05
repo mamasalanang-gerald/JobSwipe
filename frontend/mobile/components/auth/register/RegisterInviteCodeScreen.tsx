@@ -14,6 +14,8 @@ type Props = {
   fieldLabelStyle: any;
   inputRowStyle: any;
   inputStyle: any;
+  autoDetected?: boolean;
+  userEmail?: string;
   onBack: () => void;
   onChangeInviteCode: (value: string) => void;
   onVerify: () => void;
@@ -29,6 +31,8 @@ export function RegisterInviteCodeScreen({
   fieldLabelStyle,
   inputRowStyle,
   inputStyle,
+  autoDetected = false,
+  userEmail = '',
   onBack,
   onChangeInviteCode,
   onVerify,
@@ -52,21 +56,37 @@ export function RegisterInviteCodeScreen({
       </View>
 
       <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['4'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        {autoDetected && detectedCompany ? (
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: Spacing['2'], backgroundColor: T.primary + '15', borderWidth: 1, borderColor: T.primary + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
+            <MaterialCommunityIcons name="information-outline" size={18} color={T.primary} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: T.textPrimary, fontSize: Typography.sm, fontWeight: Typography.semibold as any }}>
+                Almost Done!
+              </Text>
+              <Text style={{ color: T.textSub, fontSize: Typography.xs, marginTop: 4, lineHeight: 18 }}>
+                Your registration form is complete. We detected that {detectedCompany.name} already exists. Enter your invite code below to finalize joining the team.
+              </Text>
+            </View>
+          </View>
+        ) : null}
+
         <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
           <View style={{ alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['2'] }}>
             <View style={{ width: 56, height: 56, borderRadius: Radii.xl, backgroundColor: T.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
               <MaterialCommunityIcons name="office-building" size={28} color={T.primary} />
             </View>
             <Text style={{ fontSize: Typography.lg, fontWeight: Typography.bold as any, color: T.textPrimary, textAlign: 'center' }}>
-              Join with an invite code
+              {autoDetected ? `Verify Your Access to ${detectedCompany?.name || 'Company'}` : 'Join with an invite code'}
             </Text>
             <Text style={{ fontSize: Typography.sm, color: T.textSub, textAlign: 'center', lineHeight: 20 }}>
-              Enter the code from your company admin. We'll use it to verify your company and work email.
+              {autoDetected 
+                ? `You've completed your registration form. To finalize joining ${detectedCompany?.name || 'this company'} as an HR member, please enter the invite code provided by your company administrator.`
+                : 'Enter the code from your company admin. We\'ll use it to verify your company and work email.'}
             </Text>
           </View>
         </SectionCard>
 
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="HR Registration Form">
+        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Finalize Registration">
           <View style={{ gap: Spacing['2'] }}>
             <Text style={fieldLabelStyle}>Company invite token</Text>
             <View style={inputRowStyle}>
@@ -78,9 +98,14 @@ export function RegisterInviteCodeScreen({
                 value={inviteCode}
                 onChangeText={onChangeInviteCode}
                 autoCapitalize="characters"
-                autoFocus
+                autoFocus={!autoDetected}
               />
             </View>
+            {autoDetected && (
+              <Text style={{ fontSize: Typography.xs, color: T.textHint, lineHeight: 16 }}>
+                Enter the invite code from your {detectedCompany?.name || 'company'} administrator to complete your registration and join the team.
+              </Text>
+            )}
             {inviteError ? <Text style={{ fontSize: Typography.xs, color: T.danger }}>{inviteError}</Text> : null}
           </View>
         </SectionCard>
@@ -91,18 +116,22 @@ export function RegisterInviteCodeScreen({
           activeOpacity={0.85}
         >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-            <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>Verify & Continue</Text>
-            <MaterialCommunityIcons name="arrow-right" size={18} color={T.white} />
+            <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>
+              {autoDetected ? 'Complete Registration' : 'Verify & Continue'}
+            </Text>
+            <MaterialCommunityIcons name="check-circle" size={18} color={T.white} />
           </View>
         </TouchableOpacity>
 
         <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
           <View style={{ gap: Spacing['3'] }}>
             <Text style={{ fontSize: Typography.sm, fontWeight: Typography.semibold as any, color: T.textPrimary }}>
-              Don't have an invite code?
+              {autoDetected ? 'Need an invite code?' : 'Don\'t have an invite code?'}
             </Text>
             <Text style={{ fontSize: Typography.sm, color: T.textSub, lineHeight: 20 }}>
-              Ask your company admin to send you an invite link, or contact {detectedCompany ? detectedCompany.name : 'your company'}'s HR team to get access.
+              {autoDetected 
+                ? `Your company administrator can provide you with an invite code. Contact them to request access to join ${detectedCompany?.name || 'the company'} as an HR team member.`
+                : `Ask your company admin to send you an invite link, or contact ${detectedCompany ? detectedCompany.name : 'your company'}'s HR team to get access.`}
             </Text>
             <TouchableOpacity
               style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing['2'], borderWidth: 1, borderColor: T.primary, borderRadius: Radii.lg, paddingVertical: Spacing['3'] }}
@@ -110,7 +139,9 @@ export function RegisterInviteCodeScreen({
               activeOpacity={0.8}
             >
               <MaterialCommunityIcons name="email-arrow-right-outline" size={16} color={T.primary} />
-              <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.semibold as any }}>Request an invite link</Text>
+              <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.semibold as any }}>
+                {autoDetected ? 'Request invite code' : 'Request an invite link'}
+              </Text>
             </TouchableOpacity>
           </View>
         </SectionCard>

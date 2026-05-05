@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
+import { TEST_MODE_ENABLED, TEST_OTP_CODE } from '../../../constants/testAccounts';
 
 type Props = {
   T: any;
@@ -15,6 +16,7 @@ type Props = {
   inputRowStyle: any;
   inputStyle: any;
   fieldLabelStyle: any;
+  testMode?: boolean;
   onBack: () => void;
   onChangeCode: (value: string) => void;
   onVerify: () => void;
@@ -34,6 +36,7 @@ export function RegisterOtpVerificationScreen({
   inputRowStyle,
   inputStyle,
   fieldLabelStyle,
+  testMode = false,
   onBack,
   onChangeCode,
   onVerify,
@@ -110,6 +113,15 @@ export function RegisterOtpVerificationScreen({
             </Text>
           </View>
         </SectionCard>
+
+        {TEST_MODE_ENABLED && testMode && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.warningLight, borderWidth: 1, borderColor: T.warning + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
+            <MaterialCommunityIcons name="flask-outline" size={15} color={T.warning} />
+            <Text style={{ flex: 1, color: T.textSub, fontSize: Typography.sm }}>
+              Test Mode: Use code <Text style={{ fontWeight: Typography.bold as any, color: T.warning }}>{TEST_OTP_CODE}</Text>
+            </Text>
+          </View>
+        )}
 
         {error ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>

@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SvgXml } from 'react-native-svg';
 import { Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
 import type { Role } from './types';
+import { TEST_MODE_ENABLED } from '../../../constants/testAccounts';
 
 const GOOGLE_ICON_SVG = `
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="18" height="18">
@@ -30,11 +31,13 @@ type Props = {
   fieldLabelStyle: any;
   inputRowStyle: any;
   inputStyle: any;
+  testMode?: boolean;
   onBack: () => void;
   onChangeEmail: (value: string) => void;
   onContinue: () => void;
   onGoogleRegister: () => void;
   onInviteCode: () => void;
+  onToggleTestMode?: () => void;
 };
 
 export function RegisterEmailGate({
@@ -47,11 +50,13 @@ export function RegisterEmailGate({
   fieldLabelStyle,
   inputRowStyle,
   inputStyle,
+  testMode = false,
   onBack,
   onChangeEmail,
   onContinue,
   onGoogleRegister,
   onInviteCode,
+  onToggleTestMode,
 }: Props) {
   return (
     <KeyboardAvoidingView
@@ -83,6 +88,29 @@ export function RegisterEmailGate({
             </Text>
           </View>
         </SectionCard>
+
+        {/* Test Mode Toggle */}
+        {TEST_MODE_ENABLED && onToggleTestMode && (
+          <TouchableOpacity
+            onPress={onToggleTestMode}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: testMode ? T.warningLight : T.surfaceHigh, borderWidth: 1, borderColor: testMode ? T.warning : T.border, borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}
+          >
+            <MaterialCommunityIcons name={testMode ? 'flask' : 'flask-outline'} size={16} color={testMode ? T.warning : T.textHint} />
+            <Text style={{ flex: 1, color: testMode ? T.warning : T.textSub, fontSize: Typography.sm, fontWeight: Typography.medium as any }}>
+              {testMode ? 'Test Mode Active' : 'Test Mode Disabled'}
+            </Text>
+            <Text style={{ fontSize: Typography.xs, color: testMode ? T.warning : T.textHint }}>Tap to toggle</Text>
+          </TouchableOpacity>
+        )}
+
+        {testMode && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.primary + '15', borderWidth: 1, borderColor: T.primary + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
+            <MaterialCommunityIcons name="information-outline" size={15} color={T.primary} />
+            <Text style={{ flex: 1, color: T.textSub, fontSize: Typography.xs }}>
+              Test mode: Use any email. OTP code is 123456. No API calls will be made.
+            </Text>
+          </View>
+        )}
 
         {error ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
