@@ -126,7 +126,7 @@ class SwipeTest extends TestCase
     {
         $this->profile->update([
             'daily_swipes_used' => 5,
-            'daily_swipe_limit' => 15,
+            'daily_swipe_limit' => 65,
             'extra_swipe_balance' => 10,
         ]);
 
@@ -138,7 +138,7 @@ class SwipeTest extends TestCase
                 'success' => true,
                 'data' => [
                     'daily_swipes_used' => 5,
-                    'daily_swipe_limit' => 15,
+                    'daily_swipe_limit' => 65,
                     'extra_swipe_balance' => 10,
                     'has_swipes_remaining' => true,
                 ],
@@ -148,8 +148,8 @@ class SwipeTest extends TestCase
     public function test_get_limits_shows_no_remaining_when_exhausted(): void
     {
         $this->profile->update([
-            'daily_swipes_used' => 15,
-            'daily_swipe_limit' => 15,
+            'daily_swipes_used' => 65,
+            'daily_swipe_limit' => 65,
             'extra_swipe_balance' => 0,
         ]);
 
@@ -163,8 +163,8 @@ class SwipeTest extends TestCase
     public function test_get_limits_has_remaining_with_extra_swipes(): void
     {
         $this->profile->update([
-            'daily_swipes_used' => 15,
-            'daily_swipe_limit' => 15,
+            'daily_swipes_used' => 65,
+            'daily_swipe_limit' => 65,
             'extra_swipe_balance' => 5,
         ]);
 

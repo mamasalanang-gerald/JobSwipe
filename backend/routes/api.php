@@ -96,6 +96,7 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::get('/', [ProfileController::class, 'getApplicantProfile']);
                     Route::patch('basic-info', [ProfileController::class, 'updateApplicantBasicInfo']);
                     Route::patch('skills', [ProfileController::class, 'updateApplicantSkills']);
+                    Route::patch('job-preferences', [ProfileController::class, 'updateJobPreferences']);
                     Route::post('experience', [ProfileController::class, 'addWorkExperience']);
                     Route::patch('experience/{index}', [ProfileController::class, 'updateWorkExperience']);
                     Route::delete('experience/{index}', [ProfileController::class, 'removeWorkExperience']);
@@ -105,6 +106,8 @@ Route::middleware('throttle:api-tiered')->group(function () {
                     Route::patch('resume', [ProfileController::class, 'updateApplicantResume']);
                     Route::patch('cover-letter', [ProfileController::class, 'updateApplicantCoverLetter']);
                     Route::patch('photo', [ProfileController::class, 'updateApplicantPhoto']);
+                    Route::patch('cover-photo', [ProfileController::class, 'updateApplicantCoverPhoto']);
+                    Route::patch('photos', [ProfileController::class, 'updateApplicantPhotos']);
                     Route::patch('social-links', [ProfileController::class, 'updateSocialLinks']);
                 });
 

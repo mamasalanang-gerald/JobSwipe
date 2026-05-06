@@ -1,6 +1,6 @@
 import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Link, router } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ExpoLinking from 'expo-linking';
@@ -15,7 +15,9 @@ import { RegisterRoleSplash } from '../../components/auth/register/RegisterRoleS
 import { RegisterStepContent } from '../../components/auth/register/RegisterStepContent';
 import { RegisterStepProgressBar } from '../../components/auth/register/RegisterStepProgressBar';
 import { RegisterOtpVerificationScreen } from '../../components/auth/register/RegisterOtpVerificationScreen';
-import { APPLICANT_STEPS, HARD_SKILL_SUGGESTIONS, HR_STEPS, JOB_TITLE_OPTIONS, Role, SOFT_SKILL_SUGGESTIONS, STEP_LABELS, WorkEntry, EducationEntry } from '../../components/auth/register/types';
+import { APPLICANT_STEPS, HARD_SKILL_SUGGESTIONS, HR_STEPS, JOB_TITLE_OPTIONS, Role, SOFT_SKILL_SUGGESTIONS, STEP_LABELS, Step, WorkEntry, EducationEntry } from '../../components/auth/register/types';
+
+const OAUTH_APPLICANT_STEPS: Step[] = ['basic', 'resume', 'skills', 'experience', 'photo', 'social'];
 
 type LocalUploadFile = {
   uri: string;
@@ -25,11 +27,11 @@ type LocalUploadFile = {
 };
 
 
-
 export default function RegisterScreen() {
   const T = useTheme();
   const { top: topInset, bottom: bottomInset } = useSafeAreaInsets();
   const setToken = useAuthStore((s) => s.setToken);
+  const setOnboarding = useAuthStore((s) => s.setOnboarding);
   const GOOGLE_OAUTH_REDIRECT_ENDPOINT = 'http://localhost:8000/api/v1/auth/google/redirect';
 
   const [email, setEmail] = useState('');
@@ -84,6 +86,7 @@ export default function RegisterScreen() {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [isOAuthOnboarding, setIsOAuthOnboarding] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [error, setError] = useState('');
@@ -95,7 +98,9 @@ export default function RegisterScreen() {
   const [isInvitedHR, setIsInvitedHR] = useState(false);
   const [pendingAuthRole, setPendingAuthRole] = useState<'applicant' | 'hr' | 'company_admin' | null>(null);
 
-  const steps = role === 'applicant' ? APPLICANT_STEPS : HR_STEPS;
+  const steps = role === 'applicant'
+    ? (isOAuthOnboarding ? OAUTH_APPLICANT_STEPS : APPLICANT_STEPS)
+    : HR_STEPS;
   const stepKey = steps[currentStep];
   const totalSteps = steps.length;
   const progress = (currentStep + 1) / totalSteps;
@@ -258,20 +263,16 @@ export default function RegisterScreen() {
     ...(portfolioUrl.trim().startsWith('https://') ? { portfolio: portfolioUrl.trim() } : {}),
   };
 
+  const searchParams = useLocalSearchParams<{
+    token?: string;
+    needs_onboarding?: string;
+    error?: string;
+    message?: string;
+  }>();
+
   useEffect(() => {
-    const completeGoogleAuth = async (url: string | null) => {
-      if (!url || !url.startsWith('jobapp://')) return;
-
-      const { hostname, queryParams } = ExpoLinking.parse(url);
-      if (hostname !== 'auth') return;
-
-      const token = typeof queryParams?.token === 'string'
-        ? queryParams.token
-        : typeof queryParams?.auth_token === 'string'
-          ? queryParams.auth_token
-          : null;
-      const oauthError = typeof queryParams?.error === 'string' ? queryParams.error : null;
-      const oauthMessage = typeof queryParams?.message === 'string' ? queryParams.message : null;
+    const handleOAuthParams = async () => {
+      const { token, needs_onboarding, error: oauthError, message: oauthMessage } = searchParams;
 
       if (oauthError) {
         setError(oauthMessage || 'Google sign-up could not be completed.');
@@ -281,20 +282,30 @@ export default function RegisterScreen() {
 
       if (!token) return;
 
+      const needsOnboarding = needs_onboarding === '1' || needs_onboarding === 'true';
+
       setError('');
       setGoogleLoading(false);
+
+      if (needsOnboarding) {
+        // OAuth user needs to complete onboarding — stay on register screen
+        setOnboarding(true);
+        setIsOAuthOnboarding(true);
+        await setToken(token, 'applicant');
+        setRoleSelected(true);
+        setEmailDone(true);
+        setOtpSent(false);
+        setCurrentStep(0);
+        return;
+      }
+
+      // Returning user with completed onboarding — go straight to tabs
       await setToken(token, 'applicant');
       router.replace('/(tabs)');
     };
 
-    completeGoogleAuth(ExpoLinking.getLinkingURL());
-
-    const subscription = ExpoLinking.addEventListener('url', ({ url }) => {
-      void completeGoogleAuth(url);
-    });
-
-    return () => subscription.remove();
-  }, [setToken]);
+    void handleOAuthParams();
+  }, [searchParams.token]);
 
   const validateCurrentStep = () => {
     setError('');
@@ -382,10 +393,30 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (!validateCurrentStep()) return;
-    if (currentStep < totalSteps - 1) setCurrentStep((value) => value + 1);
-    else handleSubmit();
+    if (currentStep < totalSteps - 1) {
+      setCurrentStep((value) => value + 1);
+    } else if (isOAuthOnboarding) {
+      // OAuth users already have an account — just submit onboarding data
+      setLoading(true);
+      try {
+        await completeApplicantOnboarding();
+        setOnboarding(false);
+        setIsOAuthOnboarding(false);
+        router.replace('/(tabs)');
+      } catch (err: any) {
+        // The api interceptor unwraps errors to the raw response body,
+        // so err IS the { success, message, code } object — not an Axios error.
+        const message = err?.message || err?.error || 'Could not complete onboarding. Please try again.';
+        setError(`Onboarding error: ${message}`);
+        console.error('[OAuth onboarding] completeApplicantOnboarding failed:', err);
+      } finally {
+        setLoading(false);
+      }
+    } else {
+      handleSubmit();
+    }
   };
 
   const completeApplicantOnboarding = async () => {
@@ -395,7 +426,7 @@ export default function RegisterScreen() {
     const stepPayloads = [
       { step: 1, step_data: { first_name: firstName, last_name: lastName, location, location_city: locationCity || null, location_region: locationRegion || null, bio: bio || null } },
       { step: 2, step_data: { resume_url: resumeUrl } },
-      { step: 3, step_data: { skills: [...hardSkills, ...softSkills] } },
+      { step: 3, step_data: { hard_skills: hardSkills, soft_skills: softSkills } },
       { step: 4, step_data: { work_experience: normalizedWorkEntries, education: normalizedEducationEntries } },
       { step: 5, step_data: { profile_photo_url: profilePhotoUrl } },
       { step: 6, step_data: { social_links: normalizedSocialLinks } },
@@ -780,8 +811,16 @@ export default function RegisterScreen() {
         <TouchableOpacity
           onPress={() => {
             if (currentStep === 0) {
-              setError('');
-              setEmailDone(false);
+              if (isOAuthOnboarding) {
+                // Cancel OAuth onboarding — go back to login
+                setOnboarding(false);
+                setIsOAuthOnboarding(false);
+                resetForm();
+                setRoleSelected(false);
+              } else {
+                setError('');
+                setEmailDone(false);
+              }
             } else {
               setError('');
               setCurrentStep((value) => value - 1);
@@ -910,7 +949,7 @@ export default function RegisterScreen() {
             ) : (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
                 <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>
-                  {isLastStep ? 'Create account' : 'Continue'}
+                  {isLastStep ? (isOAuthOnboarding ? 'Complete profile' : 'Create account') : 'Continue'}
                 </Text>
                 <MaterialCommunityIcons name={isLastStep ? 'check' : 'arrow-right'} size={18} color={T.white} />
               </View>

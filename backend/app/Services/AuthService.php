@@ -359,11 +359,15 @@ class AuthService
 
         $token = $this->tokens->generateToken($user);
 
+        $onboardingStatus = $this->profiles->getOnboardingStatus($user->id, 'applicant');
+        $needsOnboarding = ! $onboardingStatus['completed'];
+
         return [
             'status' => 'success',
             'token' => $token,
             'user' => $user,
             'is_new_user' => $user->wasRecentlyCreated,
+            'needs_onboarding' => $needsOnboarding,
         ];
     }
 

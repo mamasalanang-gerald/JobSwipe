@@ -10,8 +10,9 @@ export default function RootLayout() {
   const hydrated = useAuthStore((s) => s.hydrated);
   const token    = useAuthStore((s) => s.token);
   const role     = useAuthStore((s) => s.role);
+  const isOnboarding = useAuthStore((s) => s.isOnboarding);
   const theme    = getTheme();
-  const segments = useSegments();
+  const segments = useSegments() as string[];
 
   // Read persisted token once on mount
   useEffect(() => {
@@ -27,6 +28,9 @@ export default function RootLayout() {
     const isCompanyRole = role === 'hr' || role === 'company_admin';
 
     if (token && role) {
+      // Don't redirect away from auth screens while onboarding is in progress
+      if (isOnboarding && inAuthGroup) return;
+
       if (inAuthGroup || segments[0] === undefined) {
         router.replace(isCompanyRole ? '/(company-tabs)' : '/(tabs)');
         return;
@@ -46,7 +50,7 @@ export default function RootLayout() {
     if (!inAuthGroup) {
       router.replace('/(auth)/login');
     }
-  }, [hydrated, token, role, segments]);
+  }, [hydrated, token, role, isOnboarding, segments]);
 
   useEffect(() => {
     if (!hydrated || !token || role !== 'company_admin') return;
