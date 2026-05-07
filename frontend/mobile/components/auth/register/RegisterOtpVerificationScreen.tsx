@@ -1,11 +1,12 @@
-import React, { useEffect, useRef } from 'react';
-import { Animated, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Animated, Easing, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
+import { OrbBackground } from './SharedAuthComponents';
 
 type Props = {
   T: any;
   topInset: number;
+  bottomInset: number;
   email: string;
   code: string;
   error: string;
@@ -19,41 +20,62 @@ type Props = {
   onChangeCode: (value: string) => void;
   onVerify: () => void;
   onResend: () => void;
-  errorTimestamp?: number; // Add this to track when error occurs
+  errorTimestamp?: number;
 };
 
 export function RegisterOtpVerificationScreen({
-  T,
   topInset,
+  bottomInset,
   email,
   code,
   error,
   helperMessage,
   verifying,
   resending,
-  inputRowStyle,
-  inputStyle,
-  fieldLabelStyle,
   onBack,
   onChangeCode,
   onVerify,
   onResend,
   errorTimestamp,
 }: Props) {
+  const sheetSlide = useRef(new Animated.Value(80)).current;
+  const sheetOpacity = useRef(new Animated.Value(0)).current;
   const shakeAnimation = useRef(new Animated.Value(0)).current;
-  const [showErrorState, setShowErrorState] = React.useState(false);
+  const arrowNudge = useRef(new Animated.Value(0)).current;
+  const [showErrorState, setShowErrorState] = useState(false);
   const errorTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    // Trigger shake animation and red color whenever errorTimestamp changes (new error)
+    Animated.parallel([
+      Animated.timing(sheetSlide, {
+        toValue: 0, duration: 700, delay: 100,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+      Animated.timing(sheetOpacity, {
+        toValue: 1, duration: 500, delay: 100,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+    ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowNudge, {
+          toValue: 6, duration: 600,
+          easing: Easing.inOut(Easing.sin), useNativeDriver: true,
+        }),
+        Animated.timing(arrowNudge, {
+          toValue: 0, duration: 600,
+          easing: Easing.inOut(Easing.sin), useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  useEffect(() => {
     if (error && errorTimestamp) {
-      // Show error state
       setShowErrorState(true);
-      
-      // Reset position
       shakeAnimation.setValue(0);
       
-      // Shake animation sequence
       Animated.sequence([
         Animated.timing(shakeAnimation, { toValue: 10, duration: 50, useNativeDriver: true }),
         Animated.timing(shakeAnimation, { toValue: -10, duration: 50, useNativeDriver: true }),
@@ -62,171 +84,199 @@ export function RegisterOtpVerificationScreen({
         Animated.timing(shakeAnimation, { toValue: 0, duration: 50, useNativeDriver: true }),
       ]).start();
 
-      // Clear any existing timeout
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-      }
-
-      // Reset error state after 3 seconds
-      errorTimeoutRef.current = setTimeout(() => {
-        setShowErrorState(false);
-      }, 3000);
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
+      errorTimeoutRef.current = setTimeout(() => setShowErrorState(false), 3000);
     }
 
-    // Cleanup timeout on unmount
     return () => {
-      if (errorTimeoutRef.current) {
-        clearTimeout(errorTimeoutRef.current);
-      }
+      if (errorTimeoutRef.current) clearTimeout(errorTimeoutRef.current);
     };
   }, [errorTimestamp, error, shakeAnimation]);
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" />
+    <OrbBackground>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Animated.View style={{
+          backgroundColor: '#fff',
+          borderTopLeftRadius: 32,
+          borderTopRightRadius: 32,
+          paddingHorizontal: 28,
+          paddingTop: 28,
+          paddingBottom: Math.max(bottomInset, 24) + 8,
+          maxHeight: '85%',
+          transform: [{ translateY: sheetSlide }],
+          opacity: sheetOpacity,
+        }}>
+          {/* Back button */}
+          <TouchableOpacity
+            onPress={onBack}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', marginBottom: 20 }}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#6b7280" />
+            <Text style={{ fontSize: 14, color: '#6b7280', fontWeight: '600' }}>Back</Text>
+          </TouchableOpacity>
 
-      <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['5'] }}>
-        <TouchableOpacity
-          onPress={onBack}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], alignSelf: 'flex-start' }}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={20} color={T.textSub} />
-          <Text style={{ fontSize: Typography.md, color: T.textSub }}>Back</Text>
-        </TouchableOpacity>
-      </View>
+          {/* Drag handle */}
+          <View style={{
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: '#e5e7eb',
+            alignSelf: 'center',
+            marginBottom: 24,
+          }} />
 
-      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={{ fontSize: Typography['2xl'], fontWeight: Typography.bold as any, color: T.textPrimary, letterSpacing: -0.3 }}>
-              Verify your email
-            </Text>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, lineHeight: 20 }}>
-              We sent a 6-digit verification code to <Text style={{ color: T.textPrimary, fontWeight: Typography.semibold as any }}>{email}</Text>.
-            </Text>
-          </View>
-        </SectionCard>
+          <Text style={{
+            fontSize: 24,
+            fontWeight: '800',
+            color: '#111827',
+            letterSpacing: -0.5,
+            marginBottom: 8,
+          }}>
+            Verify your email
+          </Text>
+          <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 22, marginBottom: 24 }}>
+            We sent a 6-digit code to <Text style={{ color: '#111827', fontWeight: '600' }}>{email}</Text>.
+          </Text>
 
-        {error ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={T.danger} />
-            <Text style={{ flex: 1, color: T.danger, fontSize: Typography.base }}>{error}</Text>
-          </View>
-        ) : null}
+          {/* Error banner */}
+          {!!error && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: 10,
+              backgroundColor: '#FEF2F2',
+              borderWidth: 1,
+              borderColor: '#FECACA',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+            }}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#EF4444" style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontSize: 13, color: '#EF4444', lineHeight: 20 }}>{error}</Text>
+            </View>
+          )}
 
-        {helperMessage ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.warningLight, borderWidth: 1, borderColor: T.warning + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="flask-outline" size={15} color={T.warning} />
-            <Text style={{ flex: 1, color: T.textSub, fontSize: Typography.base }}>{helperMessage}</Text>
-          </View>
-        ) : null}
+          {!!helperMessage && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: 10,
+              backgroundColor: '#FEF3C7',
+              borderWidth: 1,
+              borderColor: '#FDE68A',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+            }}>
+              <MaterialCommunityIcons name="flask-outline" size={16} color="#F59E0B" style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontSize: 13, color: '#92400E', lineHeight: 20 }}>{helperMessage}</Text>
+            </View>
+          )}
 
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Verification Code">
-          <View style={{ gap: Spacing['3'] }}>
-            <Text style={fieldLabelStyle}>6-digit OTP</Text>
+          {/* OTP grid */}
+          <Animated.View style={{ marginBottom: 24, transform: [{ translateX: shakeAnimation }] }}>
+            <View style={{ flexDirection: 'row', gap: 8, justifyContent: 'space-between' }}>
+              {Array.from({ length: 6 }).map((_, i) => {
+                const digit = code[i];
+                const isFocused = code.length === i || (code.length === 6 && i === 5);
+                const hasError = showErrorState;
+                return (
+                  <View
+                    key={i}
+                    style={{
+                      flex: 1,
+                      aspectRatio: 0.85,
+                      borderRadius: 14,
+                      borderWidth: isFocused ? 2 : 1.5,
+                      borderColor: hasError ? '#EF4444' : (isFocused ? '#8B5CF6' : digit ? '#A78BFA' : '#e5e7eb'),
+                      backgroundColor: hasError ? '#FEF2F2' : (digit ? '#F5F3FF' : '#fff'),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    {digit ? (
+                      <Text style={{ fontSize: 22, fontWeight: '700', color: hasError ? '#EF4444' : '#111827' }}>
+                        {digit}
+                      </Text>
+                    ) : (
+                      <View style={{ width: 16, height: 2.5, borderRadius: 2, backgroundColor: hasError ? '#EF4444' : (isFocused ? '#8B5CF6' : '#e5e7eb') }} />
+                    )}
+                  </View>
+                );
+              })}
+            </View>
 
-            {/* OTP grid cells */}
-            <Animated.View style={{ position: 'relative', transform: [{ translateX: shakeAnimation }] }}>
-              <View style={{ flexDirection: 'row', gap: Spacing['2'], justifyContent: 'space-between' }}>
-                {Array.from({ length: 6 }).map((_, i) => {
-                  const digit = code[i];
-                  const isFocused = code.length === i || (code.length === 6 && i === 5);
-                  const hasError = showErrorState;
-                  return (
-                    <View
-                      key={i}
-                      style={{
-                        flex: 1,
-                        aspectRatio: 0.85,
-                        borderRadius: Radii.md,
-                        borderWidth: isFocused ? 2 : 1.5,
-                        borderColor: hasError ? T.danger : (isFocused ? T.primary : digit ? T.primary + '66' : T.border),
-                        backgroundColor: hasError ? T.danger + '0d' : (digit ? T.primary + '0d' : T.bg),
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      {digit ? (
-                        <Text style={{ fontSize: 22, fontWeight: '700', color: hasError ? T.danger : T.textPrimary, letterSpacing: 0 }}>
-                          {digit}
-                        </Text>
-                      ) : (
-                        <View style={{ width: 16, height: 2.5, borderRadius: 2, backgroundColor: hasError ? T.danger : (isFocused ? T.primary : T.border) }} />
-                      )}
-                    </View>
-                  );
-                })}
-              </View>
+            {/* Hidden input */}
+            <TextInput
+              style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0 }}
+              value={code}
+              onChangeText={(value) => onChangeCode(value.replace(/\D/g, '').slice(0, 6))}
+              keyboardType="number-pad"
+              autoFocus
+              maxLength={6}
+              caretHidden
+            />
+          </Animated.View>
 
-              {/* Hidden full-width input that captures keypresses */}
-              <TextInput
-                style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, opacity: 0 }}
-                value={code}
-                onChangeText={(value) => onChangeCode(value.replace(/\D/g, '').slice(0, 6))}
-                keyboardType="number-pad"
-                autoFocus
-                maxLength={6}
-                caretHidden
-              />
-            </Animated.View>
-
-            <Text style={{ fontSize: Typography.xs, color: T.textHint }}>
-              Enter the code from your email to finish creating your applicant account.
-            </Text>
-          </View>
-        </SectionCard>
-
-        <TouchableOpacity
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: T.primary,
-            borderRadius: Radii.lg,
-            paddingVertical: Spacing['4'],
-            opacity: verifying ? 0.7 : 1,
-            ...Shadows.colored(T.primary),
-          }}
-          onPress={onVerify}
-          activeOpacity={0.85}
-          disabled={verifying}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-            <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>
+          {/* Verify button */}
+          <TouchableOpacity
+            onPress={onVerify}
+            activeOpacity={0.88}
+            disabled={verifying}
+            style={{
+              height: 56,
+              borderRadius: 16,
+              backgroundColor: '#8B5CF6',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              marginBottom: 12,
+              opacity: verifying ? 0.65 : 1,
+              shadowColor: '#8B5CF6',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.4,
+              shadowRadius: 12,
+              elevation: 6,
+            }}
+          >
+            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: -0.3 }}>
               {verifying ? 'Verifying...' : 'Verify and create account'}
             </Text>
-            <MaterialCommunityIcons name="check" size={18} color={T.white} />
-          </View>
-        </TouchableOpacity>
+            {!verifying && (
+              <MaterialCommunityIcons name="check" size={18} color="#fff" />
+            )}
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexDirection: 'row',
-            gap: Spacing['2'],
-            borderWidth: 1.5,
-            borderColor: T.border,
-            borderRadius: Radii.lg,
-            paddingVertical: Spacing['4'],
-            backgroundColor: T.surface,
-            opacity: resending ? 0.7 : 1,
-          }}
-          onPress={onResend}
-          activeOpacity={0.85}
-          disabled={resending}
-        >
-          <MaterialCommunityIcons name="email-fast-outline" size={18} color={T.textPrimary} />
-          <Text style={{ fontSize: Typography.md, fontWeight: Typography.semibold as any, color: T.textPrimary }}>
-            {resending ? 'Sending new code...' : 'Resend code'}
-          </Text>
-        </TouchableOpacity>
-
-        <Spacer size="xl" />
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {/* Resend button */}
+          <TouchableOpacity
+            onPress={onResend}
+            activeOpacity={0.88}
+            disabled={resending}
+            style={{
+              height: 56,
+              borderRadius: 16,
+              borderWidth: 1.5,
+              borderColor: '#e5e7eb',
+              backgroundColor: '#fff',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+              opacity: resending ? 0.65 : 1,
+            }}
+          >
+            <MaterialCommunityIcons name="email-fast-outline" size={18} color="#111827" />
+            <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>
+              {resending ? 'Sending new code...' : 'Resend code'}
+            </Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </OrbBackground>
   );
 }

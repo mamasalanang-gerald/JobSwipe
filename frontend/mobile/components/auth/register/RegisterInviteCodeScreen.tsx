@@ -1,7 +1,7 @@
-import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useRef, useEffect } from 'react';
+import { Animated, Easing, KeyboardAvoidingView, Platform, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
+import { OrbBackground, AnimatedField } from './SharedAuthComponents';
 
 type CompanyInfo = { name: string; validCodes: string[] } | null;
 
@@ -34,89 +34,164 @@ export function RegisterInviteCodeScreen({
   onVerify,
   onRequestInvite,
 }: Props) {
-  return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" />
-      <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['5'] }}>
-        <TouchableOpacity
-          onPress={onBack}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], alignSelf: 'flex-start' }}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={20} color={T.textSub} />
-          <Text style={{ fontSize: Typography.md, color: T.textSub }}>Back</Text>
-        </TouchableOpacity>
-      </View>
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const arrowAnim = useRef(new Animated.Value(0)).current;
 
-      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['4'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['2'] }}>
-            <View style={{ width: 56, height: 56, borderRadius: Radii.xl, backgroundColor: T.primary + '18', alignItems: 'center', justifyContent: 'center' }}>
-              <MaterialCommunityIcons name="office-building" size={28} color={T.primary} />
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(arrowAnim, {
+          toValue: 0,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const arrowTranslate = arrowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 4],
+  });
+
+  return (
+    <OrbBackground>
+      <KeyboardAvoidingView
+        style={{ flex: 1, paddingTop: topInset }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <StatusBar barStyle="light-content" />
+        
+        {/* Back Button */}
+        <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 12 }}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#FFFFFF" />
+            <Text style={{ fontSize: 14, color: '#FFFFFF', fontWeight: '500' }}>Back</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Bottom Sheet */}
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: '#FFFFFF',
+            borderTopLeftRadius: 32,
+            borderTopRightRadius: 32,
+            paddingHorizontal: 24,
+            paddingTop: 32,
+            paddingBottom: 24,
+            transform: [{ translateY: slideAnim }],
+            opacity: fadeAnim,
+          }}
+        >
+          {/* Header */}
+          <View style={{ alignItems: 'center', gap: 12, marginBottom: 32 }}>
+            <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: '#F3E8FF', alignItems: 'center', justifyContent: 'center' }}>
+              <MaterialCommunityIcons name="office-building" size={32} color="#8B5CF6" />
             </View>
-            <Text style={{ fontSize: Typography.lg, fontWeight: Typography.bold as any, color: T.textPrimary, textAlign: 'center' }}>
+            <Text style={{ fontSize: 24, fontWeight: '700', color: '#111827', textAlign: 'center', letterSpacing: -0.5 }}>
               Join with an invite code
             </Text>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, textAlign: 'center', lineHeight: 20 }}>
+            <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', lineHeight: 20 }}>
               Enter the code from your company admin. We'll use it to verify your company and work email.
             </Text>
           </View>
-        </SectionCard>
 
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="HR Registration Form">
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={fieldLabelStyle}>Company invite token</Text>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="ticket-outline" size={16} color={T.textHint} />
-              <TextInput
-                style={inputStyle}
-                placeholder="e.g. COMPANY-HR-2024"
-                placeholderTextColor={T.textHint}
-                value={inviteCode}
-                onChangeText={onChangeInviteCode}
-                autoCapitalize="characters"
-                autoFocus
-              />
-            </View>
-            {inviteError ? <Text style={{ fontSize: Typography.xs, color: T.danger }}>{inviteError}</Text> : null}
-          </View>
-        </SectionCard>
+          {/* Invite Code Input */}
+          <View style={{ gap: 24 }}>
+            <AnimatedField
+              label="Company invite token"
+              placeholder="e.g. COMPANY-HR-2024"
+              value={inviteCode}
+              onChangeText={onChangeInviteCode}
+              autoCapitalize="characters"
+              autoFocus
+            />
+            {inviteError ? (
+              <Text style={{ fontSize: 12, color: '#EF4444', marginTop: -16 }}>{inviteError}</Text>
+            ) : null}
 
-        <TouchableOpacity
-          style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: T.primary, borderRadius: Radii.lg, paddingVertical: Spacing['4'], ...Shadows.colored(T.primary) }}
-          onPress={onVerify}
-          activeOpacity={0.85}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-            <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>Verify & Continue</Text>
-            <MaterialCommunityIcons name="arrow-right" size={18} color={T.white} />
-          </View>
-        </TouchableOpacity>
-
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ gap: Spacing['3'] }}>
-            <Text style={{ fontSize: Typography.sm, fontWeight: Typography.semibold as any, color: T.textPrimary }}>
-              Don't have an invite code?
-            </Text>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, lineHeight: 20 }}>
-              Ask your company admin to send you an invite link, or contact {detectedCompany ? detectedCompany.name : 'your company'}'s HR team to get access.
-            </Text>
+            {/* Verify Button */}
             <TouchableOpacity
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing['2'], borderWidth: 1, borderColor: T.primary, borderRadius: Radii.lg, paddingVertical: Spacing['3'] }}
-              onPress={onRequestInvite}
-              activeOpacity={0.8}
+              style={{
+                backgroundColor: '#8B5CF6',
+                borderRadius: 16,
+                paddingVertical: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+                shadowColor: '#8B5CF6',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+              onPress={onVerify}
+              activeOpacity={0.85}
             >
-              <MaterialCommunityIcons name="email-arrow-right-outline" size={16} color={T.primary} />
-              <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.semibold as any }}>Request an invite link</Text>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Verify & Continue</Text>
+                <Animated.View style={{ transform: [{ translateX: arrowTranslate }] }}>
+                  <MaterialCommunityIcons name="arrow-right" size={20} color="#FFFFFF" />
+                </Animated.View>
+              </View>
             </TouchableOpacity>
-          </View>
-        </SectionCard>
 
-        <Spacer size="xl" />
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Help Section */}
+            <View style={{ backgroundColor: '#F9FAFB', borderRadius: 16, padding: 20, gap: 12, marginTop: 8 }}>
+              <Text style={{ fontSize: 14, fontWeight: '600', color: '#111827' }}>
+                Don't have an invite code?
+              </Text>
+              <Text style={{ fontSize: 13, color: '#6B7280', lineHeight: 18 }}>
+                Ask your company admin to send you an invite link, or contact {detectedCompany ? detectedCompany.name : 'your company'}'s HR team to get access.
+              </Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  borderWidth: 1.5,
+                  borderColor: '#8B5CF6',
+                  borderRadius: 12,
+                  paddingVertical: 12,
+                  marginTop: 4,
+                }}
+                onPress={onRequestInvite}
+                activeOpacity={0.8}
+              >
+                <MaterialCommunityIcons name="email-arrow-right-outline" size={18} color="#8B5CF6" />
+                <Text style={{ fontSize: 14, color: '#8B5CF6', fontWeight: '600' }}>Request an invite link</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </OrbBackground>
   );
 }

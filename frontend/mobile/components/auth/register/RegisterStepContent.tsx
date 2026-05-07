@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Image, ScrollView, Text, TextInput, TouchableOpacity, View, Modal } from 'react-native';
+import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { Picker } from '@react-native-picker/picker';
-import Svg, { Path } from 'react-native-svg';
-import { Divider, Radii, SectionCard, Spacing, Typography } from '../../ui';
+import { Divider, Radii, Spacing, Typography } from '../../ui';
 import { COMPANY_SIZE_OPTIONS, INDUSTRY_OPTIONS, Step, WorkEntry, EducationEntry } from './types';
 import { COUNTRIES, getProvincesForCountry, getProvincesForRegion, getCitiesForProvince } from '../../../constants/locations';
 
@@ -109,6 +108,99 @@ type Props = {
   setError: (value: string) => void;
 };
 
+// ─── Design tokens matching the login page white sheet ────────────────────────
+const S = {
+  // Card wrapper — sits on the white sheet so no extra bg needed
+  card: {
+    backgroundColor: '#F9FAFB',
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+    borderRadius: 16,
+    padding: 16,
+    gap: 12,
+  } as const,
+  cardTitle: {
+    fontSize: 13,
+    fontWeight: '700' as const,
+    color: '#111827',
+    letterSpacing: -0.2,
+    marginBottom: 4,
+  },
+  hint: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    lineHeight: 18,
+  },
+  // Pill chip (skills, industry, size)
+  chip: (selected: boolean) => ({
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: selected ? '#7C3AED' : '#F3F4F6',
+    borderWidth: selected ? 0 : 1,
+    borderColor: '#E5E7EB',
+  }),
+  chipText: (selected: boolean) => ({
+    fontSize: 13,
+    color: selected ? '#fff' : '#6B7280',
+    fontWeight: selected ? ('700' as const) : ('400' as const),
+  }),
+  // Suggestion dropdown row
+  suggestion: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    justifyContent: 'space-between' as const,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  // Skill tag
+  skillTag: (color: string) => ({
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    backgroundColor: color + '18',
+    borderWidth: 1,
+    borderColor: color + '40',
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  }),
+  // Upload zone
+  uploadZone: (active: boolean) => ({
+    borderWidth: 2,
+    borderStyle: 'dashed' as const,
+    borderColor: active ? '#10B981' : '#E5E7EB',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center' as const,
+    gap: 8,
+    backgroundColor: active ? '#F0FDF4' : '#F9FAFB',
+  }),
+  // Add button row
+  addRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingVertical: 8,
+  },
+  // Section divider inside a card
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 12,
+  },
+};
+
+// Reusable card container replacing SectionCard
+function Card({ title, children }: { title?: string; children: React.ReactNode }) {
+  return (
+    <View style={S.card}>
+      {title ? <Text style={S.cardTitle}>{title}</Text> : null}
+      {children}
+    </View>
+  );
+}
+
 export function RegisterStepContent(props: Props) {
   const {
     T,
@@ -204,558 +296,465 @@ export function RegisterStepContent(props: Props) {
   } = props;
 
   switch (stepKey) {
+
+    // ── Password ──────────────────────────────────────────────────────────────
     case 'password':
       return (
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Registration Form">
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={fieldLabelStyle}>Password</Text>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="lock-outline" size={16} color={T.textHint} />
-              <TextInput
-                style={[inputStyle, { flex: 1 }]}
-                placeholder="Min. 8 chars, 1 uppercase, 1 number"
-                placeholderTextColor={T.textHint}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                autoFocus
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: Spacing['1'] }}>
-                <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={T.textHint} />
-              </TouchableOpacity>
-            </View>
-            {strengthLevel && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] }}>
-                <View style={{ flex: 1, height: 3, backgroundColor: T.surfaceHigh, borderRadius: Radii.full, overflow: 'hidden' }}>
-                  <View style={{ height: '100%', borderRadius: Radii.full, backgroundColor: strengthColor, width: strengthLevel === 'weak' ? '33%' : strengthLevel === 'good' ? '66%' : '100%' }} />
-                </View>
-                <Text style={{ fontSize: Typography.xs, color: strengthColor, fontWeight: Typography.semibold as any, minWidth: 36 }}>
-                  {strengthLevel === 'weak' ? 'Weak' : strengthLevel === 'good' ? 'Good' : 'Strong'}
-                </Text>
+        <Card title="Set a password">
+          <View style={{ gap: 12 }}>
+            <View style={{ gap: 6 }}>
+              <Text style={fieldLabelStyle}>Password</Text>
+              <View style={inputRowStyle}>
+                <MaterialCommunityIcons name="lock-outline" size={16} color="#9CA3AF" />
+                <TextInput
+                  style={[inputStyle, { flex: 1 }]}
+                  placeholder="Min. 8 chars, 1 uppercase, 1 number"
+                  placeholderTextColor="#9CA3AF"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoFocus
+                />
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: 4 }}>
+                  <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
+                </TouchableOpacity>
               </View>
-            )}
-          </View>
+              {strengthLevel && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <View style={{ flex: 1, height: 3, backgroundColor: '#F3F4F6', borderRadius: 2, overflow: 'hidden' }}>
+                    <View style={{
+                      height: '100%',
+                      borderRadius: 2,
+                      backgroundColor: strengthColor,
+                      width: strengthLevel === 'weak' ? '33%' : strengthLevel === 'good' ? '66%' : '100%',
+                    }} />
+                  </View>
+                  <Text style={{ fontSize: 11, color: strengthColor, fontWeight: '700', minWidth: 36 }}>
+                    {strengthLevel === 'weak' ? 'Weak' : strengthLevel === 'good' ? 'Good' : 'Strong'}
+                  </Text>
+                </View>
+              )}
+            </View>
 
-          <Divider spacing={Spacing['4']} />
+            <View style={S.divider} />
 
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={fieldLabelStyle}>Confirm password</Text>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="lock-check-outline" size={16} color={T.textHint} />
-              <TextInput
-                style={inputStyle}
-                placeholder="Re-enter your password"
-                placeholderTextColor={T.textHint}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
+            <View style={{ gap: 6 }}>
+              <Text style={fieldLabelStyle}>Confirm password</Text>
+              <View style={inputRowStyle}>
+                <MaterialCommunityIcons name="lock-check-outline" size={16} color="#9CA3AF" />
+                <TextInput
+                  style={[inputStyle, { flex: 1 }]}
+                  placeholder="Re-enter your password"
+                  placeholderTextColor="#9CA3AF"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                />
+              </View>
             </View>
           </View>
-        </SectionCard>
+        </Card>
       );
 
-    case 'basic':
+    // ── Basic Info ────────────────────────────────────────────────────────────
+    case 'basic': {
       const isPhilippines = locationCountry === 'Philippines';
       const availableRegionsOrStates = getProvincesForCountry(locationCountry);
       const availableProvinces = isPhilippines ? getProvincesForRegion(locationRegion) : [];
-      const availableCities = isPhilippines 
+      const availableCities = isPhilippines
         ? getCitiesForProvince(locationCountry, locationProvince)
         : getCitiesForProvince(locationCountry, locationRegion);
-      
+
       return (
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Basic Info">
-          <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-            <View style={{ flex: 1, gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>First name *</Text>
-              <View style={inputRowStyle}>
-                <TextInput style={inputStyle} placeholder="John" placeholderTextColor={T.textHint} value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
+        <View style={{ gap: 12 }}>
+          {/* Name */}
+          <Card title="Your name">
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1, gap: 6 }}>
+                <Text style={fieldLabelStyle}>First name *</Text>
+                <View style={inputRowStyle}>
+                  <TextInput style={inputStyle} placeholder="John" placeholderTextColor="#9CA3AF" value={firstName} onChangeText={setFirstName} autoCapitalize="words" />
+                </View>
+              </View>
+              <View style={{ flex: 1, gap: 6 }}>
+                <Text style={fieldLabelStyle}>Last name *</Text>
+                <View style={inputRowStyle}>
+                  <TextInput style={inputStyle} placeholder="Doe" placeholderTextColor="#9CA3AF" value={lastName} onChangeText={setLastName} autoCapitalize="words" />
+                </View>
               </View>
             </View>
-            <View style={{ flex: 1, gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Last name *</Text>
-              <View style={inputRowStyle}>
-                <TextInput style={inputStyle} placeholder="Doe" placeholderTextColor={T.textHint} value={lastName} onChangeText={setLastName} autoCapitalize="words" />
-              </View>
-            </View>
-          </View>
+          </Card>
 
-          <Divider spacing={Spacing['4']} />
-
-          <View style={{ gap: Spacing['3'] }}>
-            <Text style={fieldLabelStyle}>Location *</Text>
-
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>Country</Text>
-              <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                <Picker
-                  selectedValue={locationCountry}
-                  onValueChange={(value) => {
-                    setLocationCountry(value);
-                    setLocationRegion('');
-                    setLocationProvince('');
-                    setLocationCity('');
-                    setLocation('');
-                  }}
-                  style={{ flex: 1, color: T.textPrimary }}
-                >
-                  <Picker.Item label="Select country..." value="" />
-                  {COUNTRIES.map((country) => (
-                    <Picker.Item key={country} label={country} value={country} />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>
-                {isPhilippines ? 'Region' : locationCountry === 'United States' || locationCountry === 'Australia' ? 'State' : locationCountry === 'Canada' ? 'Province' : 'Region'}
-              </Text>
-              <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                <Picker
-                  selectedValue={locationRegion}
-                  onValueChange={(value) => {
-                    setLocationRegion(value);
-                    setLocationProvince('');
-                    setLocationCity('');
-                    if (!isPhilippines && value && locationCity) {
-                      setLocation(`${locationCity}, ${value}`);
-                    }
-                  }}
-                  style={{ flex: 1, color: T.textPrimary }}
-                  enabled={!!locationCountry}
-                >
-                  <Picker.Item label={locationCountry ? (isPhilippines ? 'Select region...' : locationCountry === 'United States' || locationCountry === 'Australia' ? 'Select state...' : locationCountry === 'Canada' ? 'Select province...' : 'Select region...') : 'Select country first'} value="" />
-                  {availableRegionsOrStates.map((item) => (
-                    <Picker.Item key={item} label={item} value={item} />
-                  ))}
-                </Picker>
-              </View>
-            </View>
-
-            {isPhilippines && (
-              <View style={{ gap: Spacing['2'] }}>
-                <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>Province</Text>
+          {/* Location */}
+          <Card title="Location *">
+            <View style={{ gap: 10 }}>
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>Country</Text>
                 <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                  <Picker
-                    selectedValue={locationProvince}
-                    onValueChange={(value) => {
-                      setLocationProvince(value);
-                      setLocationCity('');
-                    }}
-                    style={{ flex: 1, color: T.textPrimary }}
-                    enabled={!!locationRegion}
-                  >
-                    <Picker.Item label={locationRegion ? 'Select province...' : 'Select region first'} value="" />
-                    {availableProvinces.map((province) => (
-                      <Picker.Item key={province} label={province} value={province} />
-                    ))}
+                  <Picker selectedValue={locationCountry} onValueChange={(value) => { setLocationCountry(value); setLocationRegion(''); setLocationProvince(''); setLocationCity(''); setLocation(''); }} style={{ flex: 1, color: '#111827' }}>
+                    <Picker.Item label="Select country..." value="" />
+                    {COUNTRIES.map((c) => <Picker.Item key={c} label={c} value={c} />)}
                   </Picker>
                 </View>
               </View>
-            )}
 
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>City</Text>
-              <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                <Picker
-                  selectedValue={locationCity}
-                  onValueChange={(value) => {
-                    setLocationCity(value);
-                    if (value) {
-                      if (isPhilippines && locationProvince) {
-                        setLocation(`${value}, ${locationProvince}`);
-                      } else if (!isPhilippines && locationRegion) {
-                        setLocation(`${value}, ${locationRegion}`);
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>
+                  {isPhilippines ? 'Region' : locationCountry === 'United States' || locationCountry === 'Australia' ? 'State' : locationCountry === 'Canada' ? 'Province' : 'Region'}
+                </Text>
+                <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                  <Picker selectedValue={locationRegion} onValueChange={(value) => { setLocationRegion(value); setLocationProvince(''); setLocationCity(''); if (!isPhilippines && value && locationCity) setLocation(`${locationCity}, ${value}`); }} style={{ flex: 1, color: '#111827' }} enabled={!!locationCountry}>
+                    <Picker.Item label={locationCountry ? (isPhilippines ? 'Select region...' : 'Select...') : 'Select country first'} value="" />
+                    {availableRegionsOrStates.map((item) => <Picker.Item key={item} label={item} value={item} />)}
+                  </Picker>
+                </View>
+              </View>
+
+              {isPhilippines && (
+                <View style={{ gap: 6 }}>
+                  <Text style={fieldLabelStyle}>Province</Text>
+                  <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                    <Picker selectedValue={locationProvince} onValueChange={(value) => { setLocationProvince(value); setLocationCity(''); }} style={{ flex: 1, color: '#111827' }} enabled={!!locationRegion}>
+                      <Picker.Item label={locationRegion ? 'Select province...' : 'Select region first'} value="" />
+                      {availableProvinces.map((p) => <Picker.Item key={p} label={p} value={p} />)}
+                    </Picker>
+                  </View>
+                </View>
+              )}
+
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>City</Text>
+                <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
+                  <Picker
+                    selectedValue={locationCity}
+                    onValueChange={(value) => {
+                      setLocationCity(value);
+                      if (value) {
+                        if (isPhilippines && locationProvince) setLocation(`${value}, ${locationProvince}`);
+                        else if (!isPhilippines && locationRegion) setLocation(`${value}, ${locationRegion}`);
                       }
-                    }
-                  }}
-                  style={{ flex: 1, color: T.textPrimary }}
-                  enabled={isPhilippines ? !!locationProvince : !!locationRegion}
-                >
-                  <Picker.Item 
-                    label={
-                      isPhilippines 
-                        ? (locationProvince ? 'Select city...' : 'Select province first')
-                        : (locationRegion ? 'Select city...' : (locationCountry === 'United States' || locationCountry === 'Australia' ? 'Select state first' : locationCountry === 'Canada' ? 'Select province first' : 'Select region first'))
-                    } 
-                    value="" 
-                  />
-                  {availableCities.map((city) => (
-                    <Picker.Item key={city} label={city} value={city} />
-                  ))}
-                </Picker>
+                    }}
+                    style={{ flex: 1, color: '#111827' }}
+                    enabled={isPhilippines ? !!locationProvince : !!locationRegion}
+                  >
+                    <Picker.Item label={isPhilippines ? (locationProvince ? 'Select city...' : 'Select province first') : (locationRegion ? 'Select city...' : 'Select region first')} value="" />
+                    {availableCities.map((city) => <Picker.Item key={city} label={city} value={city} />)}
+                  </Picker>
+                </View>
               </View>
             </View>
-          </View>
+          </Card>
 
-          <Divider spacing={Spacing['4']} />
-
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={fieldLabelStyle}>Bio</Text>
-            <View style={[inputRowStyle, { alignItems: 'flex-start', paddingVertical: Spacing['2'] }]}>
-              <TextInput
-                style={[inputStyle, { minHeight: 80, textAlignVertical: 'top' }]}
-                placeholder="Tell us about yourself..."
-                placeholderTextColor={T.textHint}
-                value={bio}
-                onChangeText={setBio}
-                multiline
-                maxLength={500}
-              />
+          {/* Bio */}
+          <Card title="Bio">
+            <View style={{ gap: 6 }}>
+              <View style={[inputRowStyle, { alignItems: 'flex-start', paddingVertical: 10 }]}>
+                <TextInput
+                  style={[inputStyle, { minHeight: 80, textAlignVertical: 'top' }]}
+                  placeholder="Tell us about yourself..."
+                  placeholderTextColor="#9CA3AF"
+                  value={bio}
+                  onChangeText={setBio}
+                  multiline
+                  maxLength={500}
+                />
+              </View>
+              <Text style={[S.hint, { textAlign: 'right' }]}>{bio.length}/500</Text>
             </View>
-            <Text style={{ fontSize: Typography.xs, color: T.textHint, textAlign: 'right' }}>{bio.length}/500</Text>
-          </View>
-        </SectionCard>
+          </Card>
+        </View>
       );
+    }
 
+    // ── Resume ────────────────────────────────────────────────────────────────
     case 'resume':
       return (
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Resume Upload">
-          <View style={{ gap: Spacing['3'] }}>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub }}>Upload your resume (PDF or Word). Max 5MB.</Text>
-            <TouchableOpacity
-              style={{
-                borderWidth: 2,
-                borderStyle: 'dashed' as any,
-                borderColor: resumeFile ? T.success : T.border,
-                borderRadius: Radii.lg,
-                padding: Spacing['6'],
-                alignItems: 'center',
-                gap: Spacing['2'],
-                backgroundColor: resumeFile ? T.successLight : T.surface,
-              }}
-              onPress={async () => {
-                const result = await DocumentPicker.getDocumentAsync({
-                  type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
-                  copyToCacheDirectory: true,
-                });
-                if (!result.canceled && result.assets?.[0]) {
-                  const asset = result.assets[0];
-                  setResumeFile({
-                    uri: asset.uri,
-                    name: asset.name,
-                    mimeType: asset.mimeType ?? null,
-                    size: asset.size,
-                  });
-                }
-              }}
-            >
-              <MaterialCommunityIcons name={resumeFile ? 'file-check-outline' : 'file-upload-outline'} size={36} color={resumeFile ? T.success : T.primary} />
-              <Text style={{ fontSize: Typography.base, fontWeight: Typography.semibold as any, color: resumeFile ? T.success : T.textPrimary }}>
-                {resumeFile ? resumeFile.name : 'Tap to upload resume'}
-              </Text>
-              <Text style={{ fontSize: Typography.xs, color: T.textHint }}>PDF/DOCX - Max 5MB</Text>
+        <Card title="Upload your resume">
+          <Text style={S.hint}>PDF or Word document. Max 5MB.</Text>
+          <TouchableOpacity
+            style={S.uploadZone(!!resumeFile)}
+            onPress={async () => {
+              const result = await DocumentPicker.getDocumentAsync({
+                type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+                copyToCacheDirectory: true,
+              });
+              if (!result.canceled && result.assets?.[0]) {
+                const asset = result.assets[0];
+                setResumeFile({ uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? null, size: asset.size });
+              }
+            }}
+          >
+            <MaterialCommunityIcons name={resumeFile ? 'file-check-outline' : 'file-upload-outline'} size={36} color={resumeFile ? '#10B981' : '#7C3AED'} />
+            <Text style={{ fontSize: 14, fontWeight: '700', color: resumeFile ? '#10B981' : '#111827' }}>
+              {resumeFile ? resumeFile.name : 'Tap to upload resume'}
+            </Text>
+            <Text style={S.hint}>PDF / DOCX — max 5 MB</Text>
+          </TouchableOpacity>
+          {resumeFile && (
+            <TouchableOpacity onPress={() => setResumeFile(null)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, alignSelf: 'center' }}>
+              <MaterialCommunityIcons name="close-circle-outline" size={14} color="#EF4444" />
+              <Text style={{ fontSize: 12, color: '#EF4444' }}>Remove file</Text>
             </TouchableOpacity>
-            {resumeFile && (
-              <TouchableOpacity onPress={() => setResumeFile(null)} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['1'], alignSelf: 'center' }}>
-                <MaterialCommunityIcons name="close-circle-outline" size={14} color={T.danger} />
-                <Text style={{ fontSize: Typography.xs, color: T.danger }}>Remove file</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </SectionCard>
+          )}
+        </Card>
       );
 
+    // ── Skills ────────────────────────────────────────────────────────────────
     case 'skills':
       return (
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Skills">
-          <View style={{ gap: Spacing['3'] }}>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub }}>Add your hard and soft skills separately. Suggestions now include tech, business, creative, operations, healthcare, and more.</Text>
+        <View style={{ gap: 12 }}>
+          <Text style={S.hint}>Add your hard and soft skills separately.</Text>
 
-            <View style={{ gap: Spacing['4'] }}>
-              <View style={{ gap: Spacing['2'] }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-                  <MaterialCommunityIcons name="hammer-wrench" size={16} color={T.primary} />
-                  <Text style={{ fontSize: Typography.sm, fontWeight: Typography.semibold as any, color: T.textPrimary }}>Hard Skills</Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: Spacing['2'] }}>
-                  <View style={[inputRowStyle, { flex: 1 }]}>
-                    <MaterialCommunityIcons name="tag-outline" size={16} color={T.textHint} />
-                    <TextInput
-                      style={inputStyle}
-                      placeholder="Add hard skills like Excel, Nursing, SQL, Figma..."
-                      placeholderTextColor={T.textHint}
-                      value={hardSkillInput}
-                      onChangeText={setHardSkillInput}
-                      returnKeyType="done"
-                      onSubmitEditing={() => addSkill('hard')}
-                      autoCapitalize="words"
-                      autoCorrect={false}
-                    />
-                  </View>
-                  <TouchableOpacity onPress={() => addSkill('hard')} style={{ backgroundColor: T.primary, borderRadius: Radii.md, paddingHorizontal: Spacing['4'], justifyContent: 'center' }}>
-                    <Text style={{ color: T.white, fontWeight: Typography.semibold as any, fontSize: Typography.sm }}>Add</Text>
-                  </TouchableOpacity>
-                </View>
-                {hardSkillSuggestions.length > 0 ? (
-                  <View style={{ backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border, borderRadius: Radii.md, overflow: 'hidden' }}>
-                    {hardSkillSuggestions.map((suggestion, index) => (
-                      <TouchableOpacity
-                        key={suggestion}
-                        onPress={() => addSkill('hard', suggestion)}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          paddingHorizontal: Spacing['3'],
-                          paddingVertical: Spacing['3'],
-                          borderBottomWidth: index < hardSkillSuggestions.length - 1 ? 1 : 0,
-                          borderBottomColor: T.borderFaint,
-                        }}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-                          <MaterialCommunityIcons name="lightbulb-on-outline" size={15} color={T.primary} />
-                          <Text style={{ fontSize: Typography.sm, color: T.textPrimary }}>{suggestion}</Text>
-                        </View>
-                        <MaterialCommunityIcons name="plus" size={16} color={T.textHint} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ) : null}
-                {hardSkills.length > 0 ? (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing['2'] }}>
-                    {hardSkills.map((skill) => (
-                      <View key={skill} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border, borderRadius: Radii.full, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['1'] }}>
-                        <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.medium as any }}>{skill}</Text>
-                        <TouchableOpacity onPress={() => removeSkill('hard', skill)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                          <MaterialCommunityIcons name="close" size={13} color={T.textHint} />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: Typography.xs, color: T.textHint }}>No hard skills added yet</Text>
-                )}
-              </View>
-
-              <View style={{ gap: Spacing['2'] }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-                  <MaterialCommunityIcons name="account-group-outline" size={16} color={T.success} />
-                  <Text style={{ fontSize: Typography.sm, fontWeight: Typography.semibold as any, color: T.textPrimary }}>Soft Skills</Text>
-                </View>
-                <View style={{ flexDirection: 'row', gap: Spacing['2'] }}>
-                  <View style={[inputRowStyle, { flex: 1 }]}>
-                    <MaterialCommunityIcons name="tag-outline" size={16} color={T.textHint} />
-                    <TextInput
-                      style={inputStyle}
-                      placeholder="Add soft skills like Leadership, Empathy, Teamwork..."
-                      placeholderTextColor={T.textHint}
-                      value={softSkillInput}
-                      onChangeText={setSoftSkillInput}
-                      returnKeyType="done"
-                      onSubmitEditing={() => addSkill('soft')}
-                      autoCapitalize="words"
-                      autoCorrect={false}
-                    />
-                  </View>
-                  <TouchableOpacity onPress={() => addSkill('soft')} style={{ backgroundColor: T.success, borderRadius: Radii.md, paddingHorizontal: Spacing['4'], justifyContent: 'center' }}>
-                    <Text style={{ color: T.white, fontWeight: Typography.semibold as any, fontSize: Typography.sm }}>Add</Text>
-                  </TouchableOpacity>
-                </View>
-                {softSkillSuggestions.length > 0 ? (
-                  <View style={{ backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border, borderRadius: Radii.md, overflow: 'hidden' }}>
-                    {softSkillSuggestions.map((suggestion, index) => (
-                      <TouchableOpacity
-                        key={suggestion}
-                        onPress={() => addSkill('soft', suggestion)}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          paddingHorizontal: Spacing['3'],
-                          paddingVertical: Spacing['3'],
-                          borderBottomWidth: index < softSkillSuggestions.length - 1 ? 1 : 0,
-                          borderBottomColor: T.borderFaint,
-                        }}
-                      >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-                          <MaterialCommunityIcons name="lightbulb-on-outline" size={15} color={T.success} />
-                          <Text style={{ fontSize: Typography.sm, color: T.textPrimary }}>{suggestion}</Text>
-                        </View>
-                        <MaterialCommunityIcons name="plus" size={16} color={T.textHint} />
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                ) : null}
-                {softSkills.length > 0 ? (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing['2'] }}>
-                    {softSkills.map((skill) => (
-                      <View key={skill} style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: T.surfaceHigh, borderWidth: 1, borderColor: T.border, borderRadius: Radii.full, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['1'] }}>
-                        <Text style={{ fontSize: Typography.sm, color: T.success, fontWeight: Typography.medium as any }}>{skill}</Text>
-                        <TouchableOpacity onPress={() => removeSkill('soft', skill)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
-                          <MaterialCommunityIcons name="close" size={13} color={T.textHint} />
-                        </TouchableOpacity>
-                      </View>
-                    ))}
-                  </View>
-                ) : (
-                  <Text style={{ fontSize: Typography.xs, color: T.textHint }}>No soft skills added yet</Text>
-                )}
-              </View>
+          {/* Hard skills */}
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <MaterialCommunityIcons name="hammer-wrench" size={15} color="#7C3AED" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>Hard skills</Text>
             </View>
-          </View>
-        </SectionCard>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={[inputRowStyle, { flex: 1 }]}>
+                <MaterialCommunityIcons name="tag-outline" size={15} color="#9CA3AF" />
+                <TextInput style={inputStyle} placeholder="Excel, SQL, Figma..." placeholderTextColor="#9CA3AF" value={hardSkillInput} onChangeText={setHardSkillInput} returnKeyType="done" onSubmitEditing={() => addSkill('hard')} autoCapitalize="words" autoCorrect={false} />
+              </View>
+              <TouchableOpacity onPress={() => addSkill('hard')} style={{ backgroundColor: '#7C3AED', borderRadius: 12, paddingHorizontal: 16, justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Add</Text>
+              </TouchableOpacity>
+            </View>
+            {hardSkillSuggestions.length > 0 && (
+              <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 12, overflow: 'hidden', marginTop: 4 }}>
+                {hardSkillSuggestions.map((s, i) => (
+                  <TouchableOpacity key={s} onPress={() => addSkill('hard', s)} style={[S.suggestion, { borderBottomWidth: i < hardSkillSuggestions.length - 1 ? 1 : 0, borderBottomColor: '#F9FAFB' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <MaterialCommunityIcons name="lightbulb-on-outline" size={14} color="#7C3AED" />
+                      <Text style={{ fontSize: 13, color: '#111827' }}>{s}</Text>
+                    </View>
+                    <MaterialCommunityIcons name="plus" size={15} color="#9CA3AF" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {hardSkills.length > 0 ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                {hardSkills.map((skill) => (
+                  <View key={skill} style={S.skillTag('#7C3AED')}>
+                    <Text style={{ fontSize: 13, color: '#7C3AED', fontWeight: '600' }}>{skill}</Text>
+                    <TouchableOpacity onPress={() => removeSkill('hard', skill)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                      <MaterialCommunityIcons name="close" size={13} color="#7C3AED" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={S.hint}>No hard skills added yet</Text>
+            )}
+          </Card>
+
+          {/* Soft skills */}
+          <Card>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <MaterialCommunityIcons name="account-group-outline" size={15} color="#10B981" />
+              <Text style={{ fontSize: 13, fontWeight: '700', color: '#111827' }}>Soft skills</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <View style={[inputRowStyle, { flex: 1 }]}>
+                <MaterialCommunityIcons name="tag-outline" size={15} color="#9CA3AF" />
+                <TextInput style={inputStyle} placeholder="Leadership, Empathy..." placeholderTextColor="#9CA3AF" value={softSkillInput} onChangeText={setSoftSkillInput} returnKeyType="done" onSubmitEditing={() => addSkill('soft')} autoCapitalize="words" autoCorrect={false} />
+              </View>
+              <TouchableOpacity onPress={() => addSkill('soft')} style={{ backgroundColor: '#10B981', borderRadius: 12, paddingHorizontal: 16, justifyContent: 'center' }}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 13 }}>Add</Text>
+              </TouchableOpacity>
+            </View>
+            {softSkillSuggestions.length > 0 && (
+              <View style={{ backgroundColor: '#fff', borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 12, overflow: 'hidden', marginTop: 4 }}>
+                {softSkillSuggestions.map((s, i) => (
+                  <TouchableOpacity key={s} onPress={() => addSkill('soft', s)} style={[S.suggestion, { borderBottomWidth: i < softSkillSuggestions.length - 1 ? 1 : 0, borderBottomColor: '#F9FAFB' }]}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <MaterialCommunityIcons name="lightbulb-on-outline" size={14} color="#10B981" />
+                      <Text style={{ fontSize: 13, color: '#111827' }}>{s}</Text>
+                    </View>
+                    <MaterialCommunityIcons name="plus" size={15} color="#9CA3AF" />
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+            {softSkills.length > 0 ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                {softSkills.map((skill) => (
+                  <View key={skill} style={S.skillTag('#10B981')}>
+                    <Text style={{ fontSize: 13, color: '#10B981', fontWeight: '600' }}>{skill}</Text>
+                    <TouchableOpacity onPress={() => removeSkill('soft', skill)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }}>
+                      <MaterialCommunityIcons name="close" size={13} color="#10B981" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={S.hint}>No soft skills added yet</Text>
+            )}
+          </Card>
+        </View>
       );
 
+    // ── Experience ────────────────────────────────────────────────────────────
     case 'experience':
       return (
-        <>
-          <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Work Experience">
+        <View style={{ gap: 12 }}>
+          {/* Work experience */}
+          <Card title="Work experience">
             {workEntries.map((entry, index) => (
-              <View key={index} style={{ gap: Spacing['3'], paddingTop: index > 0 ? Spacing['4'] : 0, borderTopWidth: index > 0 ? 1 : 0, borderTopColor: T.borderFaint }}>
+              <View key={index} style={{ gap: 10, paddingTop: index > 0 ? 12 : 0, borderTopWidth: index > 0 ? 1 : 0, borderTopColor: '#F3F4F6' }}>
                 {index > 0 && (
                   <TouchableOpacity onPress={() => setWorkEntries((prev) => prev.filter((_, idx) => idx !== index))} style={{ alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <MaterialCommunityIcons name="minus-circle-outline" size={14} color={T.danger} />
-                    <Text style={{ fontSize: Typography.xs, color: T.danger }}>Remove</Text>
+                    <MaterialCommunityIcons name="minus-circle-outline" size={14} color="#EF4444" />
+                    <Text style={{ fontSize: 12, color: '#EF4444' }}>Remove</Text>
                   </TouchableOpacity>
                 )}
-                <View style={{ gap: Spacing['2'] }}>
+                <View style={{ gap: 6 }}>
                   <Text style={fieldLabelStyle}>Company</Text>
                   <View style={inputRowStyle}>
-                    <MaterialCommunityIcons name="office-building-outline" size={15} color={T.textHint} />
-                    <TextInput style={inputStyle} placeholder="e.g. Acme Corp" placeholderTextColor={T.textHint} value={entry.company} onChangeText={(value) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, company: value } : item))} />
+                    <MaterialCommunityIcons name="office-building-outline" size={14} color="#9CA3AF" />
+                    <TextInput style={inputStyle} placeholder="Acme Corp" placeholderTextColor="#9CA3AF" value={entry.company} onChangeText={(v) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, company: v } : item))} />
                   </View>
                 </View>
-                <View style={{ gap: Spacing['2'] }}>
+                <View style={{ gap: 6 }}>
                   <Text style={fieldLabelStyle}>Position</Text>
                   <View style={inputRowStyle}>
-                    <MaterialCommunityIcons name="briefcase-outline" size={15} color={T.textHint} />
-                    <TextInput style={inputStyle} placeholder="e.g. Software Engineer" placeholderTextColor={T.textHint} value={entry.position} onChangeText={(value) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, position: value } : item))} />
+                    <MaterialCommunityIcons name="briefcase-outline" size={14} color="#9CA3AF" />
+                    <TextInput style={inputStyle} placeholder="Software Engineer" placeholderTextColor="#9CA3AF" value={entry.position} onChangeText={(v) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, position: v } : item))} />
                   </View>
                 </View>
-                <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-                  <View style={{ flex: 1, gap: Spacing['2'] }}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1, gap: 6 }}>
                     <Text style={fieldLabelStyle}>Start date</Text>
                     <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor={T.textHint} value={entry.start_date} onChangeText={(value) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, start_date: value } : item))} />
+                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor="#9CA3AF" value={entry.start_date} onChangeText={(v) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, start_date: v } : item))} />
                     </View>
                   </View>
-                  <View style={{ flex: 1, gap: Spacing['2'] }}>
+                  <View style={{ flex: 1, gap: 6 }}>
                     <Text style={fieldLabelStyle}>End date</Text>
                     <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="Present" placeholderTextColor={T.textHint} value={entry.end_date} onChangeText={(value) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, end_date: value } : item))} />
+                      <TextInput style={inputStyle} placeholder="Present" placeholderTextColor="#9CA3AF" value={entry.end_date} onChangeText={(v) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, end_date: v } : item))} />
                     </View>
                   </View>
                 </View>
-                <View style={{ gap: Spacing['2'] }}>
+                <View style={{ gap: 6 }}>
                   <Text style={fieldLabelStyle}>Description</Text>
-                  <View style={[inputRowStyle, { alignItems: 'flex-start', paddingVertical: Spacing['2'] }]}>
-                    <TextInput style={[inputStyle, { minHeight: 60, textAlignVertical: 'top' }]} placeholder="Describe your role..." placeholderTextColor={T.textHint} value={entry.description} onChangeText={(value) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, description: value } : item))} multiline maxLength={500} />
+                  <View style={[inputRowStyle, { alignItems: 'flex-start', paddingVertical: 10 }]}>
+                    <TextInput style={[inputStyle, { minHeight: 60, textAlignVertical: 'top' }]} placeholder="Describe your role..." placeholderTextColor="#9CA3AF" value={entry.description} onChangeText={(v) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, description: v } : item))} multiline maxLength={500} />
                   </View>
                 </View>
               </View>
             ))}
-            <TouchableOpacity onPress={() => setWorkEntries((prev) => [...prev, { company: '', position: '', start_date: '', end_date: '', description: '' }])} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], marginTop: Spacing['3'], paddingVertical: Spacing['2'] }}>
-              <MaterialCommunityIcons name="plus-circle-outline" size={16} color={T.primary} />
-              <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.medium as any }}>Add another position</Text>
+            <TouchableOpacity onPress={() => setWorkEntries((prev) => [...prev, { company: '', position: '', start_date: '', end_date: '', description: '' }])} style={S.addRow}>
+              <MaterialCommunityIcons name="plus-circle-outline" size={16} color="#7C3AED" />
+              <Text style={{ fontSize: 13, color: '#7C3AED', fontWeight: '600' }}>Add another position</Text>
             </TouchableOpacity>
-          </SectionCard>
+          </Card>
 
-          <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Education">
-            <Text style={{ fontSize: Typography.xs, color: T.textHint, marginBottom: Spacing['3'] }}>Optional but recommended</Text>
+          {/* Education */}
+          <Card title="Education">
+            <Text style={[S.hint, { marginBottom: 4 }]}>Optional but recommended</Text>
             {educationEntries.map((entry, index) => (
-              <View key={index} style={{ gap: Spacing['3'], paddingTop: index > 0 ? Spacing['4'] : 0, borderTopWidth: index > 0 ? 1 : 0, borderTopColor: T.borderFaint }}>
+              <View key={index} style={{ gap: 10, paddingTop: index > 0 ? 12 : 0, borderTopWidth: index > 0 ? 1 : 0, borderTopColor: '#F3F4F6' }}>
                 {index > 0 && (
                   <TouchableOpacity onPress={() => setEducationEntries((prev) => prev.filter((_, idx) => idx !== index))} style={{ alignSelf: 'flex-end', flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <MaterialCommunityIcons name="minus-circle-outline" size={14} color={T.danger} />
-                    <Text style={{ fontSize: Typography.xs, color: T.danger }}>Remove</Text>
+                    <MaterialCommunityIcons name="minus-circle-outline" size={14} color="#EF4444" />
+                    <Text style={{ fontSize: 12, color: '#EF4444' }}>Remove</Text>
                   </TouchableOpacity>
                 )}
-                <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-                  <View style={{ flex: 1, gap: Spacing['2'] }}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1, gap: 6 }}>
                     <Text style={fieldLabelStyle}>School</Text>
                     <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="MIT" placeholderTextColor={T.textHint} value={entry.school} onChangeText={(value) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, school: value } : item))} />
+                      <TextInput style={inputStyle} placeholder="MIT" placeholderTextColor="#9CA3AF" value={entry.school} onChangeText={(v) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, school: v } : item))} />
                     </View>
                   </View>
-                  <View style={{ flex: 1, gap: Spacing['2'] }}>
+                  <View style={{ flex: 1, gap: 6 }}>
                     <Text style={fieldLabelStyle}>Degree</Text>
                     <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="B.S." placeholderTextColor={T.textHint} value={entry.degree} onChangeText={(value) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, degree: value } : item))} />
+                      <TextInput style={inputStyle} placeholder="B.S." placeholderTextColor="#9CA3AF" value={entry.degree} onChangeText={(v) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, degree: v } : item))} />
                     </View>
                   </View>
                 </View>
-                <View style={{ gap: Spacing['2'] }}>
+                <View style={{ gap: 6 }}>
                   <Text style={fieldLabelStyle}>Field of study</Text>
                   <View style={inputRowStyle}>
-                    <TextInput style={inputStyle} placeholder="Computer Science" placeholderTextColor={T.textHint} value={entry.field_of_study} onChangeText={(value) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, field_of_study: value } : item))} />
+                    <TextInput style={inputStyle} placeholder="Computer Science" placeholderTextColor="#9CA3AF" value={entry.field_of_study} onChangeText={(v) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, field_of_study: v } : item))} />
                   </View>
                 </View>
-                <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-                  <View style={{ flex: 1, gap: Spacing['2'] }}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1, gap: 6 }}>
                     <Text style={fieldLabelStyle}>Start</Text>
                     <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor={T.textHint} value={entry.start_date} onChangeText={(value) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, start_date: value } : item))} />
+                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor="#9CA3AF" value={entry.start_date} onChangeText={(v) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, start_date: v } : item))} />
                     </View>
                   </View>
-                  <View style={{ flex: 1, gap: Spacing['2'] }}>
+                  <View style={{ flex: 1, gap: 6 }}>
                     <Text style={fieldLabelStyle}>End</Text>
                     <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor={T.textHint} value={entry.end_date} onChangeText={(value) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, end_date: value } : item))} />
+                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor="#9CA3AF" value={entry.end_date} onChangeText={(v) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, end_date: v } : item))} />
                     </View>
                   </View>
                 </View>
               </View>
             ))}
-            <TouchableOpacity onPress={() => setEducationEntries((prev) => [...prev, { school: '', degree: '', field_of_study: '', start_date: '', end_date: '' }])} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], marginTop: Spacing['3'], paddingVertical: Spacing['2'] }}>
-              <MaterialCommunityIcons name="plus-circle-outline" size={16} color={T.primary} />
-              <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.medium as any }}>Add another education</Text>
+            <TouchableOpacity onPress={() => setEducationEntries((prev) => [...prev, { school: '', degree: '', field_of_study: '', start_date: '', end_date: '' }])} style={S.addRow}>
+              <MaterialCommunityIcons name="plus-circle-outline" size={16} color="#7C3AED" />
+              <Text style={{ fontSize: 13, color: '#7C3AED', fontWeight: '600' }}>Add another education</Text>
             </TouchableOpacity>
-          </SectionCard>
-        </>
+          </Card>
+        </View>
       );
 
+    // ── Photo ─────────────────────────────────────────────────────────────────
     case 'photo':
       return (
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Profile Photo">
-          <View style={{ gap: Spacing['3'], alignItems: 'center' }}>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, textAlign: 'center' }}>Add a profile photo to stand out. JPG/PNG, max 2MB. Optional.</Text>
+        <Card title="Profile photo">
+          <Text style={S.hint}>JPG or PNG, max 2 MB. Optional.</Text>
+          <View style={{ alignItems: 'center', gap: 12, paddingVertical: 8 }}>
             <TouchableOpacity
               onPress={async () => {
                 const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (!permission.granted) {
-                  setError('Permission to access photos is required.');
-                  return;
-                }
-                const result = await ImagePicker.launchImageLibraryAsync({
-                  mediaTypes: 'images',
-                  allowsEditing: true,
-                  aspect: [1, 1],
-                  quality: 0.8,
-                });
+                if (!permission.granted) { setError('Permission to access photos is required.'); return; }
+                const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 });
                 if (!result.canceled && result.assets?.[0]) {
                   const asset = result.assets[0];
                   const name = asset.uri.split('/').pop() ?? 'photo.jpg';
-                  setPhotoFile({
-                    uri: asset.uri,
-                    name,
-                    mimeType: asset.mimeType ?? null,
-                    size: asset.fileSize,
-                  });
+                  setPhotoFile({ uri: asset.uri, name, mimeType: asset.mimeType ?? null, size: asset.fileSize });
                 }
               }}
-              style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderStyle: 'dashed' as any, borderColor: photoFile ? T.success : T.border, backgroundColor: photoFile ? T.successLight : T.surface, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+              style={{
+                width: 100, height: 100, borderRadius: 50,
+                borderWidth: 2, borderStyle: 'dashed',
+                borderColor: photoFile ? '#10B981' : '#E5E7EB',
+                backgroundColor: photoFile ? '#F0FDF4' : '#F9FAFB',
+                alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
+              }}
             >
-              {photoFile ? <Image source={{ uri: photoFile.uri }} style={{ width: 100, height: 100, borderRadius: 50 }} /> : <MaterialCommunityIcons name="camera-plus-outline" size={36} color={T.primary} />}
+              {photoFile
+                ? <Image source={{ uri: photoFile.uri }} style={{ width: 100, height: 100, borderRadius: 50 }} />
+                : <MaterialCommunityIcons name="camera-plus-outline" size={34} color="#7C3AED" />}
             </TouchableOpacity>
-            {photoFile ? <Text style={{ fontSize: Typography.sm, color: T.success, fontWeight: Typography.medium as any }}>{photoFile.name}</Text> : <Text style={{ fontSize: Typography.xs, color: T.textHint }}>Tap to upload</Text>}
+            {photoFile
+              ? <Text style={{ fontSize: 13, color: '#10B981', fontWeight: '600' }}>{photoFile.name}</Text>
+              : <Text style={S.hint}>Tap to upload</Text>}
             {photoFile && (
               <TouchableOpacity onPress={() => setPhotoFile(null)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                <MaterialCommunityIcons name="close-circle-outline" size={14} color={T.danger} />
-                <Text style={{ fontSize: Typography.xs, color: T.danger }}>Remove photo</Text>
+                <MaterialCommunityIcons name="close-circle-outline" size={14} color="#EF4444" />
+                <Text style={{ fontSize: 12, color: '#EF4444' }}>Remove photo</Text>
               </TouchableOpacity>
             )}
           </View>
-        </SectionCard>
+        </Card>
       );
 
+    // ── Social Links ──────────────────────────────────────────────────────────
     case 'social':
       return (
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Social Links">
-          <Text style={{ fontSize: Typography.xs, color: T.textHint, marginBottom: Spacing['3'] }}>All optional</Text>
+        <Card title="Social links">
+          <Text style={[S.hint, { marginBottom: 4 }]}>All optional</Text>
           {[
             { label: 'LinkedIn', icon: 'linkedin' as const, placeholder: 'https://linkedin.com/in/...', value: linkedinUrl, onChange: setLinkedinUrl },
             { label: 'GitHub', icon: 'github' as const, placeholder: 'https://github.com/...', value: githubUrl, onChange: setGithubUrl },
@@ -763,382 +762,309 @@ export function RegisterStepContent(props: Props) {
             { label: 'Twitter', icon: 'twitter' as const, placeholder: 'https://twitter.com/...', value: twitterUrl, onChange: setTwitterUrl },
           ].map(({ label, icon, placeholder, value, onChange }, index, all) => (
             <View key={label}>
-              <View style={{ gap: Spacing['2'] }}>
+              <View style={{ gap: 6 }}>
                 <Text style={fieldLabelStyle}>{label}</Text>
                 <View style={inputRowStyle}>
-                  <MaterialCommunityIcons name={icon} size={16} color={T.textHint} />
-                  <TextInput style={inputStyle} placeholder={placeholder} placeholderTextColor={T.textHint} value={value} onChangeText={onChange} keyboardType="url" autoCapitalize="none" autoCorrect={false} />
+                  <MaterialCommunityIcons name={icon} size={15} color="#9CA3AF" />
+                  <TextInput style={inputStyle} placeholder={placeholder} placeholderTextColor="#9CA3AF" value={value} onChangeText={onChange} keyboardType="url" autoCapitalize="none" autoCorrect={false} />
                 </View>
               </View>
-              {index < all.length - 1 && <Divider spacing={Spacing['4']} />}
+              {index < all.length - 1 && <View style={[S.divider, { marginVertical: 10 }]} />}
             </View>
           ))}
-        </SectionCard>
+        </Card>
       );
 
+    // ── Company Details ───────────────────────────────────────────────────────
     case 'company_details':
       return (
-        <>
-          <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Company Details">
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Company Name *</Text>
-              <View style={inputRowStyle}>
-                <MaterialCommunityIcons name="domain" size={16} color={T.textHint} />
-                <TextInput style={inputStyle} placeholder="Acme Corporation" placeholderTextColor={T.textHint} value={companyName} onChangeText={setCompanyName} maxLength={100} />
+        <View style={{ gap: 12 }}>
+          <Card title="Company details">
+            <View style={{ gap: 10 }}>
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>Company name *</Text>
+                <View style={inputRowStyle}>
+                  <MaterialCommunityIcons name="domain" size={15} color="#9CA3AF" />
+                  <TextInput style={inputStyle} placeholder="Acme Corporation" placeholderTextColor="#9CA3AF" value={companyName} onChangeText={setCompanyName} maxLength={100} />
+                </View>
+                <Text style={[S.hint, { textAlign: 'right' }]}>{companyName.length}/100</Text>
               </View>
-              <Text style={{ fontSize: Typography.xs, color: T.textHint, textAlign: 'right' }}>{companyName.length}/100</Text>
-            </View>
 
-            <Divider spacing={Spacing['4']} />
+              <View style={S.divider} />
 
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Tagline</Text>
-              <View style={inputRowStyle}>
-                <TextInput style={inputStyle} placeholder="Building the future of..." placeholderTextColor={T.textHint} value={companyTagline} onChangeText={setCompanyTagline} maxLength={100} />
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>Tagline</Text>
+                <View style={inputRowStyle}>
+                  <TextInput style={inputStyle} placeholder="Building the future of..." placeholderTextColor="#9CA3AF" value={companyTagline} onChangeText={setCompanyTagline} maxLength={100} />
+                </View>
+              </View>
+
+              <View style={S.divider} />
+
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>Description *</Text>
+                <View style={[inputRowStyle, { alignItems: 'flex-start', paddingVertical: 10 }]}>
+                  <TextInput style={[inputStyle, { minHeight: 100, textAlignVertical: 'top' }]} placeholder="Tell us about your company..." placeholderTextColor="#9CA3AF" value={companyDescription} onChangeText={setCompanyDescription} multiline maxLength={2000} />
+                </View>
+                <Text style={[S.hint, { textAlign: 'right' }]}>{companyDescription.length}/2000 (min 50)</Text>
               </View>
             </View>
+          </Card>
 
-            <Divider spacing={Spacing['4']} />
-
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Description *</Text>
-              <View style={[inputRowStyle, { alignItems: 'flex-start', paddingVertical: Spacing['2'] }]}>
-                <TextInput style={[inputStyle, { minHeight: 100, textAlignVertical: 'top' }]} placeholder="Tell us about your company..." placeholderTextColor={T.textHint} value={companyDescription} onChangeText={setCompanyDescription} multiline maxLength={2000} />
+          <Card title="Industry & size">
+            <View style={{ gap: 10 }}>
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>Industry *</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+                  <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 2 }}>
+                    {INDUSTRY_OPTIONS.map((option) => (
+                      <TouchableOpacity key={option} onPress={() => setCompanyIndustry(option)} style={S.chip(companyIndustry === option)}>
+                        <Text style={S.chipText(companyIndustry === option)}>{option}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </ScrollView>
               </View>
-              <Text style={{ fontSize: Typography.xs, color: T.textHint, textAlign: 'right' }}>{companyDescription.length}/2000 (min 50)</Text>
-            </View>
-          </SectionCard>
 
-          <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Industry & Size">
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Industry *</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -Spacing['1'] }}>
-                <View style={{ flexDirection: 'row', gap: Spacing['2'], paddingHorizontal: Spacing['1'], paddingVertical: Spacing['1'] }}>
-                  {INDUSTRY_OPTIONS.map((option) => (
-                    <TouchableOpacity key={option} onPress={() => setCompanyIndustry(option)} style={{ paddingHorizontal: Spacing['3'], paddingVertical: Spacing['2'], borderRadius: Radii.full, backgroundColor: companyIndustry === option ? T.primary : T.surfaceHigh, borderWidth: companyIndustry === option ? 0 : 1, borderColor: T.border }}>
-                      <Text style={{ fontSize: Typography.sm, color: companyIndustry === option ? T.white : T.textSub, fontWeight: companyIndustry === option ? Typography.semibold as any : 'normal' }}>{option}</Text>
+              <View style={S.divider} />
+
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>Company size *</Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {COMPANY_SIZE_OPTIONS.map((option) => (
+                    <TouchableOpacity key={option} onPress={() => setCompanySize(option)} style={S.chip(companySize === option)}>
+                      <Text style={S.chipText(companySize === option)}>{option}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
-              </ScrollView>
-            </View>
-
-            <Divider spacing={Spacing['4']} />
-
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Company Size *</Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing['2'] }}>
-                {COMPANY_SIZE_OPTIONS.map((option) => (
-                  <TouchableOpacity key={option} onPress={() => setCompanySize(option)} style={{ paddingHorizontal: Spacing['3'], paddingVertical: Spacing['2'], borderRadius: Radii.full, backgroundColor: companySize === option ? T.primary : T.surfaceHigh, borderWidth: companySize === option ? 0 : 1, borderColor: T.border }}>
-                    <Text style={{ fontSize: Typography.sm, color: companySize === option ? T.white : T.textSub, fontWeight: companySize === option ? Typography.semibold as any : 'normal' }}>{option}</Text>
-                  </TouchableOpacity>
-                ))}
               </View>
-            </View>
 
-            <Divider spacing={Spacing['4']} />
+              <View style={S.divider} />
 
-            <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-              <View style={{ flex: 1, gap: Spacing['2'] }}>
-                <Text style={fieldLabelStyle}>Founded Year</Text>
-                <View style={inputRowStyle}>
-                  <MaterialCommunityIcons name="calendar-outline" size={16} color={T.textHint} />
-                  <TextInput style={inputStyle} placeholder="2020" placeholderTextColor={T.textHint} value={foundedYear} onChangeText={setFoundedYear} keyboardType="number-pad" maxLength={4} />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <View style={{ flex: 1, gap: 6 }}>
+                  <Text style={fieldLabelStyle}>Founded year</Text>
+                  <View style={inputRowStyle}>
+                    <MaterialCommunityIcons name="calendar-outline" size={15} color="#9CA3AF" />
+                    <TextInput style={inputStyle} placeholder="2020" placeholderTextColor="#9CA3AF" value={foundedYear} onChangeText={setFoundedYear} keyboardType="number-pad" maxLength={4} />
+                  </View>
                 </View>
-              </View>
-              <View style={{ flex: 2, gap: Spacing['2'] }}>
-                <Text style={fieldLabelStyle}>Website URL</Text>
-                <View style={inputRowStyle}>
-                  <MaterialCommunityIcons name="web" size={16} color={T.textHint} />
-                  <TextInput style={inputStyle} placeholder="https://company.com" placeholderTextColor={T.textHint} value={websiteUrl} onChangeText={setWebsiteUrl} keyboardType="url" autoCapitalize="none" autoCorrect={false} />
+                <View style={{ flex: 2, gap: 6 }}>
+                  <Text style={fieldLabelStyle}>Website URL</Text>
+                  <View style={inputRowStyle}>
+                    <MaterialCommunityIcons name="web" size={15} color="#9CA3AF" />
+                    <TextInput style={inputStyle} placeholder="https://company.com" placeholderTextColor="#9CA3AF" value={websiteUrl} onChangeText={setWebsiteUrl} keyboardType="url" autoCapitalize="none" autoCorrect={false} />
+                  </View>
                 </View>
               </View>
             </View>
-          </SectionCard>
+          </Card>
 
-          <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Address">
-            <View style={{ gap: Spacing['3'] }}>
-              <Text style={{ fontSize: Typography.xs, color: T.textHint }}>Company address (optional)</Text>
-
-              <View style={{ gap: Spacing['2'] }}>
+          {/* Address */}
+          <Card title="Address">
+            <Text style={[S.hint, { marginBottom: 4 }]}>Optional</Text>
+            <View style={{ gap: 10 }}>
+              <View style={{ gap: 6 }}>
                 <Text style={fieldLabelStyle}>Street</Text>
                 <View style={inputRowStyle}>
-                  <MaterialCommunityIcons name="map-marker-outline" size={16} color={T.textHint} />
-                  <TextInput style={inputStyle} placeholder="123 Main St" placeholderTextColor={T.textHint} value={addressStreet} onChangeText={setAddressStreet} maxLength={200} />
+                  <MaterialCommunityIcons name="map-marker-outline" size={15} color="#9CA3AF" />
+                  <TextInput style={inputStyle} placeholder="123 Main St" placeholderTextColor="#9CA3AF" value={addressStreet} onChangeText={setAddressStreet} maxLength={200} />
                 </View>
               </View>
 
-              <View style={{ gap: Spacing['2'] }}>
-                <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>Country</Text>
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>Country</Text>
                 <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                  <Picker
-                    selectedValue={addressCountry}
-                    onValueChange={(value) => {
-                      setAddressCountry(value);
-                      setAddressState('');
-                      setAddressProvince('');
-                      setAddressCity('');
-                    }}
-                    style={{ flex: 1, color: T.textPrimary }}
-                  >
+                  <Picker selectedValue={addressCountry} onValueChange={(v) => { setAddressCountry(v); setAddressState(''); setAddressProvince(''); setAddressCity(''); }} style={{ flex: 1, color: '#111827' }}>
                     <Picker.Item label="Select country..." value="" />
-                    {COUNTRIES.map((country) => (
-                      <Picker.Item key={country} label={country} value={country} />
-                    ))}
+                    {COUNTRIES.map((c) => <Picker.Item key={c} label={c} value={c} />)}
                   </Picker>
                 </View>
               </View>
 
-              <View style={{ gap: Spacing['2'] }}>
-                <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>
-                  {addressCountry === 'Philippines' ? 'Region' : addressCountry === 'United States' || addressCountry === 'Australia' ? 'State' : addressCountry === 'Canada' ? 'Province' : 'Region'}
-                </Text>
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>{addressCountry === 'Philippines' ? 'Region' : addressCountry === 'United States' || addressCountry === 'Australia' ? 'State' : addressCountry === 'Canada' ? 'Province' : 'Region'}</Text>
                 <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                  <Picker
-                    selectedValue={addressState}
-                    onValueChange={(value) => {
-                      setAddressState(value);
-                      setAddressProvince('');
-                      setAddressCity('');
-                    }}
-                    style={{ flex: 1, color: T.textPrimary }}
-                    enabled={!!addressCountry}
-                  >
-                    <Picker.Item label={addressCountry ? (addressCountry === 'Philippines' ? 'Select region...' : addressCountry === 'United States' || addressCountry === 'Australia' ? 'Select state...' : addressCountry === 'Canada' ? 'Select province...' : 'Select region...') : 'Select country first'} value="" />
-                    {getProvincesForCountry(addressCountry).map((item) => (
-                      <Picker.Item key={item} label={item} value={item} />
-                    ))}
+                  <Picker selectedValue={addressState} onValueChange={(v) => { setAddressState(v); setAddressProvince(''); setAddressCity(''); }} style={{ flex: 1, color: '#111827' }} enabled={!!addressCountry}>
+                    <Picker.Item label={addressCountry ? 'Select...' : 'Select country first'} value="" />
+                    {getProvincesForCountry(addressCountry).map((item) => <Picker.Item key={item} label={item} value={item} />)}
                   </Picker>
                 </View>
               </View>
 
               {addressCountry === 'Philippines' && (
-                <View style={{ gap: Spacing['2'] }}>
-                  <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>Province</Text>
+                <View style={{ gap: 6 }}>
+                  <Text style={fieldLabelStyle}>Province</Text>
                   <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                    <Picker
-                      selectedValue={addressProvince}
-                      onValueChange={(value) => {
-                        setAddressProvince(value);
-                        setAddressCity('');
-                      }}
-                      style={{ flex: 1, color: T.textPrimary }}
-                      enabled={!!addressState}
-                    >
+                    <Picker selectedValue={addressProvince} onValueChange={(v) => { setAddressProvince(v); setAddressCity(''); }} style={{ flex: 1, color: '#111827' }} enabled={!!addressState}>
                       <Picker.Item label={addressState ? 'Select province...' : 'Select region first'} value="" />
-                      {getProvincesForRegion(addressState).map((province) => (
-                        <Picker.Item key={province} label={province} value={province} />
-                      ))}
+                      {getProvincesForRegion(addressState).map((p) => <Picker.Item key={p} label={p} value={p} />)}
                     </Picker>
                   </View>
                 </View>
               )}
 
-              <View style={{ gap: Spacing['2'] }}>
-                <Text style={[fieldLabelStyle, { marginBottom: 0 }]}>City</Text>
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>City</Text>
                 <View style={[inputRowStyle, { paddingHorizontal: 0, paddingVertical: 0 }]}>
-                  <Picker
-                    selectedValue={addressCity}
-                    onValueChange={setAddressCity}
-                    style={{ flex: 1, color: T.textPrimary }}
-                    enabled={addressCountry === 'Philippines' ? !!addressProvince : !!addressState}
-                  >
-                    <Picker.Item 
-                      label={
-                        addressCountry === 'Philippines'
-                          ? (addressProvince ? 'Select city...' : 'Select province first')
-                          : (addressState ? 'Select city...' : (addressCountry === 'United States' || addressCountry === 'Australia' ? 'Select state first' : addressCountry === 'Canada' ? 'Select province first' : 'Select region first'))
-                      } 
-                      value="" 
-                    />
-                    {(addressCountry === 'Philippines' 
-                      ? getCitiesForProvince(addressCountry, addressProvince)
-                      : getCitiesForProvince(addressCountry, addressState)
-                    ).map((city) => (
-                      <Picker.Item key={city} label={city} value={city} />
-                    ))}
+                  <Picker selectedValue={addressCity} onValueChange={setAddressCity} style={{ flex: 1, color: '#111827' }} enabled={addressCountry === 'Philippines' ? !!addressProvince : !!addressState}>
+                    <Picker.Item label={addressCountry === 'Philippines' ? (addressProvince ? 'Select city...' : 'Select province first') : (addressState ? 'Select city...' : 'Select region first')} value="" />
+                    {(addressCountry === 'Philippines' ? getCitiesForProvince(addressCountry, addressProvince) : getCitiesForProvince(addressCountry, addressState)).map((city) => <Picker.Item key={city} label={city} value={city} />)}
                   </Picker>
                 </View>
               </View>
 
-              <View style={{ gap: Spacing['2'] }}>
-                <Text style={fieldLabelStyle}>Postal Code</Text>
+              <View style={{ gap: 6 }}>
+                <Text style={fieldLabelStyle}>Postal code</Text>
                 <View style={inputRowStyle}>
-                  <TextInput style={inputStyle} placeholder="94102" placeholderTextColor={T.textHint} value={addressPostal} onChangeText={setAddressPostal} keyboardType="default" maxLength={20} />
+                  <TextInput style={inputStyle} placeholder="94102" placeholderTextColor="#9CA3AF" value={addressPostal} onChangeText={setAddressPostal} maxLength={20} />
                 </View>
               </View>
             </View>
-          </SectionCard>
+          </Card>
 
-          <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Social Links">
-            <Text style={{ fontSize: Typography.xs, color: T.textHint, marginBottom: Spacing['3'] }}>Add company social media links (optional)</Text>
+          {/* Company social links */}
+          <Card title="Social links">
+            <Text style={[S.hint, { marginBottom: 4 }]}>Company social media (optional)</Text>
             {companySocialLinks.map((link, index) => (
-              <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], marginBottom: Spacing['3'] }}>
+              <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <View style={[inputRowStyle, { flex: 1 }]}>
-                  <MaterialCommunityIcons name="link-variant" size={16} color={T.textHint} />
-                  <TextInput style={inputStyle} placeholder="https://..." placeholderTextColor={T.textHint} value={link} onChangeText={(value) => setCompanySocialLinks((prev) => prev.map((item, idx) => idx === index ? value : item))} keyboardType="url" autoCapitalize="none" autoCorrect={false} />
+                  <MaterialCommunityIcons name="link-variant" size={15} color="#9CA3AF" />
+                  <TextInput style={inputStyle} placeholder="https://..." placeholderTextColor="#9CA3AF" value={link} onChangeText={(v) => setCompanySocialLinks((prev) => prev.map((item, idx) => idx === index ? v : item))} keyboardType="url" autoCapitalize="none" autoCorrect={false} />
                 </View>
                 {index > 0 && (
                   <TouchableOpacity onPress={() => setCompanySocialLinks((prev) => prev.filter((_, idx) => idx !== index))}>
-                    <MaterialCommunityIcons name="close-circle-outline" size={20} color={T.danger} />
+                    <MaterialCommunityIcons name="close-circle-outline" size={20} color="#EF4444" />
                   </TouchableOpacity>
                 )}
               </View>
             ))}
-            <TouchableOpacity onPress={() => setCompanySocialLinks((prev) => [...prev, ''])} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-              <MaterialCommunityIcons name="plus-circle-outline" size={16} color={T.primary} />
-              <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.medium as any }}>Add link</Text>
+            <TouchableOpacity onPress={() => setCompanySocialLinks((prev) => [...prev, ''])} style={S.addRow}>
+              <MaterialCommunityIcons name="plus-circle-outline" size={16} color="#7C3AED" />
+              <Text style={{ fontSize: 13, color: '#7C3AED', fontWeight: '600' }}>Add link</Text>
             </TouchableOpacity>
-          </SectionCard>
-        </>
+          </Card>
+        </View>
       );
 
+    // ── Company Docs ──────────────────────────────────────────────────────────
     case 'company_docs':
       return (
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Verification Documents">
-          <Text style={{ fontSize: Typography.sm, color: T.textSub, marginBottom: Spacing['3'] }}>
-            Upload your business license, tax ID, or incorporation documents. PDF/JPG/PNG. Min 1, max 5 files.
-          </Text>
+        <Card title="Verification documents">
+          <Text style={S.hint}>Business license, tax ID, or incorporation documents. PDF/JPG/PNG. Min 1, max 5 files.</Text>
           <TouchableOpacity
-            style={{ borderWidth: 2, borderStyle: 'dashed' as any, borderColor: verificationDocs.length > 0 ? T.success : T.border, borderRadius: Radii.lg, padding: Spacing['5'], alignItems: 'center', gap: Spacing['2'], backgroundColor: verificationDocs.length > 0 ? T.successLight : T.surfaceHigh, opacity: verificationDocs.length >= 5 ? 0.5 : 1 }}
+            style={[S.uploadZone(verificationDocs.length > 0), { opacity: verificationDocs.length >= 5 ? 0.5 : 1 }]}
             onPress={async () => {
-              if (verificationDocs.length >= 5) {
-                setError('Maximum 5 documents allowed.');
-                return;
-              }
+              if (verificationDocs.length >= 5) { setError('Maximum 5 documents allowed.'); return; }
               const result = await DocumentPicker.getDocumentAsync({ type: ['application/pdf', 'image/jpeg', 'image/png'], multiple: false });
               if (!result.canceled && result.assets?.[0]) {
                 const asset = result.assets[0];
-                setVerificationDocs((prev) => (prev.length >= 5 ? prev : [
-                  ...prev,
-                  {
-                    uri: asset.uri,
-                    name: asset.name,
-                    mimeType: asset.mimeType ?? null,
-                    size: asset.size,
-                  },
-                ]));
+                setVerificationDocs((prev) => prev.length >= 5 ? prev : [...prev, { uri: asset.uri, name: asset.name, mimeType: asset.mimeType ?? null, size: asset.size }]);
               }
             }}
           >
-            <MaterialCommunityIcons name="file-upload-outline" size={32} color={verificationDocs.length > 0 ? T.success : T.primary} />
-            <Text style={{ fontSize: Typography.sm, color: verificationDocs.length > 0 ? T.success : T.textSub, fontWeight: Typography.medium as any }}>
+            <MaterialCommunityIcons name="file-upload-outline" size={32} color={verificationDocs.length > 0 ? '#10B981' : '#7C3AED'} />
+            <Text style={{ fontSize: 14, fontWeight: '700', color: verificationDocs.length > 0 ? '#10B981' : '#111827' }}>
               {verificationDocs.length > 0 ? `${verificationDocs.length} file(s) selected` : 'Tap to upload document'}
             </Text>
-            <Text style={{ fontSize: Typography.xs, color: T.textHint }}>PDF, JPG, PNG - Max 5 files</Text>
+            <Text style={S.hint}>PDF, JPG, PNG — max 5 files</Text>
           </TouchableOpacity>
           {verificationDocs.length > 0 && (
-            <View style={{ gap: Spacing['2'], marginTop: Spacing['3'] }}>
+            <View style={{ gap: 8 }}>
               {verificationDocs.map((doc, index) => (
-                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.surfaceHigh, borderRadius: Radii.md, padding: Spacing['3'] }}>
-                  <MaterialCommunityIcons name="file-document-outline" size={18} color={T.primary} />
-                  <Text style={{ flex: 1, fontSize: Typography.sm, color: T.textPrimary }} numberOfLines={1}>
-                    {doc.name}
-                  </Text>
+                <View key={index} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#fff', borderWidth: 1, borderColor: '#F3F4F6', borderRadius: 12, padding: 12 }}>
+                  <MaterialCommunityIcons name="file-document-outline" size={18} color="#7C3AED" />
+                  <Text style={{ flex: 1, fontSize: 13, color: '#111827' }} numberOfLines={1}>{doc.name}</Text>
                   <TouchableOpacity onPress={() => setVerificationDocs((prev) => prev.filter((_, idx) => idx !== index))}>
-                    <MaterialCommunityIcons name="close-circle-outline" size={18} color={T.danger} />
+                    <MaterialCommunityIcons name="close-circle-outline" size={18} color="#EF4444" />
                   </TouchableOpacity>
                 </View>
               ))}
             </View>
           )}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], marginTop: Spacing['4'], backgroundColor: T.surfaceHigh, borderRadius: Radii.md, padding: Spacing['3'] }}>
-            <MaterialCommunityIcons name="information-outline" size={16} color={T.textHint} />
-            <Text style={{ flex: 1, fontSize: Typography.xs, color: T.textHint, lineHeight: 18 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, backgroundColor: '#F5F3FF', borderRadius: 12, padding: 12 }}>
+            <MaterialCommunityIcons name="information-outline" size={15} color="#7C3AED" style={{ marginTop: 1 }} />
+            <Text style={{ flex: 1, fontSize: 12, color: '#7C3AED', lineHeight: 18 }}>
               Submitting these documents will set your verification status to pending while our team reviews them.
             </Text>
           </View>
-        </SectionCard>
+        </Card>
       );
 
+    // ── Company Media ─────────────────────────────────────────────────────────
     case 'company_media':
       return (
-        <>
-          <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Company Logo">
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, marginBottom: Spacing['3'] }}>Upload your company logo. JPG/PNG, max 2MB. Required.</Text>
-            <View style={{ alignItems: 'center', gap: Spacing['3'] }}>
+        <View style={{ gap: 12 }}>
+          <Card title="Company logo">
+            <Text style={S.hint}>JPG or PNG, max 2 MB. Required.</Text>
+            <View style={{ alignItems: 'center', gap: 12, paddingVertical: 8 }}>
               <TouchableOpacity
                 onPress={async () => {
                   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                  if (!permission.granted) {
-                    setError('Permission to access photos is required.');
-                    return;
-                  }
+                  if (!permission.granted) { setError('Permission to access photos is required.'); return; }
                   const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsEditing: true, aspect: [1, 1], quality: 0.8 });
                   if (!result.canceled && result.assets?.[0]) {
                     const asset = result.assets[0];
-                    setLogoFile({
-                      uri: asset.uri,
-                      name: asset.uri.split('/').pop() ?? 'logo.jpg',
-                      mimeType: asset.mimeType ?? null,
-                      size: asset.fileSize,
-                    });
+                    setLogoFile({ uri: asset.uri, name: asset.uri.split('/').pop() ?? 'logo.jpg', mimeType: asset.mimeType ?? null, size: asset.fileSize });
                   }
                 }}
-                style={{ width: 110, height: 110, borderRadius: Radii.xl, borderWidth: 2, borderStyle: 'dashed' as any, borderColor: logoFile ? T.success : T.border, backgroundColor: logoFile ? T.successLight : T.surfaceHigh, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+                style={{ width: 110, height: 110, borderRadius: 20, borderWidth: 2, borderStyle: 'dashed', borderColor: logoFile ? '#10B981' : '#E5E7EB', backgroundColor: logoFile ? '#F0FDF4' : '#F9FAFB', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
               >
-                {logoFile ? <Image source={{ uri: logoFile.uri }} style={{ width: 110, height: 110, borderRadius: Radii.xl }} /> : <MaterialCommunityIcons name="image-plus" size={36} color={T.primary} />}
+                {logoFile
+                  ? <Image source={{ uri: logoFile.uri }} style={{ width: 110, height: 110, borderRadius: 20 }} />
+                  : <MaterialCommunityIcons name="image-plus" size={36} color="#7C3AED" />}
               </TouchableOpacity>
-              {logoFile ? <Text style={{ fontSize: Typography.sm, color: T.success, fontWeight: Typography.medium as any }}>{logoFile.name}</Text> : <Text style={{ fontSize: Typography.xs, color: T.textHint }}>Tap to upload logo</Text>}
+              {logoFile
+                ? <Text style={{ fontSize: 13, color: '#10B981', fontWeight: '600' }}>{logoFile.name}</Text>
+                : <Text style={S.hint}>Tap to upload logo</Text>}
               {logoFile && (
                 <TouchableOpacity onPress={() => setLogoFile(null)} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <MaterialCommunityIcons name="close-circle-outline" size={14} color={T.danger} />
-                  <Text style={{ fontSize: Typography.xs, color: T.danger }}>Remove logo</Text>
+                  <MaterialCommunityIcons name="close-circle-outline" size={14} color="#EF4444" />
+                  <Text style={{ fontSize: 12, color: '#EF4444' }}>Remove logo</Text>
                 </TouchableOpacity>
               )}
             </View>
-          </SectionCard>
+          </Card>
 
-          <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Office Photos">
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, marginBottom: Spacing['3'] }}>Upload photos of your office space. JPG/PNG. Min 1, max 6 images. Required.</Text>
+          <Card title="Office photos">
+            <Text style={S.hint}>JPG or PNG. Min 1, max 6 images. Required.</Text>
             <TouchableOpacity
-              style={{ borderWidth: 2, borderStyle: 'dashed' as any, borderColor: officeImages.length > 0 ? T.success : T.border, borderRadius: Radii.lg, padding: Spacing['5'], alignItems: 'center', gap: Spacing['2'], backgroundColor: officeImages.length > 0 ? T.successLight : T.surfaceHigh, opacity: officeImages.length >= 6 ? 0.5 : 1 }}
+              style={[S.uploadZone(officeImages.length > 0), { opacity: officeImages.length >= 6 ? 0.5 : 1 }]}
               onPress={async () => {
-                if (officeImages.length >= 6) {
-                  setError('Maximum 6 office images allowed.');
-                  return;
-                }
+                if (officeImages.length >= 6) { setError('Maximum 6 office images allowed.'); return; }
                 const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                if (!permission.granted) {
-                  setError('Permission to access photos is required.');
-                  return;
-                }
+                if (!permission.granted) { setError('Permission to access photos is required.'); return; }
                 const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: 'images', allowsMultipleSelection: true, quality: 0.8 });
                 if (!result.canceled && result.assets?.length) {
                   setOfficeImages((prev) => {
                     const remaining = 6 - prev.length;
                     if (remaining <= 0) return prev;
-                    const next = result.assets.slice(0, remaining).map((asset) => ({
-                      uri: asset.uri,
-                      name: asset.uri.split('/').pop() ?? 'office.jpg',
-                      mimeType: asset.mimeType ?? null,
-                      size: asset.fileSize,
-                    }));
+                    const next = result.assets.slice(0, remaining).map((asset) => ({ uri: asset.uri, name: asset.uri.split('/').pop() ?? 'office.jpg', mimeType: asset.mimeType ?? null, size: asset.fileSize }));
                     return [...prev, ...next];
                   });
                 }
               }}
             >
-              <MaterialCommunityIcons name="image-multiple-outline" size={32} color={officeImages.length > 0 ? T.success : T.primary} />
-              <Text style={{ fontSize: Typography.sm, color: officeImages.length > 0 ? T.success : T.textSub, fontWeight: Typography.medium as any }}>
+              <MaterialCommunityIcons name="image-multiple-outline" size={32} color={officeImages.length > 0 ? '#10B981' : '#7C3AED'} />
+              <Text style={{ fontSize: 14, fontWeight: '700', color: officeImages.length > 0 ? '#10B981' : '#111827' }}>
                 {officeImages.length > 0 ? `${officeImages.length} photo(s) selected` : 'Tap to upload photos'}
               </Text>
-              <Text style={{ fontSize: Typography.xs, color: T.textHint }}>JPG, PNG - Max 6 images</Text>
+              <Text style={S.hint}>JPG, PNG — max 6 images</Text>
             </TouchableOpacity>
             {officeImages.length > 0 && (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: Spacing['2'], marginTop: Spacing['3'] }}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
                 {officeImages.map((image, index) => (
                   <View key={index} style={{ position: 'relative' }}>
-                    <Image source={{ uri: image.uri }} style={{ width: 80, height: 80, borderRadius: Radii.md }} />
-                    <TouchableOpacity onPress={() => setOfficeImages((prev) => prev.filter((_, idx) => idx !== index))} style={{ position: 'absolute', top: -6, right: -6, backgroundColor: T.bg, borderRadius: Radii.full }}>
-                      <MaterialCommunityIcons name="close-circle" size={18} color={T.danger} />
+                    <Image source={{ uri: image.uri }} style={{ width: 80, height: 80, borderRadius: 12 }} />
+                    <TouchableOpacity onPress={() => setOfficeImages((prev) => prev.filter((_, idx) => idx !== index))} style={{ position: 'absolute', top: -6, right: -6, backgroundColor: '#fff', borderRadius: 10 }}>
+                      <MaterialCommunityIcons name="close-circle" size={18} color="#EF4444" />
                     </TouchableOpacity>
                   </View>
                 ))}
               </View>
             )}
-          </SectionCard>
-        </>
+          </Card>
+        </View>
       );
 
     default:
