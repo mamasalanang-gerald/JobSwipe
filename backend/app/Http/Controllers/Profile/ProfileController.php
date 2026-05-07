@@ -39,7 +39,7 @@ class ProfileController extends Controller
 
     public function updateApplicantSkills(UpdateApplicantSkillsRequest $request): JsonResponse
     {
-        $result = $this->profiles->updateApplicantSkills($request->user()->id, $request->validated('skills'));
+        $result = $this->profiles->updateApplicantSkills($request->user()->id, $request->validated());
 
         return $this->successSigned($result, 'Applicant skills updated.');
     }
@@ -168,6 +168,37 @@ class ProfileController extends Controller
         return $this->successSigned($result, 'Profile photo updated.');
     }
 
+    public function updateApplicantCoverPhoto(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'cover_url' => ['required', 'url', 'max:2000'],
+        ]);
+
+        $this->fileUploads->validateFileUrl((string) $validated['cover_url']);
+        $result = $this->profiles->updateApplicantCoverPhoto($request->user()->id, (string) $validated['cover_url']);
+
+        return $this->successSigned($result, 'Cover photo updated.');
+    }
+
+    public function updateApplicantPhotos(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'photos' => ['required', 'array', 'max:6'],
+            'photos.*' => ['nullable', 'url', 'max:2000'],
+        ]);
+
+        // Validate each non-null photo URL
+        foreach ($validated['photos'] as $photoUrl) {
+            if ($photoUrl !== null) {
+                $this->fileUploads->validateFileUrl((string) $photoUrl);
+            }
+        }
+
+        $result = $this->profiles->updateApplicantPhotos($request->user()->id, (array) $validated['photos']);
+
+        return $this->successSigned($result, 'Photos updated.');
+    }
+
     public function updateSocialLinks(UpdateSocialLinksRequest $request): JsonResponse
     {
         $validated = $request->validated();
@@ -176,6 +207,32 @@ class ProfileController extends Controller
             $result = $this->profiles->updateSocialLinks($request->user()->id, (array) $validated['social_links']);
 
             return $this->successSigned($result, 'Social links updated.');
+        } catch (InvalidArgumentException $exception) {
+            return $this->handleDomainException($exception);
+        }
+    }
+
+    public function updateJobPreferences(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'desired_position' => ['nullable', 'string', 'max:255'],
+            'preferred_locations' => ['nullable', 'array'],
+            'preferred_locations.*' => ['string', 'max:255'],
+            'work_type' => ['nullable', 'array'],
+            'work_type.*' => ['string', 'in:remote,hybrid,onsite'],
+            'employment_type' => ['nullable', 'array'],
+            'employment_type.*' => ['string', 'in:full-time,part-time,contract,freelance,internship'],
+            'salary_expectation' => ['nullable', 'array'],
+            'salary_expectation.min' => ['nullable', 'integer', 'min:0'],
+            'salary_expectation.max' => ['nullable', 'integer', 'min:0'],
+            'salary_expectation.currency' => ['nullable', 'string', 'max:10'],
+            'willing_to_relocate' => ['nullable', 'boolean'],
+        ]);
+
+        try {
+            $result = $this->profiles->updateJobPreferences($request->user()->id, $validated);
+
+            return $this->successSigned($result, 'Job preferences updated.');
         } catch (InvalidArgumentException $exception) {
             return $this->handleDomainException($exception);
         }
@@ -340,7 +397,7 @@ class ProfileController extends Controller
             return $data;
         }
 
-        $arrayFileFields = ['office_images', 'verification_documents'];
+        $arrayFileFields = ['office_images', 'verification_documents', 'photos'];
 
         if ($parentKey !== null && in_array($parentKey, $arrayFileFields, true)) {
             return array_map(function ($item) {
@@ -359,6 +416,7 @@ class ProfileController extends Controller
             'portfolio_url',
             'logo_url',
             'cover_photo',
+            'cover_url',
         ];
 
         foreach ($data as $key => $value) {

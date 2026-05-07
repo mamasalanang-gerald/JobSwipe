@@ -21,7 +21,7 @@ class ApplicantProfileFactory extends Factory
             'total_points' => 0,
             'subscription_tier' => 'free',
             'subscription_status' => 'inactive',
-            'daily_swipe_limit' => 15,
+            'daily_swipe_limit' => 65,
             'daily_swipes_used' => 0,
             'extra_swipe_balance' => 0,
             'swipe_reset_at' => now()->startOfDay(),
@@ -46,8 +46,8 @@ class ApplicantProfileFactory extends Factory
     public function exhaustedSwipes(): static
     {
         return $this->state([
-            'daily_swipes_used' => 15,
-            'daily_swipe_limit' => 15,
+            'daily_swipes_used' => 65,
+            'daily_swipe_limit' => 65,
             'extra_swipe_balance' => 0,
         ]);
     }
