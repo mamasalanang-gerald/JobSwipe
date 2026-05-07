@@ -8,45 +8,45 @@ export const trustService = {
     signal?: AbortSignal
   ): Promise<PaginatedResponse<TrustEvent>> => {
     const params = buildParams({ page, pageSize });
-    const { data } = await api.get<{ success: boolean; data: PaginatedResponse<TrustEvent> }>(
+    const { data } = await api.get<PaginatedResponse<TrustEvent>>(
       `/admin/trust/events?${params}`,
       { signal }
     );
-    return data.data;
+    return data;
   },
 
   lowTrustCompanies: async (signal?: AbortSignal): Promise<LowTrustCompany[]> => {
-    const { data } = await api.get<{ success: boolean; data: LowTrustCompany[] }>(
+    const { data } = await api.get<LowTrustCompany[]>(
       '/admin/trust/low-trust-companies',
       { signal }
     );
-    return data.data || [];
+    return data || [];
   },
 
   companyHistory: async (companyId: string, signal?: AbortSignal): Promise<TrustEvent[]> => {
-    const { data } = await api.get<{ success: boolean; data: TrustEvent[] }>(
+    const { data } = await api.get<TrustEvent[]>(
       `/admin/trust/companies/${companyId}/history`,
       { signal }
     );
-    return data.data || [];
+    return data || [];
   },
 
-  recalculateTrustScore: async (companyId: string): Promise<{ message: string; score: number }> => {
-    const { data } = await api.post<{ success: boolean; message: string; data: { score: number } }>(
+  recalculateTrustScore: async (companyId: string): Promise<{ newTrustScore: number }> => {
+    const { data } = await api.post<{ companyId: string; newTrustScore: number }>(
       `/admin/trust/companies/${companyId}/recalculate`
     );
-    return { message: data.message, score: data.data.score };
+    return { newTrustScore: data.newTrustScore };
   },
 
   adjustTrustScore: async (
     companyId: string,
     score: number,
     reason: string
-  ): Promise<{ message: string }> => {
-    const { data } = await api.post<{ success: boolean; message: string }>(
+  ): Promise<{ newScore: number }> => {
+    const { data } = await api.post<{ companyId: string; newScore: number }>(
       `/admin/trust/companies/${companyId}/adjust`,
       { score, reason }
     );
-    return { message: data.message };
+    return { newScore: data.newScore };
   },
 };

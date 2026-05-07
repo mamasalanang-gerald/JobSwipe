@@ -227,6 +227,19 @@ class AdminService
                 'total' => $this->jobs->countTotal(),
                 'active' => $this->jobs->countActive(),
             ],
+            'trust' => [
+                'low_trust_companies' => $this->trustEvents->countLowTrustCompanies(
+                    config('admin.trust.low_trust_threshold', 40)
+                ),
+                'critical_trust_companies' => $this->trustEvents->countLowTrustCompanies(20),
+                'recent_events' => $this->trustEvents->countRecentTrustEvents(30),
+                'by_level' => [
+                    'untrusted' => $this->trustEvents->countByTrustLevel('untrusted'),
+                    'new' => $this->trustEvents->countByTrustLevel('new'),
+                    'established' => $this->trustEvents->countByTrustLevel('established'),
+                    'trusted' => $this->trustEvents->countByTrustLevel('trusted'),
+                ],
+            ],
         ];
     }
 
@@ -647,6 +660,25 @@ class AdminService
      */
     public function getLowTrustCompanies(int $threshold = 40): array
     {
-        return $this->trustEvents->getLowTrustCompanies($threshold)->toArray();
+        $companies = $this->trustEvents->getLowTrustCompanies($threshold);
+
+        // Transform to match frontend LowTrustCompany structure
+        return $companies->map(function ($company) {
+            return [
+                'company' => [
+                    'id' => $company->id,
+                    'name' => $company->company_name,
+                    'trust_score' => $company->trust_score,
+                    'trust_level' => $company->trust_level,
+                    'status' => $company->status,
+                ],
+                'trust_score' => $company->trust_score,
+                'trust_level' => $company->trust_level,
+                'recent_flags' => 0, // TODO: Implement flag tracking
+                'recent_negative_reviews' => 0, // TODO: Implement review tracking
+                'pending_verifications' => 0, // TODO: Implement verification tracking
+                'last_score_calculation' => $company->updated_at,
+            ];
+        })->toArray();
     }
 }

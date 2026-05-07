@@ -16,6 +16,7 @@ import {
   BackHandler,
   Image,
   ImageSourcePropType,
+  Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Svg, { Circle } from 'react-native-svg';
@@ -223,10 +224,14 @@ function MatchCarousel({
   matches,
   currentTime,
   onOpen,
+  onDecline,
+  decliningMatchId,
 }: {
   matches: MatchCompany[];
   currentTime: number;
   onOpen: (matchId: MatchId) => void;
+  onDecline: (matchId: MatchId, companyName: string) => void;
+  decliningMatchId: MatchId | null;
 }) {
   const T = useTheme();
 
@@ -246,32 +251,48 @@ function MatchCarousel({
             const expired = state === 'expired';
 
             return (
-              <TouchableOpacity
-                key={match.id}
-                style={styles.matchCard}
-                activeOpacity={0.85}
-                onPress={() => onOpen(match.id)}
-              >
-                <View style={styles.matchAvatarWrap}>
-                  <CountdownRing
-                    progress={progress}
-                    color={expired ? '#f43f5e' : match.color}
-                    label=""
-                  />
-                  <View style={styles.matchAvatarInner}>
-                    <CompanyLogo abbr={match.abbr} color={expired ? '#d8d1ea' : match.color} size="md" />
+              <View key={match.id} style={styles.matchCard}>
+                <TouchableOpacity
+                  style={{ flex: 1 }}
+                  activeOpacity={0.85}
+                  onPress={() => onOpen(match.id)}
+                >
+                  <View style={styles.matchAvatarWrap}>
+                    <CountdownRing
+                      progress={progress}
+                      color={expired ? '#f43f5e' : match.color}
+                      label=""
+                    />
+                    <View style={styles.matchAvatarInner}>
+                      <CompanyLogo abbr={match.abbr} color={expired ? '#d8d1ea' : match.color} size="md" />
+                    </View>
+                    <View style={styles.matchBadge}>
+                      <Text style={styles.matchBadgeText}>{match.badgeCount}</Text>
+                    </View>
                   </View>
-                  <View style={styles.matchBadge}>
-                    <Text style={styles.matchBadgeText}>{match.badgeCount}</Text>
-                  </View>
-                </View>
 
-                <Text style={styles.matchName} numberOfLines={1}>{match.company}</Text>
-                <Text style={styles.matchRole} numberOfLines={1}>{match.role}</Text>
-                <Text style={[styles.matchMeta, expired && styles.matchMetaExpired]}>
-                  {expired ? 'Expired' : formatRingValue(timeLeft)}
-                </Text>
-              </TouchableOpacity>
+                  <Text style={styles.matchName} numberOfLines={1}>{match.company}</Text>
+                  <Text style={styles.matchRole} numberOfLines={1}>{match.role}</Text>
+                  <Text style={[styles.matchMeta, expired && styles.matchMetaExpired]}>
+                    {expired ? 'Expired' : formatRingValue(timeLeft)}
+                  </Text>
+                </TouchableOpacity>
+                
+                {/* Subtle decline button */}
+                <TouchableOpacity
+                  style={styles.declineBtn}
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    onDecline(match.id, match.company);
+                  }}
+                  disabled={decliningMatchId === match.id}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.declineBtnText}>
+                    {decliningMatchId === match.id ? 'Declining...' : 'Not interested'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             );
           })}
         </ScrollView>
@@ -477,7 +498,7 @@ function ConversationScreen({
     setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 120);
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!fallbackCompany) return;
     const text = draft.trim();
     if (!text || !canChat) return;
@@ -486,11 +507,24 @@ function ConversationScreen({
     const tempMsg: ChatMessage = { id: Date.now(), from: 'me', text, time: sentAt };
     setMessages((prev) => [...prev, tempMsg]);
     setDraft('');
-    onSendFirstMessage(fallbackCompany.id, text, sentAt);
     scrollToBottom();
 
-    // Fire-and-forget: persist message to backend
-    api.post(`/matches/${fallbackCompany.id}/messages`, { body: text }).catch(() => {});
+    try {
+      // If this is a pending match and the first message, accept the match first
+      if (isPendingMatch && messages.length === 0) {
+        await api.post(`/applicant/matches/${fallbackCompany.id}/accept`, {});
+        // Update local state to reflect accepted match
+        onSendFirstMessage(fallbackCompany.id, text, sentAt);
+      } else {
+        onSendFirstMessage(fallbackCompany.id, text, sentAt);
+      }
+
+      // Persist message to backend
+      await api.post(`/matches/${fallbackCompany.id}/messages`, { body: text });
+    } catch (err) {
+      console.error('Failed to send message or accept match:', err);
+      // Optionally show error to user, but message is already in UI
+    }
   };
 
   const bannerText = (() => {
@@ -808,6 +842,40 @@ export default function MatchesTab() {
   const [selectedMatchId, setSelectedMatchId] = useState<MatchId | null>(null);
   const [reviewCompanyId, setReviewCompanyId] = useState<MatchId | null>(null);
   const [submittedReviews, setSubmittedReviews] = useState<Review[]>([]);
+  const [decliningMatchId, setDecliningMatchId] = useState<MatchId | null>(null);
+
+  // ── Decline match function ──────────────────────────────────────────────
+  const handleDeclineMatch = (matchId: MatchId, companyName: string) => {
+    Alert.alert(
+      'Decline Match',
+      `Are you sure you want to decline this match with ${companyName}? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Decline',
+          style: 'destructive',
+          onPress: async () => {
+            setDecliningMatchId(matchId);
+            try {
+              await api.post(`/applicant/matches/${matchId}/decline`, {});
+              
+              // Remove match from local state
+              setMatchCompanies(prev => prev.filter(m => m.id !== matchId));
+              setConversations(prev => prev.filter(c => c.id !== matchId));
+              
+              // Show brief feedback
+              Alert.alert('Match Declined', 'This match has been removed from your list.');
+            } catch (err: any) {
+              console.error('Decline match error:', err);
+              Alert.alert('Error', err?.message || 'Failed to decline match. Please try again.');
+            } finally {
+              setDecliningMatchId(null);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // ── Load matches and conversations from API ──────────────────────────────
   useEffect(() => {
@@ -1011,7 +1079,13 @@ export default function MatchesTab() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[styles.pageScroll, { paddingBottom: tabBarHeight + 28 }]}
       >
-        <MatchCarousel matches={visibleMatches} currentTime={currentTime} onOpen={openPendingMatch} />
+        <MatchCarousel 
+          matches={visibleMatches} 
+          currentTime={currentTime} 
+          onOpen={openPendingMatch}
+          onDecline={handleDeclineMatch}
+          decliningMatchId={decliningMatchId}
+        />
         <MessagesList
           conversations={visibleConversations}
           onOpenConversation={openConversation}
@@ -1134,6 +1208,16 @@ const styles = StyleSheet.create({
   },
   matchMetaExpired: {
     color: '#ef4444',
+  },
+  declineBtn: {
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+  },
+  declineBtnText: {
+    fontSize: 10,
+    color: '#9a93b1',
+    textAlign: 'center',
   },
   ringWrap: {
     width: 58,

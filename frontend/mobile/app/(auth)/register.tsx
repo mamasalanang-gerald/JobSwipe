@@ -97,6 +97,7 @@ export default function RegisterScreen() {
   const [inviteError, setInviteError] = useState('');
   const [isInvitedHR, setIsInvitedHR] = useState(false);
   const [pendingAuthRole, setPendingAuthRole] = useState<'applicant' | 'hr' | 'company_admin' | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
 
   const steps = role === 'applicant'
     ? (isOAuthOnboarding ? OAUTH_APPLICANT_STEPS : APPLICANT_STEPS)
@@ -185,41 +186,97 @@ export default function RegisterScreen() {
     return hasSupportedExtension && hasSupportedMime;
   };
 
-  const uploadSingleFile = async (file: LocalUploadFile, uploadType: 'image' | 'document'): Promise<string> => {
-    if (uploadType === 'image' && !isSupportedImageFile(file)) {
-      throw new Error('Unsupported image format. Please use JPG, PNG, WEBP, or HEIC.');
+  const uploadSingleFile = async (
+    file: LocalUploadFile, 
+    uploadType: 'image' | 'document',
+    retryCount = 0
+  ): Promise<string> => {
+    const MAX_RETRIES = 3;
+    const TIMEOUT_MS = 60000; // 60 seconds
+    
+    try {
+      if (uploadType === 'image' && !isSupportedImageFile(file)) {
+        throw new Error('Unsupported image format. Please use JPG, PNG, WEBP, or HEIC.');
+      }
+
+      const fileName = file.name || `upload.${uploadType === 'image' ? 'jpg' : 'pdf'}`;
+      const fileType = inferMimeType(file, uploadType);
+
+      // Fetch local file with timeout
+      const localFileResponse = await fetchWithTimeout(file.uri, TIMEOUT_MS);
+      const localFileBlob = await localFileResponse.blob();
+      const fileSize = typeof file.size === 'number' && file.size > 0 ? file.size : localFileBlob.size;
+
+      if (!fileSize || fileSize < 1) {
+        throw new Error('Selected file appears empty. Please choose another file.');
+      }
+
+      // Get presigned upload URL from backend
+      const uploadMeta = await api.post('/files/upload-url', {
+        file_name: fileName,
+        file_type: fileType,
+        file_size: fileSize,
+        upload_type: uploadType,
+      }) as { upload_url: string; public_url: string };
+
+      // Upload to R2/S3 with timeout
+      const uploadResponse = await fetchWithTimeout(uploadMeta.upload_url, TIMEOUT_MS, {
+        method: 'PUT',
+        headers: { 'Content-Type': fileType },
+        body: localFileBlob,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error(`Upload failed with status ${uploadResponse.status}`);
+      }
+
+      // Confirm upload with backend
+      await api.post('/files/confirm-upload', { file_url: uploadMeta.public_url });
+      
+      return uploadMeta.public_url;
+      
+    } catch (err: any) {
+      const isNetworkError = err.message?.includes('Network request failed') || 
+                            err.message?.includes('timeout') ||
+                            err.message?.includes('Upload failed') ||
+                            err.name === 'AbortError';
+      
+      // Retry on network errors
+      if (isNetworkError && retryCount < MAX_RETRIES) {
+        const delay = Math.pow(2, retryCount) * 1000; // Exponential backoff: 1s, 2s, 4s
+        console.log(`Upload failed, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})...`);
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return uploadSingleFile(file, uploadType, retryCount + 1);
+      }
+      
+      // If all retries exhausted or non-network error, throw with better error message
+      if (retryCount >= MAX_RETRIES) {
+        throw new Error(`Upload failed after ${MAX_RETRIES} attempts. Please check your connection.`);
+      }
+      throw err;
     }
+  };
 
-    const fileName = file.name || `upload.${uploadType === 'image' ? 'jpg' : 'pdf'}`;
-    const fileType = inferMimeType(file, uploadType);
-
-    const localFileResponse = await fetch(file.uri);
-    const localFileBlob = await localFileResponse.blob();
-    const fileSize = typeof file.size === 'number' && file.size > 0 ? file.size : localFileBlob.size;
-
-    if (!fileSize || fileSize < 1) {
-      throw new Error('Selected file appears empty. Please choose another file.');
+  // Helper function to add timeout to fetch
+  const fetchWithTimeout = async (url: string, timeoutMs: number, options?: RequestInit): Promise<Response> => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+      return response;
+    } catch (err: any) {
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        throw new Error('Upload timeout - please check your connection and try again');
+      }
+      throw err;
     }
-
-    const uploadMeta = await api.post('/files/upload-url', {
-      file_name: fileName,
-      file_type: fileType,
-      file_size: fileSize,
-      upload_type: uploadType,
-    }) as { upload_url: string; public_url: string };
-
-    const uploadResponse = await fetch(uploadMeta.upload_url, {
-      method: 'PUT',
-      headers: { 'Content-Type': fileType },
-      body: localFileBlob,
-    });
-
-    if (!uploadResponse.ok) {
-      throw new Error('Unable to upload file to storage.');
-    }
-
-    await api.post('/files/confirm-upload', { file_url: uploadMeta.public_url });
-    return uploadMeta.public_url;
   };
 
   const addSkill = (type: 'hard' | 'soft', value?: string) => {
@@ -261,6 +318,7 @@ export default function RegisterScreen() {
     ...(linkedinUrl.trim().startsWith('https://') ? { linkedin: linkedinUrl.trim() } : {}),
     ...(githubUrl.trim().startsWith('https://') ? { github: githubUrl.trim() } : {}),
     ...(portfolioUrl.trim().startsWith('https://') ? { portfolio: portfolioUrl.trim() } : {}),
+    ...(twitterUrl.trim().startsWith('https://') ? { twitter: twitterUrl.trim() } : {}),
   };
 
   const searchParams = useLocalSearchParams<{
@@ -373,12 +431,16 @@ export default function RegisterScreen() {
         await setToken(data.token, nextRole);
 
         if (nextRole === 'company_admin') {
+          setOnboarding(true); // Mark as onboarding to prevent redirect checks
           await completeCompanyOnboarding();
           // Wait for MongoDB to propagate the changes before navigating
           await new Promise(resolve => setTimeout(resolve, 1000));
+          setOnboarding(false); // Onboarding complete
         }
 
-        router.replace('/(company-tabs)/index');
+        // Small delay to ensure routes are registered
+        await new Promise(resolve => setTimeout(resolve, 100));
+        router.replace('/(company-tabs)');
         return;
       }
 
@@ -420,8 +482,26 @@ export default function RegisterScreen() {
   };
 
   const completeApplicantOnboarding = async () => {
-    const resumeUrl = resumeFile ? await uploadSingleFile(resumeFile, 'document') : null;
-    const profilePhotoUrl = photoFile ? await uploadSingleFile(photoFile, 'image') : null;
+    let resumeUrl: string | null = null;
+    let profilePhotoUrl: string | null = null;
+
+    // Upload resume with progress
+    if (resumeFile) {
+      setUploadProgress({ current: 1, total: (resumeFile ? 1 : 0) + (photoFile ? 1 : 0), fileName: 'Resume' });
+      resumeUrl = await uploadSingleFile(resumeFile, 'document');
+    }
+
+    // Upload profile photo with progress
+    if (photoFile) {
+      setUploadProgress({ 
+        current: (resumeFile ? 2 : 1), 
+        total: (resumeFile ? 1 : 0) + (photoFile ? 1 : 0), 
+        fileName: 'Profile Photo' 
+      });
+      profilePhotoUrl = await uploadSingleFile(photoFile, 'image');
+    }
+
+    setUploadProgress(null);
 
     const stepPayloads = [
       { step: 1, step_data: { first_name: firstName, last_name: lastName, location, location_city: locationCity || null, location_region: locationRegion || null, bio: bio || null } },
@@ -472,9 +552,30 @@ export default function RegisterScreen() {
     }
 
     if (currentStep <= 2) {
-      const verificationDocumentUrls = await Promise.all(
-        verificationDocs.map((file) => uploadSingleFile(file, isImageLikeFile(file) ? 'image' : 'document'))
-      );
+      // Upload verification documents with individual error handling
+      const verificationDocumentUrls: string[] = [];
+      const failedDocs: string[] = [];
+      const totalDocs = verificationDocs.length;
+
+      for (let i = 0; i < totalDocs; i++) {
+        const file = verificationDocs[i];
+        setUploadProgress({ current: i + 1, total: totalDocs, fileName: file.name });
+        
+        try {
+          const url = await uploadSingleFile(file, isImageLikeFile(file) ? 'image' : 'document');
+          verificationDocumentUrls.push(url);
+        } catch (err) {
+          console.error(`Failed to upload verification doc ${i + 1}:`, err);
+          failedDocs.push(file.name);
+        }
+      }
+
+      setUploadProgress(null);
+
+      if (failedDocs.length > 0) {
+        throw new Error(`Failed to upload verification documents: ${failedDocs.join(', ')}`);
+      }
+
       await api.post('/profile/onboarding/complete-step', {
         step: 2,
         step_data: { verification_documents: verificationDocumentUrls },
@@ -482,10 +583,49 @@ export default function RegisterScreen() {
     }
 
     if (currentStep <= 3) {
-      const logoUrl = logoFile ? await uploadSingleFile(logoFile, 'image') : null;
-      const officeImageUrls = await Promise.all(
-        officeImages.map((file) => uploadSingleFile(file, 'image'))
-      );
+      // Upload logo with error handling
+      let logoUrl: string | null = null;
+      if (logoFile) {
+        setUploadProgress({ current: 1, total: 1 + officeImages.length, fileName: 'Company Logo' });
+        
+        try {
+          logoUrl = await uploadSingleFile(logoFile, 'image');
+        } catch (err) {
+          setUploadProgress(null);
+          console.error('Failed to upload logo:', err);
+          throw new Error('Failed to upload company logo. Please try again.');
+        }
+      }
+
+      // Upload office images with individual error handling
+      const officeImageUrls: string[] = [];
+      const failedImages: string[] = [];
+      const totalImages = officeImages.length;
+      const startIndex = logoFile ? 2 : 1;
+
+      for (let i = 0; i < totalImages; i++) {
+        const file = officeImages[i];
+        setUploadProgress({ 
+          current: startIndex + i, 
+          total: (logoFile ? 1 : 0) + totalImages, 
+          fileName: `Office Image ${i + 1}` 
+        });
+        
+        try {
+          const url = await uploadSingleFile(file, 'image');
+          officeImageUrls.push(url);
+        } catch (err) {
+          console.error(`Failed to upload office image ${i + 1}:`, err);
+          failedImages.push(`Image ${i + 1}`);
+        }
+      }
+
+      setUploadProgress(null);
+
+      if (failedImages.length > 0) {
+        throw new Error(`Failed to upload office images: ${failedImages.join(', ')}`);
+      }
+
       await api.post('/profile/onboarding/complete-step', {
         step: 3,
         step_data: {
@@ -528,14 +668,20 @@ export default function RegisterScreen() {
 
       if (resolvedRole === 'applicant') {
         try { await completeApplicantOnboarding(); } catch { /* account verified, continue */ }
+        setOnboarding(false);
         router.replace('/(tabs)');
       } else {
         if (resolvedRole === 'company_admin') {
+          setOnboarding(true); // Mark as onboarding to prevent redirect checks
           await completeCompanyOnboarding();
           // Wait for MongoDB to propagate the changes before navigating
           await new Promise(resolve => setTimeout(resolve, 1000));
+          setOnboarding(false); // Onboarding complete
         }
-        router.replace('/(company-tabs)/index');
+        
+        // Small delay to ensure routes are registered
+        await new Promise(resolve => setTimeout(resolve, 100));
+        router.replace('/(company-tabs)');
       }
     } catch (err: any) {
       setError(err?.message || 'Could not complete verification. Please try again.');
@@ -704,7 +850,7 @@ export default function RegisterScreen() {
         code={otpCode}
         error={error}
         errorTimestamp={errorTimestamp}
-        helperMessage={undefined}
+        helperMessage={uploadProgress ? `Uploading ${uploadProgress.fileName} (${uploadProgress.current}/${uploadProgress.total})...` : undefined}
         verifying={otpLoading}
         resending={resendLoading}
         fieldLabelStyle={fieldLabelStyle}

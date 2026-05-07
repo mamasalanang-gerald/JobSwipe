@@ -1,5 +1,5 @@
 import api from '@/lib/api';
-import type { DashboardStats, UserGrowthData, RevenueData } from '@/types';
+import type { DashboardStats, DashboardStatsApiResponse, UserGrowthData, RevenueData } from '@/types';
 
 interface ActivityEvent {
   id: string;
@@ -18,8 +18,26 @@ interface ActivityEvent {
  */
 export const dashboardService = {
   stats: async (signal?: AbortSignal): Promise<DashboardStats> => {
-    const { data } = await api.get<DashboardStats>('/admin/dashboard/stats', { signal });
-    return data;
+    const { data } = await api.get<DashboardStatsApiResponse>('/admin/dashboard/stats', { signal });
+    
+    // Map the nested backend structure to the flat frontend structure
+    return {
+      totalUsers: data.users.total,
+      activeUsers: data.users.total - data.users.banned, // Active = total - banned
+      totalCompanies: data.companies.total,
+      activeCompanies: data.companies.verified, // Active companies are verified ones
+      totalJobs: data.jobs.total,
+      activeJobs: data.jobs.active,
+      totalRevenue: 0, // TODO: Add revenue tracking
+      monthlyRevenue: 0, // TODO: Add revenue tracking
+      pendingVerifications: data.companies.pendingVerification,
+      flaggedContent: data.reviews.flagged,
+      lowTrustCompanies: data.trust.lowTrustCompanies,
+      activeSubscriptions: 0, // TODO: Add subscription tracking
+      criticalTrustCompanies: data.trust.criticalTrustCompanies,
+      recentTrustEvents: data.trust.recentEvents,
+      trustByLevel: data.trust.byLevel,
+    };
   },
 
   userGrowth: async (days: number = 30, signal?: AbortSignal): Promise<UserGrowthData[]> => {

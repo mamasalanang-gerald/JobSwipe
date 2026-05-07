@@ -31,7 +31,8 @@ export default function RootLayout() {
       // Don't redirect away from auth screens while onboarding is in progress
       if (isOnboarding && inAuthGroup) return;
 
-      if (inAuthGroup || segments[0] === undefined) {
+      // Only redirect if we're in auth group or undefined, but not if we're already in the correct tab group
+      if (inAuthGroup || (segments[0] === undefined && !inApplicantTabs && !inCompanyTabs)) {
         router.replace(isCompanyRole ? '/(company-tabs)' : '/(tabs)');
         return;
       }
@@ -47,14 +48,16 @@ export default function RootLayout() {
       return;
     }
 
-    if (!inAuthGroup) {
+    if (!inAuthGroup && segments[0] !== undefined) {
       router.replace('/(auth)/login');
     }
   }, [hydrated, token, role, isOnboarding, segments]);
 
+  // Enforce company onboarding completion (only for company_admin)
   useEffect(() => {
     if (!hydrated || !token || role !== 'company_admin') return;
     if (segments[0] === '(auth)') return;
+    if (isOnboarding) return; // Skip check during active onboarding
 
     let cancelled = false;
 
@@ -70,6 +73,7 @@ export default function RootLayout() {
         const completed = status?.completed === true || status?.onboarding_step === 'completed';
         const isOnCompanyProfile = segments[0] === '(company-tabs)' && segments[1] === 'profile';
 
+        // Only redirect if onboarding is NOT completed and user is not already on profile
         if (!completed && !isOnCompanyProfile) {
           router.replace('/(company-tabs)/profile');
         }
@@ -83,7 +87,7 @@ export default function RootLayout() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, token, role, segments]);
+  }, [hydrated, token, role, isOnboarding, segments]);
 
   // Blank screen while AsyncStorage is being read
   if (!hydrated) {

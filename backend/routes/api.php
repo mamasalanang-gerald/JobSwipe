@@ -152,6 +152,10 @@ Route::middleware('throttle:api-tiered')->group(function () {
             });
 
             Route::middleware('role:hr,company_admin', 'membership.active')->prefix('company')->group(function () {
+                // Aggregate: applicants across ALL company jobs — must precede apiResource
+                // to prevent 'applicants' being swallowed by the {id} wildcard.
+                Route::get('jobs/applicants', [ApplicantReviewController::class, 'getAllApplicants']);
+
                 Route::apiResource('jobs', JobPostingController::class);
                 Route::post('jobs/{id}/close', [JobPostingController::class, 'close']);
                 Route::post('jobs/{id}/restore', [JobPostingController::class, 'restore']);

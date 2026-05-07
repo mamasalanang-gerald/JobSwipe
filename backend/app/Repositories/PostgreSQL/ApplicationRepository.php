@@ -120,6 +120,37 @@ class ApplicationRepository
     }
 
     /**
+     * Fetch prioritized applicants across ALL active jobs for a given company.
+     * Uses the same tier/points ordering as getPrioritizedApplicants().
+     */
+    public function getPrioritizedApplicantsForCompany(string $companyId, int $perPage = 20)
+    {
+        return Application::with(['applicant', 'jobPosting.skills'])
+            ->join('applicant_profiles', 'applications.applicant_id', '=', 'applicant_profiles.id')
+            ->join('job_postings', 'applications.job_posting_id', '=', 'job_postings.id')
+            ->where('job_postings.company_id', $companyId)
+            ->whereNull('job_postings.deleted_at')
+            ->where('job_postings.status', 'active')
+            ->where('applications.status', 'applied')
+            ->orderByRaw("
+                CASE
+                    WHEN applicant_profiles.subscription_tier = 'pro'
+                     AND applicant_profiles.total_points >= 100 THEN 1
+                    WHEN applicant_profiles.subscription_tier = 'pro'
+                     AND applicant_profiles.total_points < 100  THEN 2
+                    WHEN applicant_profiles.subscription_tier != 'pro'
+                     AND applicant_profiles.total_points >= 50  THEN 3
+                    WHEN applicant_profiles.subscription_tier != 'pro'
+                     AND applicant_profiles.total_points BETWEEN 1 AND 49 THEN 4
+                    ELSE 5
+                END ASC,
+                applications.created_at ASC
+            ")
+            ->select('applications.*')
+            ->paginate($perPage);
+    }
+
+    /**
      * Check if an applicant has applied to at least one job at a company
      */
     public function hasAppliedToCompany(string $applicantId, string $companyId): bool

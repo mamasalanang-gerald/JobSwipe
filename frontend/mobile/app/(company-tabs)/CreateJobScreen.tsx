@@ -2,12 +2,22 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TextInput,
   TouchableOpacity, StatusBar, Switch, KeyboardAvoidingView,
-  Platform, Alert, Modal, FlatList, TouchableWithoutFeedback,
+  Platform, Alert, Modal, FlatList, TouchableWithoutFeedback, ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { useTheme } from '../../theme';
+import { api } from '../../services/api';
+import { jobService } from '../../services/jobService';
+
+// TODO: Add tests for CreateJobScreen
+// Test cases should cover:
+// - Creating new job
+// - Editing existing job
+// - Form validation
+// - Error handling
+// - Navigation after success
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 const T = {
@@ -289,10 +299,20 @@ const cp = StyleSheet.create({
 });
 
 // ─── Main Screen ──────────────────────────────────────────────────────────────
+type CreateJobRouteParams = {
+  CreateJobScreen: {
+    editJobId?: number;
+  };
+};
+
 export default function CreateJobScreen() {
   const T = useTheme();
-  const navigation      = useNavigation<any>();
+  const navigation = useNavigation<any>();
+  const route = useRoute<RouteProp<CreateJobRouteParams, 'CreateJobScreen'>>();
   const { top, bottom } = useSafeAreaInsets();
+
+  const editJobId = route.params?.editJobId;
+  const isEditMode = !!editJobId;
 
   // ── Form state ──────────────────────────────────────────────────────────────
   const [title,             setTitle]             = useState('');
@@ -317,6 +337,44 @@ export default function CreateJobScreen() {
   const [showAddSoft,       setShowAddSoft]       = useState(false);
   const [focusedField,      setFocusedField]      = useState<string | null>(null);
   const [submitting,        setSubmitting]        = useState(false);
+  const [loadingJob,        setLoadingJob]        = useState(false);
+
+  // Load job data if in edit mode
+  useEffect(() => {
+    if (!isEditMode || !editJobId) return;
+
+    const loadJob = async () => {
+      setLoadingJob(true);
+      try {
+        const job = await jobService.get(editJobId);
+        
+        // Populate form fields
+        setTitle(job.title || '');
+        setDescription(job.description || '');
+        setSalaryMin(job.salary_min ? String(job.salary_min) : '');
+        setSalaryMax(job.salary_max ? String(job.salary_max) : '');
+        setSalaryHidden(job.salary_is_hidden || false);
+        setWorkType((job.work_type as WorkType) || 'remote');
+        setLocation(job.location || '');
+        setLocationCity(job.location_city || '');
+        setLocationRegion(job.location_region || '');
+        setInterviewMessage(job.interview_template || '');
+        
+        // Map skills
+        if (job.skills && Array.isArray(job.skills)) {
+          setSkills(job.skills.map(s => ({ name: s.name, type: s.type })));
+        }
+      } catch (err: any) {
+        console.error('Failed to load job:', err);
+        Alert.alert('Error', 'Failed to load job details. Please try again.');
+        navigation.goBack();
+      } finally {
+        setLoadingJob(false);
+      }
+    };
+
+    loadJob();
+  }, [isEditMode, editJobId, navigation]);
 
   // ── Derived location lists ──────────────────────────────────────────────────
   const provinces = selectedRegion ? Object.keys(PH_REGIONS[selectedRegion] || {}) : [];
@@ -383,25 +441,53 @@ export default function CreateJobScreen() {
 
     setSubmitting(true);
     try {
-      // TODO: replace with your actual API call
-      // const res = await fetch('https://your-api.com/v1/company/jobs', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(payload),
-      // });
-
-      navigation.navigate('applicants', {
-        newJob: {
-          localKey: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-          title: payload.title,
-          dept: payload.location_region || 'General',
-          description: payload.description,
-          icon: 'briefcase-outline',
-          color: T.primary,
-        },
-      });
-    } catch (err) {
-      Alert.alert('Error', 'Failed to post job. Please try again.');
+      let job: any;
+      
+      if (isEditMode && editJobId) {
+        // Update existing job
+        job = await jobService.update(editJobId, payload);
+        
+        Alert.alert(
+          'Success',
+          'Job updated successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                navigation.navigate('applicants');
+              },
+            },
+          ]
+        );
+      } else {
+        // Create new job
+        job = await jobService.create(payload);
+        
+        Alert.alert(
+          'Success',
+          'Job posted successfully!',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                navigation.navigate('applicants', {
+                  newJobId: job?.id,
+                });
+              },
+            },
+          ]
+        );
+      }
+    } catch (err: any) {
+      console.error('Job submission error:', err);
+      
+      // Handle validation errors
+      if (err?.errors) {
+        const firstError = Object.values(err.errors)[0];
+        Alert.alert('Validation Error', Array.isArray(firstError) ? firstError[0] : 'Please check your input.');
+      } else {
+        Alert.alert('Error', err?.message || `Failed to ${isEditMode ? 'update' : 'post'} job. Please try again.`);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -410,6 +496,14 @@ export default function CreateJobScreen() {
   return (
     <View style={[s.screen, { paddingTop: top, backgroundColor: T.bg }]}>
       <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
+
+      {/* Loading overlay for edit mode */}
+      {loadingJob && (
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: T.bg, justifyContent: 'center', alignItems: 'center', zIndex: 10 }]}>
+          <ActivityIndicator size="large" color={T.primary} />
+          <Text style={{ color: T.textSub, marginTop: 16, fontSize: 14 }}>Loading job...</Text>
+        </View>
+      )}
 
       {/* ── Top Bar ── */}
       <View style={s.topBar}>
@@ -420,7 +514,9 @@ export default function CreateJobScreen() {
         >
           <MaterialCommunityIcons name="arrow-left" size={20} color={T.textPrimary} />
         </TouchableOpacity>
-        <Text style={[s.screenTitle, { color: T.textPrimary }]}>Create Job</Text>
+        <Text style={[s.screenTitle, { color: T.textPrimary }]}>
+          {isEditMode ? 'Edit Job' : 'Create Job'}
+        </Text>
         <View style={{ width: 36 }} />
       </View>
 
@@ -596,8 +692,8 @@ export default function CreateJobScreen() {
 
           {!!location && (
             <View style={[s.locationPreview, { backgroundColor: 'rgba(74,222,128,0.07)', borderColor: 'rgba(74,222,128,0.25)' }]}>
-              <MaterialCommunityIcons name="map-marker-check-outline" size={14} color={T.green} />
-              <Text style={[s.locationPreviewText, { color: T.green }]}>{location}</Text>
+              <MaterialCommunityIcons name="map-marker-check-outline" size={14} color={T.success} />
+              <Text style={[s.locationPreviewText, { color: T.success }]}>{location}</Text>
             </View>
           )}
 
@@ -703,8 +799,8 @@ export default function CreateJobScreen() {
           <View style={s.skillSegment}>
             <View style={s.skillSectionHeader}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <MaterialCommunityIcons name="account-heart-outline" size={13} color={T.green} />
-                <Text style={[s.skillSegmentLabel, { color: T.green }]}>Preferred Skills</Text>
+                <MaterialCommunityIcons name="account-heart-outline" size={13} color={T.success} />
+                <Text style={[s.skillSegmentLabel, { color: T.success }]}>Preferred Skills</Text>
               </View>
               <TouchableOpacity
                 style={[s.addBtn, { borderColor: 'rgba(74,222,128,0.3)', backgroundColor: 'rgba(74,222,128,0.07)' }]}
@@ -714,8 +810,8 @@ export default function CreateJobScreen() {
                 }}
                 activeOpacity={0.8}
               >
-                <MaterialCommunityIcons name={showAddSoft ? 'minus' : 'plus'} size={12} color={T.green} />
-                <Text style={[s.addBtnText, { color: T.green }]}>{showAddSoft ? 'Cancel' : 'Add'}</Text>
+                <MaterialCommunityIcons name={showAddSoft ? 'minus' : 'plus'} size={12} color={T.success} />
+                <Text style={[s.addBtnText, { color: T.success }]}>{showAddSoft ? 'Cancel' : 'Add'}</Text>
               </TouchableOpacity>
             </View>
 
@@ -725,13 +821,13 @@ export default function CreateJobScreen() {
                   key={`soft-${idx}`}
                   style={[s.chip, s.chipSoft, { backgroundColor: 'rgba(74,222,128,0.07)', borderColor: 'rgba(74,222,128,0.3)' }]}
                 >
-                  <Text style={[s.chipText, { color: T.green }]}>{sk.name}</Text>
+                  <Text style={[s.chipText, { color: T.success }]}>{sk.name}</Text>
                   <TouchableOpacity
                     onPress={() => removeSkill(skills.findIndex(s => s.name === sk.name && s.type === sk.type))}
                     hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     style={{ marginLeft: 4 }}
                   >
-                    <MaterialCommunityIcons name="close" size={10} color={T.green} />
+                    <MaterialCommunityIcons name="close" size={10} color={T.success} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -758,7 +854,7 @@ export default function CreateJobScreen() {
                   returnKeyType="done"
                 />
                 <TouchableOpacity
-                  style={[s.addBtnPrimary, { backgroundColor: T.green }]}
+                  style={[s.addBtnPrimary, { backgroundColor: T.success }]}
                   onPress={() => addSkill('soft')}
                   activeOpacity={0.8}
                 >
@@ -776,7 +872,9 @@ export default function CreateJobScreen() {
             disabled={submitting}
           >
             <MaterialCommunityIcons name="briefcase-check-outline" size={18} color="#fff" />
-            <Text style={s.submitBtnText}>{submitting ? 'Posting…' : 'Post Job'}</Text>
+            <Text style={s.submitBtnText}>
+              {submitting ? (isEditMode ? 'Updating…' : 'Posting…') : (isEditMode ? 'Update Job' : 'Post Job')}
+            </Text>
           </TouchableOpacity>
 
         </ScrollView>
@@ -956,7 +1054,7 @@ const s = StyleSheet.create({
     paddingVertical: 8,
     marginBottom: 12,
   },
-  locationPreviewText: { fontSize: 12, color: T.green, fontWeight: '600', flex: 1 },
+  locationPreviewText: { fontSize: 12, color: '#22c55e', fontWeight: '600', flex: 1 },
 
   // Interview template
   templateOption: {

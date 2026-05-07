@@ -26,17 +26,40 @@ class TrustEventRepository
     public function listEvents(int $perPage = 20): LengthAwarePaginator
     {
         // Since we don't have a dedicated trust_events table,
-        // we'll return company profiles with trust data
-        return DB::table('company_profiles')
+        // we'll return company profiles with trust data formatted as events
+        $results = DB::table('company_profiles')
             ->select([
-                'id',
+                'id as company_id',
                 'company_name',
                 'trust_score',
                 'trust_level',
-                'updated_at as event_date',
+                'updated_at',
+                'created_at',
             ])
             ->orderBy('updated_at', 'desc')
             ->paginate($perPage);
+
+        // Transform the results to match TrustEvent structure
+        $results->getCollection()->transform(function ($item) {
+            return [
+                'id' => $item->company_id,
+                'company_id' => $item->company_id,
+                'company' => [
+                    'id' => $item->company_id,
+                    'name' => $item->company_name,
+                    'trust_score' => $item->trust_score,
+                    'trust_level' => $item->trust_level,
+                ],
+                'type' => 'score_updated',
+                'description' => "Trust score updated to {$item->trust_score}",
+                'score_change' => 0, // We don't track historical changes yet
+                'score_before' => $item->trust_score,
+                'score_after' => $item->trust_score,
+                'created_at' => $item->updated_at,
+            ];
+        });
+
+        return $results;
     }
 
     /**
@@ -135,5 +158,41 @@ class TrustEventRepository
             'timestamp' => now()->toIso8601String(),
             'ip_address' => request()->ip(),
         ]);
+    }
+
+    /**
+     * Count companies below a trust score threshold.
+     *
+     * Requirements: 6.2
+     */
+    public function countLowTrustCompanies(int $threshold = 40): int
+    {
+        return DB::table('company_profiles')
+            ->where('trust_score', '<', $threshold)
+            ->count();
+    }
+
+    /**
+     * Count companies with recent trust score changes.
+     *
+     * Requirements: 6.1
+     */
+    public function countRecentTrustEvents(int $days = 30): int
+    {
+        return DB::table('company_profiles')
+            ->where('updated_at', '>=', now()->subDays($days))
+            ->count();
+    }
+
+    /**
+     * Count companies by trust level.
+     *
+     * Requirements: 6.1
+     */
+    public function countByTrustLevel(string $level): int
+    {
+        return DB::table('company_profiles')
+            ->where('trust_level', $level)
+            ->count();
     }
 }

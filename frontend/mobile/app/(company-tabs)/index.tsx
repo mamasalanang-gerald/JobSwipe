@@ -18,6 +18,7 @@ import {
   LayoutChangeEvent,
   Switch,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import {
@@ -30,123 +31,50 @@ import {
   Radii,
   Shadows,
 } from '../../components/ui';
+import { api } from '../../services/api';
+import { jobService, type Job } from '../../services/jobService';
+
+// TODO: Add tests for company swipe deck
+// Test cases should cover:
+// - Loading applicants for selected job
+// - Job selector dropdown
+// - Swipe right/left API calls
+// - Empty state when no applicants
+// - Error handling
+// - Swipe limit enforcement
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const SWIPE_THRESHOLD = SW * 0.28;
 const ACTIONS_HEIGHT  = 80;
 const PANEL_HEIGHT    = SH * 0.62;
 
-// ── Mock applicant cards ──────────────────────────────────────────────────────
-const APPLICANTS = [
-  {
-    id: 1,
-    name: 'Maria Santos',
-    avatarColor: Colors.primary,
-    rating: 4.8,
-    role: 'Frontend Developer',
-    experience: '3 years experience',
-    location: 'Quezon City, PH · Open to Remote',
-    tags: [
-      { label: 'React Native', variant: 'primary' as const },
-      { label: 'TypeScript',   variant: 'success' as const },
-      { label: 'Open to Work', variant: 'warning' as const },
-    ],
-    bio: 'Passionate mobile developer with 3 years of experience building consumer-facing apps. Shipped 5 apps with 100k+ downloads. Loves clean code and pixel-perfect UI.',
-    matchPercent: 94,
-    photos: [
-      { uri: 'https://randomuser.me/api/portraits/women/44.jpg' },
-      { uri: 'https://randomuser.me/api/portraits/women/45.jpg' },
-      { uri: 'https://randomuser.me/api/portraits/women/46.jpg' },
-    ],
-    hardSkills: ['React Native', 'TypeScript', 'Node.js', 'REST APIs', 'Git'],
-    softSkills: ['Communication', 'Team Player', 'Detail-Oriented', 'Proactive'],
-    distanceKm: 3.5,
-    reviews: [
-      {
-        company: 'Accenture PH', role: 'Project Manager', initial: 'A', color: '#6366F1',
-        rating: 5, date: 'Mar 2024',
-        text: 'Maria was an exceptional contractor. Delivered pixel-perfect UI ahead of schedule and communicated proactively throughout.',
-      },
-      {
-        company: 'Lalamove PH', role: 'Tech Lead', initial: 'L', color: '#F59E0B',
-        rating: 4, date: 'Nov 2023',
-        text: 'Great collaborator and quick learner. Adapted fast to our codebase and shipped quality work with minimal supervision.',
-      },
-    ],
-  },
-  {
-    id: 2,
-    name: 'Juan dela Cruz',
-    avatarColor: Colors.warning,
-    rating: 4.5,
-    role: 'UI/UX Designer',
-    experience: '2 years experience',
-    location: 'Makati, PH · Hybrid',
-    tags: [
-      { label: 'Figma',     variant: 'primary' as const },
-      { label: 'Adobe XD',  variant: 'success' as const },
-      { label: 'Available', variant: 'neutral' as const },
-    ],
-    bio: 'Creative designer who lives at the intersection of aesthetics and usability. Led design for 3 SaaS products. Passionate about design systems and accessibility.',
-    matchPercent: 81,
-    photos: [
-      { uri: 'https://randomuser.me/api/portraits/men/32.jpg' },
-      { uri: 'https://randomuser.me/api/portraits/men/33.jpg' },
-      { uri: 'https://randomuser.me/api/portraits/men/34.jpg' },
-    ],
-    hardSkills: ['Figma', 'Adobe XD', 'Prototyping', 'Design Systems', 'Accessibility'],
-    softSkills: ['Creativity', 'Empathy', 'Critical Thinking', 'Collaboration'],
-    distanceKm: 9.1,
-    reviews: [
-      {
-        company: 'Globe Telecom', role: 'Design Director', initial: 'G', color: '#10B981',
-        rating: 5, date: 'Jan 2024',
-        text: 'Juan brought a fresh perspective to our design system. His work on accessibility was outstanding.',
-      },
-      {
-        company: 'Voyager Innovations', role: 'Product Owner', initial: 'V', color: '#8B5CF6',
-        rating: 4, date: 'Sep 2023',
-        text: 'Very talented designer. Occasionally needed direction on scope but always delivered polished, thoughtful work.',
-      },
-    ],
-  },
-  {
-    id: 3,
-    name: 'Ana Reyes',
-    avatarColor: Colors.success,
-    rating: 4.9,
-    role: 'Backend Developer',
-    experience: '5 years experience',
-    location: 'Pasig, PH · On-site',
-    tags: [
-      { label: 'Python',     variant: 'warning' as const },
-      { label: 'Django',     variant: 'success' as const },
-      { label: 'PostgreSQL', variant: 'neutral' as const },
-    ],
-    bio: 'Senior backend engineer who builds scalable and reliable systems. Designed APIs serving 10M+ requests/day. Strong focus on performance, security, and clean architecture.',
-    matchPercent: 88,
-    photos: [
-      { uri: 'https://randomuser.me/api/portraits/women/68.jpg' },
-      { uri: 'https://randomuser.me/api/portraits/women/69.jpg' },
-      { uri: 'https://randomuser.me/api/portraits/women/70.jpg' },
-    ],
-    hardSkills: ['Python', 'Django', 'PostgreSQL', 'AWS', 'Docker'],
-    softSkills: ['Problem Solving', 'Analytical', 'Self-Motivated', 'Adaptability'],
-    distanceKm: 22.0,
-    reviews: [
-      {
-        company: 'Mynt (GCash)', role: 'Engineering Manager', initial: 'M', color: '#3B82F6',
-        rating: 5, date: 'Feb 2024',
-        text: 'Ana is one of the best backend engineers we have worked with. Clean, well-documented APIs built to scale.',
-      },
-      {
-        company: 'PayMongo', role: 'CTO', initial: 'P', color: '#EF4444',
-        rating: 5, date: 'Aug 2023',
-        text: 'Exceptional engineer. Ana refactored our entire payment pipeline and cut response times by 40%.',
-      },
-    ],
-  },
-] as const;
+// ── Applicant type ────────────────────────────────────────────────────────────
+type Applicant = {
+  id: number;
+  name: string;
+  avatarColor: string;
+  rating: number;
+  role: string;
+  experience: string;
+  location: string;
+  tags: Array<{ label: string; variant: 'primary' | 'success' | 'warning' | 'neutral' }>;
+  bio: string;
+  matchPercent: number;
+  photos: Array<{ uri: string }>;
+  hardSkills: string[];
+  softSkills: string[];
+  distanceKm: number;
+  reviews: Array<{
+    company: string;
+    role: string;
+    initial: string;
+    color: string;
+    rating: number;
+    date: string;
+    text: string;
+  }>;
+  jobPostingId?: string | null;
+};
 
 // ── Report reasons ────────────────────────────────────────────────────────────
 const REPORT_REASONS = [
@@ -201,6 +129,15 @@ export default function CompanyHomeTab() {
   const overlayBottom = actionsBottom + ACTIONS_HEIGHT + 8;
   const MAX_SWIPES = 15;
 
+  // ── API state ──────────────────────────────────────────────────────────────
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+  const [showJobSelector, setShowJobSelector] = useState(false);
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [loadingJobs, setLoadingJobs] = useState(true);
+  const [error, setError]           = useState<string | null>(null);
+
   const [index, setIndex]           = useState(0);
   const [swipesUsed, setSwipesUsed] = useState(0);
   const indexRef = useRef(0);
@@ -211,6 +148,107 @@ export default function CompanyHomeTab() {
   const [expanded, setExpanded]     = useState(false);
   const [history, setHistory]       = useState<{ id: number; dir: number }[]>([]);
   const [cardSize, setCardSize]     = useState({ width: SW, height: SH });
+
+  // ── Fetch jobs on mount ───────────────────────────────────────────────────
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  // ── Fetch applicants when job is selected ─────────────────────────────────
+  useEffect(() => {
+    if (selectedJobId) {
+      fetchApplicants(selectedJobId);
+    }
+  }, [selectedJobId]);
+
+  const fetchJobs = async () => {
+    try {
+      setLoadingJobs(true);
+      const jobsList = await jobService.list();
+      // Only show active/open jobs
+      const activeJobs = jobsList.filter(j => j.status === 'active' || j.status === 'open');
+      setJobs(activeJobs);
+      
+      // Auto-select first job if available
+      if (activeJobs.length > 0 && !selectedJobId) {
+        setSelectedJobId(activeJobs[0].id);
+      } else if (activeJobs.length === 0) {
+        setLoading(false);
+        setError('No active job postings. Create a job first.');
+      }
+    } catch (err: any) {
+      console.error('Failed to fetch jobs:', err);
+      setError(err?.message || 'Failed to load jobs');
+      setLoading(false);
+    } finally {
+      setLoadingJobs(false);
+    }
+  };
+
+  const fetchApplicants = async (jobId: number) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch applicants for specific job
+      const response: any = await api.get(`/company/jobs/${jobId}/applicants`);
+      
+      // Transform API response to match UI structure
+      const items = response?.data || response?.applicants || [];
+      const transformedApplicants: Applicant[] = items.map((item: any) => {
+        // Handle both nested and flat structures
+        const app = item?.applicant_profile ?? item?.applicant ?? item;
+        const profile = app?.profile_data ?? app;
+        
+        return {
+          id: app.user_id || app.id,
+          name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown',
+          avatarColor: Colors.primary,
+          rating: profile.rating || 0,
+          role: profile.desired_position || profile.role || 'Not specified',
+          experience: profile.years_of_experience 
+            ? `${profile.years_of_experience} years` 
+            : 'Experience not specified',
+          location: profile.location || 'Location not specified',
+          tags: [
+            ...(profile.hard_skills?.slice(0, 3).map((skill: string) => ({ 
+              label: skill, 
+              variant: 'primary' as const 
+            })) || []),
+          ],
+          bio: profile.bio || 'No bio provided',
+          matchPercent: item.match_score || profile.match_percent || 0,
+          photos: profile.profile_photo_url
+            ? [{ uri: profile.profile_photo_url }]
+            : profile.photos?.length > 0
+              ? profile.photos.map((url: string) => ({ uri: url }))
+              : [{ uri: 'https://via.placeholder.com/400x600?text=No+Photo' }],
+          hardSkills: profile.hard_skills || [],
+          softSkills: profile.soft_skills || [],
+          distanceKm: profile.distance_km ?? 0,
+          reviews: profile.reviews || [],
+          jobPostingId: jobId, // Store job ID for swipe endpoints
+        };
+      });
+
+      setApplicants(transformedApplicants);
+      
+      // Reset swipe state when loading new applicants
+      setIndex(0);
+      indexRef.current = 0;
+      setSwipesUsed(0);
+      setLiked([]);
+      setHistory([]);
+      setPhotoIndex(0);
+      position.setValue({ x: 0, y: 0 });
+      cardOpacity.setValue(1);
+    } catch (err: any) {
+      console.error('Failed to fetch applicants:', err);
+      setError(err?.message || 'Failed to load applicants');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ── Report / Block modal state ─────────────────────────────────────────────
   const [modalType, setModalType]           = useState<ModalType>(null);
@@ -289,8 +327,8 @@ export default function CompanyHomeTab() {
     useKm ? `${km.toFixed(1)} km away` : `${(km * 0.621371).toFixed(1)} mi away`;
 
   const draftLabel         = draftUseKm ? `${draftDistance} km` : `${(draftDistance * 0.621371).toFixed(0)} mi`;
-  const draftFilteredCount = APPLICANTS.filter(a => a.distanceKm <= draftDistance).length;
-  const filteredApplicants = APPLICANTS.filter(a => a.distanceKm <= maxDistanceKm && !blockedIds.includes(a.id));
+  const draftFilteredCount = applicants.filter(a => a.distanceKm <= draftDistance).length;
+  const filteredApplicants = applicants.filter(a => a.distanceKm <= maxDistanceKm && !blockedIds.includes(a.id));
   const filteredApplicantRef = useRef(filteredApplicants);
   filteredApplicantRef.current = filteredApplicants;
   const remainingSwipes = Math.max(MAX_SWIPES - swipesUsed, 0);
@@ -381,12 +419,28 @@ export default function CompanyHomeTab() {
     })
   ).current;
 
-  const commitSwipe = (dir: number) => {
+  const commitSwipe = async (dir: number) => {
     if (swipesUsed >= MAX_SWIPES) return;
     collapsePanel();
     const deck = filteredApplicantRef.current;
     const total = deck.length;
+    const currentApplicant = deck[indexRef.current];
     const upcomingApplicant = total > 1 ? deck[(indexRef.current + 1) % total] : null;
+    
+    // Call API endpoint for swipe
+    if (currentApplicant && selectedJobId) {
+      try {
+        const endpoint = dir > 0
+          ? `/company/jobs/${selectedJobId}/applicants/${currentApplicant.id}/right`
+          : `/company/jobs/${selectedJobId}/applicants/${currentApplicant.id}/left`;
+
+        await api.post(endpoint);
+      } catch (err: any) {
+        console.error('Swipe API error:', err);
+        // Continue with UI animation even if API fails
+      }
+    }
+    
     Animated.timing(position, {
       toValue: { x: dir * SW * 1.5, y: 0 },
       duration: 280,
@@ -394,7 +448,6 @@ export default function CompanyHomeTab() {
     }).start(() => {
       cardOpacity.setValue(0);
       position.setValue({ x: 0, y: 0 });
-      const currentApplicant = filteredApplicantRef.current[indexRef.current];
       if (currentApplicant && dir > 0) setLiked(prev => [...prev, currentApplicant.id]);
       if (currentApplicant) setHistory(prev => [...prev, { id: currentApplicant.id, dir }]);
       setPhotoIndex(0);
@@ -542,6 +595,44 @@ export default function CompanyHomeTab() {
       </TouchableOpacity>
     </View>
   );
+
+  // ── Loading state ─────────────────────────────────────────────────────────
+  if (loadingJobs || loading) {
+    return (
+      <View style={s.emptyScreen}>
+        <StatusBar barStyle="light-content" />
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={[s.emptySub, { marginTop: 16 }]}>
+          {loadingJobs ? 'Loading jobs...' : 'Loading applicants...'}
+        </Text>
+      </View>
+    );
+  }
+
+  // ── Error state ───────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <View style={s.emptyScreen}>
+        <StatusBar barStyle="light-content" />
+        <View style={s.emptyIconWrap}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={40} color={Colors.danger} />
+        </View>
+        <Text style={s.emptyTitle}>
+          {jobs.length === 0 ? 'No active jobs' : 'Failed to load applicants'}
+        </Text>
+        <Text style={s.emptySub}>{error}</Text>
+        <TouchableOpacity 
+          style={s.refreshBtn} 
+          onPress={() => jobs.length === 0 ? navigation.navigate('applicants' as never) : fetchApplicants(selectedJobId!)} 
+          activeOpacity={0.85}
+        >
+          <Text style={s.refreshBtnText}>
+            {jobs.length === 0 ? 'Create a job' : 'Try again'}
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   // ── Empty: no applicants in range ─────────────────────────────────────────
   if (filteredApplicants.length === 0) {
@@ -709,6 +800,20 @@ export default function CompanyHomeTab() {
             <TouchableOpacity style={s.iconPill} onPress={openSettings}>
               <MaterialCommunityIcons name="tune-variant" size={19} color={Colors.white} />
             </TouchableOpacity>
+            
+            {/* Job Selector */}
+            <TouchableOpacity 
+              style={s.jobSelectorPill} 
+              onPress={() => setShowJobSelector(true)}
+              activeOpacity={0.8}
+            >
+              <MaterialCommunityIcons name="briefcase-outline" size={16} color={Colors.white} />
+              <Text style={s.jobSelectorText} numberOfLines={1}>
+                {jobs.find(j => j.id === selectedJobId)?.title || 'Select Job'}
+              </Text>
+              <MaterialCommunityIcons name="chevron-down" size={16} color="rgba(255,255,255,0.6)" />
+            </TouchableOpacity>
+            
             {(() => {
               const accentColor = remainingSwipes > Math.floor(MAX_SWIPES / 2)
                 ? '#10B981'
@@ -718,7 +823,7 @@ export default function CompanyHomeTab() {
               return (
                 <View style={[s.swipeCounterPill, { borderColor: accentColor }]}>
                   <Text style={[s.swipeCounterText, { color: accentColor }]}>
-                    {remainingSwipes}/{MAX_SWIPES} swipes left
+                    {remainingSwipes}/{MAX_SWIPES}
                   </Text>
                 </View>
               );
@@ -1081,6 +1186,67 @@ export default function CompanyHomeTab() {
         </View>
       </Modal>
 
+      {/* Job Selector Modal */}
+      <Modal
+        visible={showJobSelector}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowJobSelector(false)}
+      >
+        <TouchableOpacity 
+          style={s.jobSelectorBackdrop} 
+          activeOpacity={1} 
+          onPress={() => setShowJobSelector(false)}
+        />
+        <View style={[s.jobSelectorModal, { paddingBottom: tabBarHeight + 20 }]}>
+          <View style={s.jobSelectorHandle} />
+          <View style={s.jobSelectorHeader}>
+            <Text style={s.jobSelectorTitle}>Select Job</Text>
+            <TouchableOpacity onPress={() => setShowJobSelector(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <MaterialCommunityIcons name="close" size={22} color="rgba(255,255,255,0.9)" />
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={s.jobSelectorList} showsVerticalScrollIndicator={false}>
+            {jobs.map((job) => (
+              <TouchableOpacity
+                key={job.id}
+                style={[
+                  s.jobSelectorItem,
+                  selectedJobId === job.id && s.jobSelectorItemActive,
+                ]}
+                onPress={() => {
+                  setSelectedJobId(job.id);
+                  setShowJobSelector(false);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={s.jobSelectorItemIcon}>
+                  <MaterialCommunityIcons 
+                    name="briefcase-outline" 
+                    size={20} 
+                    color={selectedJobId === job.id ? Colors.primary : 'rgba(255,255,255,0.6)'} 
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[
+                    s.jobSelectorItemTitle,
+                    selectedJobId === job.id && s.jobSelectorItemTitleActive,
+                  ]}>
+                    {job.title}
+                  </Text>
+                  <Text style={s.jobSelectorItemSub}>
+                    {job.location || 'Remote'} • {job.applicants_count || 0} applicants
+                  </Text>
+                </View>
+                {selectedJobId === job.id && (
+                  <MaterialCommunityIcons name="check-circle" size={20} color={Colors.primary} />
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </Modal>
+
     </View>
   );
 }
@@ -1116,6 +1282,103 @@ const s = StyleSheet.create({
     fontSize: Typography.sm,
     fontWeight: Typography.semibold,
     letterSpacing: 0.2,
+  },
+  jobSelectorPill: {
+    flex: 1,
+    height: 38,
+    borderRadius: Radii.full,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    gap: 6,
+    marginHorizontal: 8,
+    maxWidth: 200,
+  },
+  jobSelectorText: {
+    fontSize: Typography.sm,
+    fontWeight: Typography.semibold,
+    color: Colors.white,
+    flex: 1,
+  },
+  jobSelectorBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+  },
+  jobSelectorModal: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#16102a',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    maxHeight: '70%',
+  },
+  jobSelectorHandle: {
+    width: 38,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  jobSelectorHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+  },
+  jobSelectorTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Colors.white,
+    letterSpacing: -0.3,
+  },
+  jobSelectorList: {
+    flex: 1,
+  },
+  jobSelectorItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  jobSelectorItemActive: {
+    backgroundColor: 'rgba(168,85,247,0.15)',
+    borderColor: 'rgba(168,85,247,0.4)',
+  },
+  jobSelectorItemIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  jobSelectorItemTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.9)',
+  },
+  jobSelectorItemTitleActive: {
+    color: Colors.primary,
+  },
+  jobSelectorItemSub: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 2,
   },
   dotsRow: { flexDirection: 'row', gap: 5, paddingHorizontal: Spacing['1'] },
   dot:     { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.3)', overflow: 'hidden' },

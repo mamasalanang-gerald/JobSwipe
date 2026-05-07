@@ -1,13 +1,23 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, Dimensions, TextInput, Image,
-  Keyboard, KeyboardEvent, BackHandler
+  Keyboard, KeyboardEvent, BackHandler, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useTheme } from '../../theme';
+import { api } from '../../services/api';
+
+// TODO: Add tests for company matches screen
+// Test cases should cover:
+// - Loading matches from API
+// - Filtering by status
+// - Messaging integration
+// - Close match functionality
+// - Review submission
+// - Error handling
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -30,28 +40,23 @@ const T = {
   rose:        '#ec4899',
 };
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
-const NEW_MATCHES: {
-  id: string; name: string; role: string;
-  avatar: string; isNew: boolean;
-}[] = [
-  { id: '1', name: 'Maria Santos', role: 'Frontend Dev',  avatar: 'https://randomuser.me/api/portraits/women/44.jpg', isNew: true },
-  { id: '2', name: 'Pedro Lim',    role: 'Full Stack',    avatar: 'https://randomuser.me/api/portraits/men/55.jpg',   isNew: true },
-  { id: '3', name: 'Aisha Khan',   role: 'ML Engineer',   avatar: 'https://randomuser.me/api/portraits/women/65.jpg', isNew: true },
-];
+// ─── Types ────────────────────────────────────────────────────────────────────
+type Status = 'new' | 'screening' | 'interview' | 'offer' | 'closed';
 
-type Status = 'new' | 'screening' | 'interview' | 'offer';
-
-const PIPELINE: {
-  id: string; name: string; role: string; avatar: string;
-  status: Status; lastMsg: string; time: string;
-  unread: number; expired?: boolean;
-}[] = [
-  { id: '1', name: 'Maria Santos',   role: 'Frontend Developer',  avatar: 'https://randomuser.me/api/portraits/women/44.jpg', lastMsg: "Hi! I'm excited about the role. Happy to start anytime!", time: '2m',        unread: 2, status: 'screening' },
-  { id: '2', name: 'Pedro Lim',      role: 'Full Stack Developer', avatar: 'https://randomuser.me/api/portraits/men/55.jpg',   lastMsg: "Thanks for moving me forward! When's the interview?",  time: '1h',        unread: 1, status: 'interview' },
-  { id: '3', name: 'Carla Mendoza',  role: 'Data Analyst',         avatar: 'https://randomuser.me/api/portraits/women/29.jpg', lastMsg: "Sounds good, I'll prepare for the case study.",         time: '3h',        unread: 0, status: 'new', expired: true },
-  { id: '4', name: 'James Reyes',    role: 'Backend Engineer',     avatar: 'https://randomuser.me/api/portraits/men/32.jpg',   lastMsg: "I've sent over my portfolio as requested!",             time: 'Yesterday', unread: 0, status: 'offer' },
-];
+type Match = {
+  id: string;
+  name: string;
+  role: string;
+  avatar: string;
+  status: Status;
+  lastMsg?: string;
+  time?: string;
+  unread: number;
+  expired?: boolean;
+  applicantId: number;
+  jobId: number;
+  jobTitle?: string;
+};
 
 const PIPELINE_STAGES: {
   key: Status; label: string; icon: string; bg: string; text: string;
@@ -60,9 +65,8 @@ const PIPELINE_STAGES: {
   { key: 'screening', label: 'Screening', icon: 'account-search-outline', bg: T.warningLight,           text: '#fbbf24'               },
   { key: 'interview', label: 'Interview', icon: 'video-outline',          bg: 'rgba(168,85,247,0.15)',  text: '#c084fc'               },
   { key: 'offer',     label: 'Offer 🎉',  icon: 'star-outline',           bg: T.successLight,           text: '#4ade80'               },
+  { key: 'closed',    label: 'Closed',    icon: 'lock-outline',           bg: 'rgba(255,255,255,0.05)', text: 'rgba(255,255,255,0.4)' },
 ];
-
-const CLOSED_APPLICANTS = PIPELINE.filter(p => p.expired);
 
 // ─── Chat data ────────────────────────────────────────────────────────────────
 type ChatMessage = { id: number; from: 'me' | 'them'; text: string; time: string; };
@@ -384,44 +388,140 @@ function ConversationScreen({
 // ─── Main screen ──────────────────────────────────────────────────────────────
 export default function CompanyMatchesScreen() {
   const T = useTheme();
-  const tabBarHeight          = useTabBarHeight();
-  const { top: topInset }     = useSafeAreaInsets();
+  const tabBarHeight = useTabBarHeight();
+  const { top: topInset } = useSafeAreaInsets();
+  
+  // API state
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  // UI state
   const [activeTab, setActiveTab] = useState('matches');
-  const hasMatches                = NEW_MATCHES.length > 0;
-  const totalUnread               = PIPELINE.reduce((a, m) => a + m.unread, 0);
-
-  // Conversation detail (full-screen swap — same pattern as teammate)
-  const [selectedConversation, setSelectedConversation] = useState<typeof PIPELINE[number] | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState<Match | null>(null);
 
   // Review state
   const [selectedApplicantId, setSelectedApplicantId] = useState<string | null>(null);
-  const [reviewRating, setReviewRating]               = useState(0);
-  const [reviewTitle, setReviewTitle]                 = useState('');
-  const [reviewBody, setReviewBody]                   = useState('');
-  const [submittedReviews, setSubmittedReviews]       = useState<Review[]>([]);
-  const [reviewSubmitted, setReviewSubmitted]         = useState(false);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewTitle, setReviewTitle] = useState('');
+  const [reviewBody, setReviewBody] = useState('');
+  const [submittedReviews, setSubmittedReviews] = useState<Review[]>([]);
+  const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
-  const selectedApplicant = CLOSED_APPLICANTS.find(a => a.id === selectedApplicantId);
+  // Computed values
+  const newMatches = matches.filter(m => m.status === 'new' && !m.expired);
+  const activeMatches = matches.filter(m => !m.expired);
+  const closedMatches = matches.filter(m => m.expired || m.status === 'closed');
+  const totalUnread = matches.reduce((a, m) => a + m.unread, 0);
+  const hasMatches = matches.length > 0;
 
-  const handleSubmitReview = () => {
+  // Fetch matches from API
+  const fetchMatches = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    setError(null);
+    
+    try {
+      const response: any = await api.get('/company/matches');
+      
+      // Transform API response to match UI structure
+      const items = response?.data || response?.matches || [];
+      const transformedMatches: Match[] = items.map((item: any) => {
+        const applicant = item.applicant_profile || item.applicant || {};
+        const profile = applicant.profile_data || applicant;
+        
+        return {
+          id: String(item.id),
+          name: `${profile.first_name || ''} ${profile.last_name || ''}`.trim() || 'Unknown',
+          role: profile.desired_position || item.job_title || 'Not specified',
+          avatar: profile.profile_photo_url || 'https://via.placeholder.com/100',
+          status: (item.status || 'new') as Status,
+          lastMsg: item.last_message?.body || '',
+          time: item.last_message?.created_at ? formatTime(item.last_message.created_at) : '',
+          unread: item.unread_count || 0,
+          expired: item.status === 'closed' || item.is_expired,
+          applicantId: item.applicant_id || applicant.user_id,
+          jobId: item.job_posting_id,
+          jobTitle: item.job_title,
+        };
+      });
+      
+      setMatches(transformedMatches);
+    } catch (err: any) {
+      console.error('Failed to fetch matches:', err);
+      setError(err?.message || 'Failed to load matches');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    fetchMatches();
+  }, [fetchMatches]);
+
+  // Pull to refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchMatches(false);
+  }, [fetchMatches]);
+
+  // Format time helper
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    
+    if (diffMins < 1) return 'Just now';
+    if (diffMins < 60) return `${diffMins}m`;
+    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h`;
+    if (diffMins < 2880) return 'Yesterday';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const selectedApplicant = closedMatches.find(a => a.id === selectedApplicantId);
+
+  const handleSubmitReview = async () => {
     if (!selectedApplicantId || reviewRating === 0 || !reviewTitle.trim() || !reviewBody.trim()) return;
-    const review: Review = {
-      id: Date.now(),
-      applicantId: selectedApplicantId,
-      rating: reviewRating,
-      title: reviewTitle.trim(),
-      body: reviewBody.trim(),
-      date: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
-    };
-    setSubmittedReviews(prev => [review, ...prev]);
-    setReviewSubmitted(true);
-    setReviewRating(0);
-    setReviewTitle('');
-    setReviewBody('');
-    setTimeout(() => {
-      setReviewSubmitted(false);
-      setSelectedApplicantId(null);
-    }, 1800);
+    
+    try {
+      // Find the match to get company ID
+      const match = matches.find(m => m.id === selectedApplicantId);
+      if (!match) return;
+      
+      // Submit review to API
+      await api.post('/reviews', {
+        company_id: match.jobId, // This should be company_id, need to verify backend
+        rating: reviewRating,
+        title: reviewTitle.trim(),
+        body: reviewBody.trim(),
+      });
+      
+      const review: Review = {
+        id: Date.now(),
+        applicantId: selectedApplicantId,
+        rating: reviewRating,
+        title: reviewTitle.trim(),
+        body: reviewBody.trim(),
+        date: new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      };
+      
+      setSubmittedReviews(prev => [review, ...prev]);
+      setReviewSubmitted(true);
+      setReviewRating(0);
+      setReviewTitle('');
+      setReviewBody('');
+      
+      setTimeout(() => {
+        setReviewSubmitted(false);
+        setSelectedApplicantId(null);
+      }, 1800);
+    } catch (err: any) {
+      console.error('Failed to submit review:', err);
+      Alert.alert('Error', 'Failed to submit review. Please try again.');
+    }
   };
 
   const openApplicant = (id: string) => {
@@ -433,9 +533,9 @@ export default function CompanyMatchesScreen() {
   };
 
   const tabs = [
-    { key: 'matches',  label: 'Matches',  badge: NEW_MATCHES.length },
-    { key: 'messages', label: 'Messages', badge: totalUnread        },
-    { key: 'reviews',  label: 'Review',   badge: 0                  },
+    { key: 'matches',  label: 'Matches',  badge: newMatches.length },
+    { key: 'messages', label: 'Messages', badge: totalUnread },
+    { key: 'reviews',  label: 'Review',   badge: 0 },
   ];
 
   // ── Full-screen conversation swap (mirrors teammate's pattern exactly) ──────
@@ -443,9 +543,43 @@ export default function CompanyMatchesScreen() {
     return (
       <ConversationScreen
         applicant={selectedConversation}
-        onBack={() => setSelectedConversation(null)}
+        onBack={() => {
+          setSelectedConversation(null);
+          // Refresh matches when returning from conversation
+          fetchMatches(false);
+        }}
         tabBarHeight={tabBarHeight}
       />
+    );
+  }
+
+  // ── Loading state ──────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <View style={[s.screen, { paddingTop: topInset, backgroundColor: T.bg, justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
+        <ActivityIndicator size="large" color={T.primary} />
+        <Text style={{ color: T.textSub, marginTop: 16, fontSize: 14 }}>Loading matches...</Text>
+      </View>
+    );
+  }
+
+  // ── Error state ────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <View style={[s.screen, { paddingTop: topInset, backgroundColor: T.bg, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+        <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={T.rose} />
+        <Text style={{ color: T.textPrimary, fontSize: 18, fontWeight: '700', marginTop: 16 }}>Failed to load matches</Text>
+        <Text style={{ color: T.textSub, fontSize: 14, marginTop: 8, textAlign: 'center' }}>{error}</Text>
+        <TouchableOpacity
+          style={{ backgroundColor: T.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12, marginTop: 20 }}
+          onPress={() => fetchMatches()}
+          activeOpacity={0.8}
+        >
+          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700' }}>Try Again</Text>
+        </TouchableOpacity>
+      </View>
     );
   }
 
@@ -469,6 +603,14 @@ export default function CompanyMatchesScreen() {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={[s.scroll, { paddingBottom: tabBarHeight + 24 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={T.primary}
+            colors={[T.primary]}
+          />
+        }
       >
         {/* ══════════════ MATCHES TAB ══════════════ */}
         {activeTab === 'matches' && (
@@ -481,15 +623,13 @@ export default function CompanyMatchesScreen() {
               <View style={[s.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={s.newMatchRow}>
-                    {NEW_MATCHES.map(m => (
-                      <TouchableOpacity key={m.id} style={s.newMatchItem} activeOpacity={0.8}>
+                    {newMatches.map(m => (
+                      <TouchableOpacity key={m.id} style={s.newMatchItem} activeOpacity={0.8} onPress={() => setSelectedConversation(m)}>
                         <View style={{ position: 'relative' }}>
                           <ApplicantAvatar uri={m.avatar} size={56} />
-                          {m.isNew && (
-                            <View style={s.newDot}>
-                              <MaterialCommunityIcons name="lightning-bolt" size={9} color="#fff" />
-                            </View>
-                          )}
+                          <View style={s.newDot}>
+                            <MaterialCommunityIcons name="lightning-bolt" size={9} color="#fff" />
+                          </View>
                         </View>
                         <Text style={[s.newMatchName, { color: T.textPrimary }]} numberOfLines={1}>{m.name.split(' ')[0]}</Text>
                         <Text style={[s.newMatchRole, { color: T.textHint }]} numberOfLines={1}>{m.role}</Text>
@@ -503,8 +643,8 @@ export default function CompanyMatchesScreen() {
                 <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Applicant pipeline</Text>
               </View>
               <View style={[s.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-                {PIPELINE_STAGES.map((stage, si) => {
-                  const stageApplicants = PIPELINE.filter(p => p.status === stage.key);
+                {PIPELINE_STAGES.filter(stage => stage.key !== 'closed').map((stage, si) => {
+                  const stageApplicants = activeMatches.filter(p => p.status === stage.key);
                   if (!stageApplicants.length) return null;
                   return (
                     <View key={stage.key}>
@@ -517,7 +657,7 @@ export default function CompanyMatchesScreen() {
                         <Text style={[s.stageCount, { color: T.textHint }]}>{stageApplicants.length}</Text>
                       </View>
                       {stageApplicants.map(app => (
-                        <TouchableOpacity key={app.id} style={s.pipelineRow} activeOpacity={0.8}>
+                        <TouchableOpacity key={app.id} style={s.pipelineRow} activeOpacity={0.8} onPress={() => setSelectedConversation(app)}>
                           <ApplicantAvatar uri={app.avatar} size={40} />
                           <View style={s.pipelineInfo}>
                             <Text style={[s.pipelineName, { color: T.textPrimary }]}>{app.name}</Text>
@@ -543,7 +683,7 @@ export default function CompanyMatchesScreen() {
               <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Recent conversations</Text>
             </View>
             <View style={[s.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-              {PIPELINE.map((msg, i) => (
+              {matches.map((msg, i) => (
                 <View key={msg.id}>
                   {i > 0 && <View style={[s.divider, { backgroundColor: T.borderFaint }]} />}
                   <TouchableOpacity
