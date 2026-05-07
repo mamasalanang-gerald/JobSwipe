@@ -1,10 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Stack, router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, Modal, ScrollView, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator, Alert, RefreshControl } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useTheme } from '../theme';
+import { api } from '../services/api';
+
+// TODO: Add tests for team management screen
+// Test cases should cover:
+// - Loading members and invites
+// - Sending single invite
+// - Sending bulk invites
+// - Resending invite
+// - Revoking member access
+// - Canceling pending invite
+// - Copy invite code
+// - Error handling
 
 type TeamMember = {
   id: number;
@@ -13,39 +25,22 @@ type TeamMember = {
   avatar: string;
   email: string;
   inviteCode: string;
+  status?: 'pending' | 'active';
+};
+
+type Invite = {
+  id: number;
+  email: string;
+  role: string;
+  status: 'pending';
+  inviteCode: string;
+  created_at: string;
 };
 
 const TEAM_ROLE_OPTIONS = [
   { value: 'hr', label: 'HR Manager', helper: 'Can manage recruiting and applicants' },
   { value: 'company_admin', label: 'Company Admin', helper: 'Full company access and settings control' },
 ] as const;
-
-const INITIAL_TEAM: TeamMember[] = [
-  {
-    id: 1,
-    name: 'Sofia Reyes',
-    role: 'HR Manager',
-    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    email: 'sofia.reyes@accenture.com',
-    inviteCode: 'JS-HR-SOFIA-4821',
-  },
-  {
-    id: 2,
-    name: 'Marco Cruz',
-    role: 'Company Admin',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    email: 'marco.cruz@accenture.com',
-    inviteCode: 'JS-ADM-MARCO-1754',
-  },
-  {
-    id: 3,
-    name: 'Aisha Santos',
-    role: 'HR Manager',
-    avatar: 'https://randomuser.me/api/portraits/women/65.jpg',
-    email: 'aisha.santos@accenture.com',
-    inviteCode: 'JS-HR-AISHA-6308',
-  },
-];
 
 function formatInviteName(email: string) {
   return email
@@ -71,7 +66,15 @@ function buildInviteCode(email: string, role: (typeof TEAM_ROLE_OPTIONS)[number]
 export default function TeamManagementScreen() {
   const T = useTheme();
   const { top } = useSafeAreaInsets();
-  const [team, setTeam] = useState<TeamMember[]>(INITIAL_TEAM);
+  
+  // API state
+  const [team, setTeam] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [resendingId, setResendingId] = useState<number | null>(null);
+  
+  // Form state
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<(typeof TEAM_ROLE_OPTIONS)[number]['value']>('hr');
   const [inviteError, setInviteError] = useState('');
@@ -79,6 +82,64 @@ export default function TeamManagementScreen() {
   const [lastInviteCode, setLastInviteCode] = useState('');
   const [copiedCode, setCopiedCode] = useState('');
   const [pendingRevoke, setPendingRevoke] = useState<TeamMember | null>(null);
+  
+  // Bulk invite state
+  const [showBulkInvite, setShowBulkInvite] = useState(false);
+  const [bulkEmails, setBulkEmails] = useState('');
+  const [bulkRole, setBulkRole] = useState<(typeof TEAM_ROLE_OPTIONS)[number]['value']>('hr');
+
+  // Fetch team data on mount
+  useEffect(() => {
+    fetchTeamData();
+  }, []);
+
+  const fetchTeamData = useCallback(async (showLoader = true) => {
+    try {
+      if (showLoader) setLoading(true);
+      
+      // Fetch both members and pending invites
+      const [membersResponse, invitesResponse]: [any, any] = await Promise.all([
+        api.get('/company/members'),
+        api.get('/company/invites'),
+      ]);
+
+      // Transform members
+      const members: TeamMember[] = (membersResponse?.members || []).map((member: any) => ({
+        id: member.user_id || member.id,
+        name: member.name || 'Unknown',
+        role: member.role === 'company_admin' ? 'Company Admin' : 'HR Manager',
+        avatar: member.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(member.name || 'U')}&background=E2E8F0&color=0F172A`,
+        email: member.email || '',
+        inviteCode: member.invite_code || '',
+        status: 'active' as const,
+      }));
+
+      // Transform pending invites
+      const pendingInvites: TeamMember[] = (invitesResponse?.invites || []).map((invite: any) => ({
+        id: invite.id,
+        name: formatInviteName(invite.email),
+        role: invite.role === 'company_admin' ? 'Company Admin' : 'HR Manager',
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formatInviteName(invite.email))}&background=FEF3C7&color=92400E`,
+        email: invite.email,
+        inviteCode: invite.invite_code || invite.token || '',
+        status: 'pending' as const,
+      }));
+
+      setTeam([...members, ...pendingInvites]);
+    } catch (err: any) {
+      console.error('Failed to fetch team data:', err);
+      Alert.alert('Error', 'Failed to load team data. Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Pull to refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchTeamData(false);
+  }, [fetchTeamData]);
 
   const copyCode = async (code: string) => {
     await Clipboard.setStringAsync(code);
@@ -88,7 +149,7 @@ export default function TeamManagementScreen() {
     }, 1800);
   };
 
-  const handleInvite = () => {
+  const handleInvite = async () => {
     const normalizedEmail = inviteEmail.trim().toLowerCase();
 
     if (!normalizedEmail) {
@@ -101,38 +162,110 @@ export default function TeamManagementScreen() {
       return;
     }
 
-    const domain = normalizedEmail.split('@')[1];
-    if (domain !== 'accenture.com') {
-      setInviteError('Email must match the company domain.');
-      return;
-    }
-
     if (team.some((member) => member.email.toLowerCase() === normalizedEmail)) {
       setInviteError('That team member already has access.');
       return;
     }
 
-    const selectedRole = TEAM_ROLE_OPTIONS.find((option) => option.value === inviteRole);
-    const inviteName = formatInviteName(normalizedEmail);
-    const inviteCode = buildInviteCode(normalizedEmail, inviteRole);
-
-    setTeam((prev) => [
-      ...prev,
-      {
-        id: prev.length ? Math.max(...prev.map((member) => member.id)) + 1 : 1,
-        name: inviteName,
-        role: selectedRole?.label ?? 'HR Manager',
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(inviteName)}&background=E2E8F0&color=0F172A`,
+    setSubmitting(true);
+    try {
+      // Call API to send invite
+      const response: any = await api.post('/company/invites', {
         email: normalizedEmail,
-        inviteCode,
-      },
-    ]);
+        role: inviteRole,
+      });
 
-    setInviteError('');
-    setInviteSent(true);
-    setLastInviteCode(inviteCode);
-    setInviteEmail('');
-    setInviteRole('hr');
+      const inviteCode = response?.invite_code || response?.token || buildInviteCode(normalizedEmail, inviteRole);
+      const inviteName = formatInviteName(normalizedEmail);
+      const selectedRole = TEAM_ROLE_OPTIONS.find((option) => option.value === inviteRole);
+
+      // Add to local state
+      setTeam((prev) => [
+        ...prev,
+        {
+          id: response?.id || Date.now(),
+          name: inviteName,
+          role: selectedRole?.label ?? 'HR Manager',
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(inviteName)}&background=FEF3C7&color=92400E`,
+          email: normalizedEmail,
+          inviteCode,
+          status: 'pending',
+        },
+      ]);
+
+      setInviteError('');
+      setInviteSent(true);
+      setLastInviteCode(inviteCode);
+      setInviteEmail('');
+      setInviteRole('hr');
+    } catch (err: any) {
+      console.error('Invite error:', err);
+      
+      // Handle validation errors
+      if (err?.errors) {
+        const firstError = Object.values(err.errors)[0];
+        setInviteError(Array.isArray(firstError) ? firstError[0] : 'Failed to send invite.');
+      } else {
+        setInviteError(err?.message || 'Failed to send invite. Please try again.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleBulkInvite = async () => {
+    const emails = bulkEmails
+      .split('\n')
+      .map((email) => email.trim().toLowerCase())
+      .filter((email) => email.length > 0);
+
+    if (emails.length === 0) {
+      Alert.alert('Error', 'Please enter at least one email address.');
+      return;
+    }
+
+    // Validate all emails
+    const invalidEmails = emails.filter((email) => !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email));
+    if (invalidEmails.length > 0) {
+      Alert.alert('Invalid Emails', `The following emails are invalid:\n${invalidEmails.join('\n')}`);
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response: any = await api.post('/company/invites/bulk', {
+        emails,
+        role: bulkRole,
+      });
+
+      // Refresh team data to get the new invites
+      await fetchTeamData(false);
+
+      setShowBulkInvite(false);
+      setBulkEmails('');
+      setBulkRole('hr');
+      
+      const successCount = response?.success_count || emails.length;
+      Alert.alert('Success', `Successfully sent ${successCount} invite(s).`);
+    } catch (err: any) {
+      console.error('Bulk invite error:', err);
+      Alert.alert('Error', err?.message || 'Failed to send bulk invites. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleResendInvite = async (inviteId: number) => {
+    setResendingId(inviteId);
+    try {
+      await api.post(`/company/invites/${inviteId}/resend`);
+      Alert.alert('Success', 'Invite has been resent successfully.');
+    } catch (err: any) {
+      console.error('Resend invite error:', err);
+      Alert.alert('Error', err?.message || 'Failed to resend invite. Please try again.');
+    } finally {
+      setResendingId(null);
+    }
   };
 
   return (
@@ -150,9 +283,22 @@ export default function TeamManagementScreen() {
         </View>
       </View>
 
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ padding: 24, paddingBottom: 40 }}>
-        <View style={[s.card, { backgroundColor: T.surface, borderColor: T.border }]}>
-          <Text style={[s.sectionLabel, { color: T.textHint }]}>Invite Team Member</Text>
+      <ScrollView 
+        showsVerticalScrollIndicator={false} 
+        contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={T.primary} />
+        }
+      >
+        {loading ? (
+          <View style={{ paddingVertical: 60, alignItems: 'center' }}>
+            <ActivityIndicator size="large" color={T.primary} />
+            <Text style={[s.helper, { color: T.textHint, marginTop: 16 }]}>Loading team data...</Text>
+          </View>
+        ) : (
+          <>
+            <View style={[s.card, { backgroundColor: T.surface, borderColor: T.border }]}>
+              <Text style={[s.sectionLabel, { color: T.textHint }]}>Invite Team Member</Text>
 
           <Text style={[s.fieldLabel, { color: T.textHint }]}>Work Email</Text>
           <TextInput
@@ -238,8 +384,24 @@ export default function TeamManagementScreen() {
             </View>
           )}
 
-          <TouchableOpacity style={[s.primaryBtn, { backgroundColor: T.primary }]} onPress={handleInvite}>
-            <Text style={s.primaryBtnText}>Send Invite</Text>
+          <TouchableOpacity 
+            style={[s.primaryBtn, { backgroundColor: T.primary }, submitting && { opacity: 0.6 }]} 
+            onPress={handleInvite}
+            disabled={submitting}
+          >
+            {submitting ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={s.primaryBtnText}>Send Invite</Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity 
+            style={[s.secondaryBtn, { backgroundColor: T.surfaceHigh, borderColor: T.border, marginTop: 12 }]} 
+            onPress={() => setShowBulkInvite(true)}
+          >
+            <MaterialCommunityIcons name="email-multiple" size={16} color={T.textSub} />
+            <Text style={[s.secondaryBtnText, { color: T.textSub }]}>Bulk Invite</Text>
           </TouchableOpacity>
         </View>
 
@@ -265,7 +427,14 @@ export default function TeamManagementScreen() {
               >
                 <Image source={{ uri: member.avatar }} style={[s.avatar, { borderColor: T.border }]} />
                 <View style={{ flex: 1 }}>
-                  <Text style={[s.memberName, { color: T.textPrimary }]}>{member.name}</Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={[s.memberName, { color: T.textPrimary }]}>{member.name}</Text>
+                    {member.status === 'pending' && (
+                      <View style={[s.pendingBadge, { backgroundColor: T.warning + '15', borderColor: T.warning + '30' }]}>
+                        <Text style={[s.pendingBadgeText, { color: T.warning }]}>Pending</Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={[s.memberMeta, { color: T.textHint }]}>{member.role + ' | ' + member.email}</Text>
                   <Text style={[s.memberCodeLabel, { color: T.textHint }]}>Invite Code</Text>
                   <TextInput
@@ -274,19 +443,45 @@ export default function TeamManagementScreen() {
                     editable={false}
                     selectTextOnFocus
                   />
-                  <TouchableOpacity
-                    style={[s.memberCopyBtn, { backgroundColor: T.surface, borderColor: copiedCode === member.inviteCode ? T.primary : T.border }]}
-                    onPress={() => copyCode(member.inviteCode)}
-                  >
-                    <MaterialCommunityIcons
-                      name={copiedCode === member.inviteCode ? 'check-circle' : 'content-copy'}
-                      size={13}
-                      color={copiedCode === member.inviteCode ? T.primary : T.textSub}
-                    />
-                    <Text style={[s.memberCopyText, { color: copiedCode === member.inviteCode ? T.primary : T.textSub }]}>
-                      {copiedCode === member.inviteCode ? 'Copied' : 'Copy Code'}
-                    </Text>
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    <TouchableOpacity
+                      style={[s.memberCopyBtn, { backgroundColor: T.surface, borderColor: copiedCode === member.inviteCode ? T.primary : T.border }]}
+                      onPress={() => copyCode(member.inviteCode)}
+                    >
+                      <MaterialCommunityIcons
+                        name={copiedCode === member.inviteCode ? 'check-circle' : 'content-copy'}
+                        size={13}
+                        color={copiedCode === member.inviteCode ? T.primary : T.textSub}
+                      />
+                      <Text style={[s.memberCopyText, { color: copiedCode === member.inviteCode ? T.primary : T.textSub }]}>
+                        {copiedCode === member.inviteCode ? 'Copied' : 'Copy Code'}
+                      </Text>
+                    </TouchableOpacity>
+                    
+                    {member.status === 'pending' && (
+                      <TouchableOpacity
+                        style={[
+                          s.memberCopyBtn, 
+                          { 
+                            backgroundColor: T.surface, 
+                            borderColor: T.border,
+                            opacity: resendingId === member.id ? 0.6 : 1
+                          }
+                        ]}
+                        onPress={() => handleResendInvite(member.id)}
+                        disabled={resendingId === member.id}
+                      >
+                        {resendingId === member.id ? (
+                          <ActivityIndicator size="small" color={T.textSub} />
+                        ) : (
+                          <>
+                            <MaterialCommunityIcons name="email-sync" size={13} color={T.textSub} />
+                            <Text style={[s.memberCopyText, { color: T.textSub }]}>Resend</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
                 <TouchableOpacity
                   style={[s.revokeBtn, { backgroundColor: T.dangerBg, borderColor: T.danger + '20' }]}
@@ -298,6 +493,8 @@ export default function TeamManagementScreen() {
             ))}
           </View>
         </View>
+          </>
+        )}
       </ScrollView>
 
       <Modal visible={!!pendingRevoke} transparent animationType="fade" onRequestClose={() => setPendingRevoke(null)}>
@@ -319,14 +516,110 @@ export default function TeamManagementScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 style={[s.primaryBtn, { flex: 1, marginTop: 0, backgroundColor: T.danger }]}
-                onPress={() => {
-                  if (pendingRevoke) {
+                onPress={async () => {
+                  if (!pendingRevoke) return;
+                  
+                  try {
+                    // Determine if it's a pending invite or active member
+                    if (pendingRevoke.status === 'pending') {
+                      // Cancel invite
+                      await api.delete(`/company/invites/${pendingRevoke.id}`);
+                    } else {
+                      // Revoke member access
+                      await api.delete(`/company/members/${pendingRevoke.id}/revoke`);
+                    }
+                    
+                    // Remove from local state
                     setTeam((prev) => prev.filter((member) => member.id !== pendingRevoke.id));
+                    setPendingRevoke(null);
+                  } catch (err: any) {
+                    console.error('Revoke error:', err);
+                    setPendingRevoke(null);
+                    Alert.alert('Error', err?.message || 'Failed to revoke access. Please try again.');
                   }
-                  setPendingRevoke(null);
                 }}
               >
                 <Text style={s.primaryBtnText}>Revoke Access</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showBulkInvite} transparent animationType="fade" onRequestClose={() => setShowBulkInvite(false)}>
+        <View style={s.modalOverlay}>
+          <TouchableOpacity style={s.modalBackdrop} activeOpacity={1} onPress={() => setShowBulkInvite(false)} />
+          <View style={[s.modalCard, { backgroundColor: T.surface, borderColor: T.border }]}>
+            <Text style={[s.modalTitle, { color: T.textPrimary }]}>Bulk Invite</Text>
+            <Text style={[s.modalText, { color: T.textSub }]}>
+              Enter multiple email addresses (one per line) to send invites in bulk.
+            </Text>
+
+            <Text style={[s.fieldLabel, { color: T.textHint, marginTop: 16 }]}>Email Addresses</Text>
+            <TextInput
+              style={[s.bulkInput, { backgroundColor: T.surfaceHigh, borderColor: T.border, color: T.textPrimary }]}
+              placeholder="email1@company.com&#10;email2@company.com&#10;email3@company.com"
+              placeholderTextColor={T.textHint}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              multiline
+              numberOfLines={6}
+              value={bulkEmails}
+              onChangeText={setBulkEmails}
+            />
+
+            <Text style={[s.fieldLabel, { color: T.textHint, marginTop: 12 }]}>Role</Text>
+            <View style={s.roleList}>
+              {TEAM_ROLE_OPTIONS.map((role) => {
+                const selected = bulkRole === role.value;
+                return (
+                  <TouchableOpacity
+                    key={role.value}
+                    activeOpacity={0.8}
+                    style={[
+                      s.roleCard,
+                      {
+                        backgroundColor: selected ? T.primary + '10' : T.surfaceHigh,
+                        borderColor: selected ? T.primary : T.border,
+                      },
+                    ]}
+                    onPress={() => setBulkRole(role.value)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={[s.roleTitle, { color: selected ? T.primary : T.textPrimary }]}>{role.label}</Text>
+                      <Text style={[s.roleHelper, { color: T.textHint }]}>{role.helper}</Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name={selected ? 'radiobox-marked' : 'radiobox-blank'}
+                      size={18}
+                      color={selected ? T.primary : T.textHint}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <View style={s.modalActions}>
+              <TouchableOpacity
+                style={[s.secondaryBtn, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}
+                onPress={() => {
+                  setShowBulkInvite(false);
+                  setBulkEmails('');
+                  setBulkRole('hr');
+                }}
+              >
+                <Text style={[s.secondaryBtnText, { color: T.textSub }]}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[s.primaryBtn, { flex: 1, marginTop: 0, backgroundColor: T.primary }, submitting && { opacity: 0.6 }]}
+                onPress={handleBulkInvite}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={s.primaryBtnText}>Send Invites</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -472,6 +765,13 @@ const s = StyleSheet.create({
   },
   avatar: { width: 38, height: 38, borderRadius: 19, borderWidth: 1 },
   memberName: { fontSize: 13, fontWeight: '700' },
+  pendingBadge: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  pendingBadgeText: { fontSize: 9, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.5 },
   memberMeta: { fontSize: 11, marginTop: 2 },
   memberCodeLabel: {
     fontSize: 10,
@@ -530,6 +830,18 @@ const s = StyleSheet.create({
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   secondaryBtnText: { fontSize: 13, fontWeight: '700' },
+  bulkInput: {
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    minHeight: 120,
+    textAlignVertical: 'top',
+  },
 });

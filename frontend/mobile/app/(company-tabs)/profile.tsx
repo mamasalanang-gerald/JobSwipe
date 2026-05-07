@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useAuthStore } from '../../store/authStore';
+import { useFocusEffect } from 'expo-router';
 import {
   View,
   Text,
@@ -45,30 +46,6 @@ type Plan = {
   locked: string[];
   cta: string | null;
 };
-
-const INITIAL_TEAM: TeamMember[] = [
-  {
-    id: 1,
-    name: 'Sofia Reyes',
-    role: 'HR Manager',
-    avatar: 'https://randomuser.me/api/portraits/women/44.jpg',
-    email: 'sofia.reyes@accenture.com',
-  },
-  {
-    id: 2,
-    name: 'Marco Cruz',
-    role: 'Company Admin',
-    avatar: 'https://randomuser.me/api/portraits/men/32.jpg',
-    email: 'marco.cruz@accenture.com',
-  },
-  {
-    id: 3,
-    name: 'Aisha Santos',
-    role: 'HR Manager',
-    avatar: 'https://randomuser.me/api/portraits/women/65.jpg',
-    email: 'aisha.santos@accenture.com',
-  },
-];
 
 const TEAM_ROLE_OPTIONS = [
   { value: 'hr', label: 'HR Manager', helper: 'Can manage recruiting and applicants' },
@@ -571,7 +548,7 @@ export default function CompanyProfileScreen() {
   const [isVerified, setIsVerified] = useState(false);
   const [activePlan, setActivePlan] = useState(0);
   const [showSignOutModal, setShowSignOutModal] = useState(false);
-  const [team, setTeam] = useState<TeamMember[]>(INITIAL_TEAM);
+  const [team, setTeam] = useState<TeamMember[]>([]);
   const [showAddPerk, setShowAddPerk] = useState(false);
   const [perks, setPerks] = useState<string[]>([]);
   const [newPerk, setNewPerk] = useState('');
@@ -779,62 +756,65 @@ export default function CompanyProfileScreen() {
     router.replace('/(auth)/login');
   };
 
-  useEffect(() => {
-    setIsProfileLoading(true);
-    api.get('/profile/company')
-      .then((data: any) => {
-        
+  // Fetch profile data whenever screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsProfileLoading(true);
+      api.get('/profile/company')
+        .then((data: any) => {
+          
 
-        const payload = data?.profile ?? data?.data?.profile ?? data?.data ?? data;
-        const profile = payload?.profile ?? payload;
-        if (!profile) return;
+          const payload = data?.profile ?? data?.data?.profile ?? data?.data ?? data;
+          const profile = payload?.profile ?? payload;
+          if (!profile) return;
 
-        const resolvedCompanyName = profile.company_name ?? profile.name ?? profile.companyName ?? null;
-        setCompanyName(resolvedCompanyName ?? '');
+          const resolvedCompanyName = profile.company_name ?? profile.name ?? profile.companyName ?? null;
+          setCompanyName(resolvedCompanyName ?? '');
 
-        const resolvedIndustry = profile.industry ?? profile.industry_name ?? null;
-        setCompanyIndustry(resolvedIndustry ?? '');
+          const resolvedIndustry = profile.industry ?? profile.industry_name ?? null;
+          setCompanyIndustry(resolvedIndustry ?? '');
 
-        const resolvedDescription = profile.description ?? profile.about ?? null;
-        setCompanyAbout(resolvedDescription ?? '');
+          const resolvedDescription = profile.description ?? profile.about ?? null;
+          setCompanyAbout(resolvedDescription ?? '');
 
-        if (profile.company_size) setCompanySize(profile.company_size);
-        if (profile.website_url) setCompanyWebsite(profile.website_url);
+          if (profile.company_size) setCompanySize(profile.company_size);
+          if (profile.website_url) setCompanyWebsite(profile.website_url);
 
-        const address = profile.address ?? {};
-        const locationParts = [
-          address.street,
-          address.city,
-          address.state ?? address.province,
-          address.country,
-        ].filter(Boolean);
-        setCompanyLocation(locationParts.length > 0 ? locationParts.join(', ') : '');
+          const address = profile.address ?? {};
+          const locationParts = [
+            address.street,
+            address.city,
+            address.state ?? address.province,
+            address.country,
+          ].filter(Boolean);
+          setCompanyLocation(locationParts.length > 0 ? locationParts.join(', ') : '');
 
-        const resolvedLogoUrl = profile.logo_url ?? profile.logoUrl ?? null;
-        const resolvedCoverPhoto = profile.cover_photo ?? profile.coverPhoto ?? null;
-        if (resolvedLogoUrl) setLogoPhoto(resolvedLogoUrl);
-        if (resolvedCoverPhoto) setCoverPhoto(resolvedCoverPhoto);
+          const resolvedLogoUrl = profile.logo_url ?? profile.logoUrl ?? null;
+          const resolvedCoverPhoto = profile.cover_photo ?? profile.coverPhoto ?? null;
+          if (resolvedLogoUrl) setLogoPhoto(resolvedLogoUrl);
+          if (resolvedCoverPhoto) setCoverPhoto(resolvedCoverPhoto);
 
-        const sourceOfficeImages = Array.isArray(profile.office_images)
-          ? profile.office_images
-          : Array.isArray(profile.officeImages)
-            ? profile.officeImages
-            : [];
-        const officeImages = sourceOfficeImages.filter(Boolean).slice(0, 6);
-        if (officeImages.length > 0) {
-          const normalized = Array.from({ length: 6 }, (_, idx) => officeImages[idx] ?? null);
-          setGalleryPhotos(normalized);
-        }
+          const sourceOfficeImages = Array.isArray(profile.office_images)
+            ? profile.office_images
+            : Array.isArray(profile.officeImages)
+              ? profile.officeImages
+              : [];
+          const officeImages = sourceOfficeImages.filter(Boolean).slice(0, 6);
+          if (officeImages.length > 0) {
+            const normalized = Array.from({ length: 6 }, (_, idx) => officeImages[idx] ?? null);
+            setGalleryPhotos(normalized);
+          }
 
-        const benefits = Array.isArray(profile.benefits) ? profile.benefits : [];
-        if (benefits.length > 0) setPerks(benefits);
+          const benefits = Array.isArray(profile.benefits) ? profile.benefits : [];
+          if (benefits.length > 0) setPerks(benefits);
 
-        const verified = data?.is_verified ?? payload?.is_verified ?? false;
-        setIsVerified(Boolean(verified));
-      })
-      .catch((err) => { console.error('[Profile] Fetch error:', err); })
-      .finally(() => { setIsProfileLoading(false); });
-  }, []);
+          const verified = data?.is_verified ?? payload?.is_verified ?? false;
+          setIsVerified(Boolean(verified));
+        })
+        .catch((err) => { console.error('[Profile] Fetch error:', err); })
+        .finally(() => { setIsProfileLoading(false); });
+    }, [])
+  );
 
   const renderPlan = ({ item }: { item: Plan }) => {
     const isCurrent = item.id === 'free';

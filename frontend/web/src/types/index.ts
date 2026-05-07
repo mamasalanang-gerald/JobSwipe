@@ -241,6 +241,52 @@ export interface DashboardStats {
   flaggedContent: number;
   lowTrustCompanies: number;
   activeSubscriptions: number;
+  criticalTrustCompanies: number;
+  recentTrustEvents: number;
+  trustByLevel: {
+    untrusted: number;
+    new: number;
+    established: number;
+    trusted: number;
+  };
+}
+
+// Backend API response structure for dashboard stats
+export interface DashboardStatsApiResponse {
+  users: {
+    total: number;
+    applicants: number;
+    hr: number;
+    companyAdmins: number;
+    moderators: number;
+    superAdmins: number;
+    banned: number;
+  };
+  companies: {
+    total: number;
+    verified: number;
+    pendingVerification: number;
+    rejectedVerification: number;
+  };
+  reviews: {
+    total: number;
+    flagged: number;
+  };
+  jobs: {
+    total: number;
+    active: number;
+  };
+  trust: {
+    lowTrustCompanies: number;
+    criticalTrustCompanies: number;
+    recentEvents: number;
+    byLevel: {
+      untrusted: number;
+      new: number;
+      established: number;
+      trusted: number;
+    };
+  };
 }
 
 export interface UserGrowthData {

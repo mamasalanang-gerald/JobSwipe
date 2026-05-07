@@ -76,30 +76,34 @@ export const matchService = {
     };
   },
 
-  applications: async (
-    filters: { status?: string; companyId?: string },
-    page: number = 1,
-    pageSize: number = 20,
-    signal?: AbortSignal
-  ): Promise<PaginatedResponse<Application>> => {
-    const params = buildParams({ ...filters, page, pageSize });
-    const { data } = await api.get<{ success: boolean; data: PaginatedResponse<Application> }>(
-      `/admin/applications?${params}`,
-      { signal }
-    );
-    return data.data;
-  },
-
-  applicationStats: async (signal?: AbortSignal): Promise<ApplicationStats> => {
-    const { data } = await api.get<{ success: boolean; data: ApplicationStats }>(
-      '/admin/applications/stats',
-      { signal }
-    );
-    return data.data || {
-      totalApplications: 0,
-      conversionRate: 0,
-      averageTimeToApply: 0,
-      statusDistribution: {},
-    };
-  },
+  // TODO: Implement backend routes for applications management
+  // Backend routes /admin/applications and /admin/applications/stats do not exist yet
+  // Uncomment and implement when backend routes are created
+  // 
+  // applications: async (
+  //   filters: { status?: string; companyId?: string },
+  //   page: number = 1,
+  //   pageSize: number = 20,
+  //   signal?: AbortSignal
+  // ): Promise<PaginatedResponse<Application>> => {
+  //   const params = buildParams({ ...filters, page, pageSize });
+  //   const { data } = await api.get<{ success: boolean; data: PaginatedResponse<Application> }>(
+  //     `/admin/applications?${params}`,
+  //     { signal }
+  //   );
+  //   return data.data;
+  // },
+  //
+  // applicationStats: async (signal?: AbortSignal): Promise<ApplicationStats> => {
+  //   const { data } = await api.get<{ success: boolean; data: ApplicationStats }>(
+  //     '/admin/applications/stats',
+  //     { signal }
+  //   );
+  //   return data.data || {
+  //     totalApplications: 0,
+  //     conversionRate: 0,
+  //     averageTimeToApply: 0,
+  //     statusDistribution: {},
+  //   };
+  // },
 };

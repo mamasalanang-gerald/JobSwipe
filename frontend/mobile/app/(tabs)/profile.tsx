@@ -5,11 +5,13 @@ import { useAuthStore } from '../../store/authStore';
 import {
   View, Text, ScrollView, TouchableOpacity,
   StyleSheet, StatusBar, Dimensions, Image, TextInput,
-  Modal, Switch, Animated, KeyboardEventListener, Alert, ActivityIndicator
+  Modal, Switch, Animated, KeyboardEventListener, Alert, ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useTheme, setThemeMode, getThemeMode } from '../../theme'; // ← centralized theme
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import * as Location from 'expo-location';
 import { Link, router } from 'expo-router';
 import { api } from '../../services/api';
 import { uploadSingleFile, imagePickerAssetToFile } from '../../utils/fileUpload';
@@ -57,10 +59,61 @@ function SettingsSheet({
 }) {
   const T = useTheme();
   const [isLight, setIsLight] = useState(getThemeMode() === 'light');
+  const [emailNotifs, setEmailNotifs] = useState(true);
+  const [pushNotifs, setPushNotifs] = useState(true);
+  const [loadingPrefs, setLoadingPrefs] = useState(false);
+  const [savingPrefs, setSavingPrefs] = useState(false);
 
   const handleToggle = (val: boolean) => {
     setIsLight(val);
     setThemeMode(val ? 'light' : 'dark');
+  };
+
+  // Load notification preferences when modal opens
+  useEffect(() => {
+    if (visible) {
+      setLoadingPrefs(true);
+      api.get('/notifications/preferences')
+        .then((data: any) => {
+          const prefs = data?.preferences ?? data;
+          if (prefs) {
+            setEmailNotifs(prefs.email_notifications ?? true);
+            setPushNotifs(prefs.push_notifications ?? true);
+          }
+        })
+        .catch((err) => {
+          console.error('Failed to load notification preferences:', err);
+        })
+        .finally(() => {
+          setLoadingPrefs(false);
+        });
+    }
+  }, [visible]);
+
+  // Save notification preferences (debounced)
+  const saveNotificationPrefs = async (email: boolean, push: boolean) => {
+    setSavingPrefs(true);
+    try {
+      await api.patch('/notifications/preferences', {
+        email_notifications: email,
+        push_notifications: push,
+      });
+    } catch (err) {
+      console.error('Failed to save notification preferences:', err);
+      Alert.alert('Error', 'Failed to save notification preferences. Please try again.');
+    } finally {
+      setSavingPrefs(false);
+    }
+  };
+
+  const handleEmailToggle = (val: boolean) => {
+    setEmailNotifs(val);
+    saveNotificationPrefs(val, pushNotifs);
+  };
+
+  const handlePushToggle = (val: boolean) => {
+    setPushNotifs(val);
+    saveNotificationPrefs(emailNotifs, val);
   };
 
   return (
@@ -118,11 +171,60 @@ function SettingsSheet({
           />
         </View>
 
+        {/* ── Notifications ── */}
+        <Text style={[ss.groupLabel, { color: T.textHint }]}>Notifications</Text>
+
+        {loadingPrefs ? (
+          <View style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border, justifyContent: 'center' }]}>
+            <ActivityIndicator size="small" color={T.primary} />
+            <Text style={[ss.rowSub, { color: T.textHint, marginLeft: 8 }]}>Loading preferences...</Text>
+          </View>
+        ) : (
+          <>
+            <View style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
+              <View style={[ss.iconWrap, { backgroundColor: T.primary + '18' }]}>
+                <MaterialCommunityIcons name="email-outline" size={18} color={T.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[ss.rowLabel, { color: T.textPrimary }]}>Email Notifications</Text>
+                <Text style={[ss.rowSub, { color: T.textHint }]}>
+                  Receive updates via email
+                </Text>
+              </View>
+              <Switch
+                value={emailNotifs}
+                onValueChange={handleEmailToggle}
+                trackColor={{ false: T.textHint + '55', true: T.primary + '88' }}
+                thumbColor={emailNotifs ? T.primary : T.textHint}
+                disabled={savingPrefs}
+              />
+            </View>
+
+            <View style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
+              <View style={[ss.iconWrap, { backgroundColor: T.primary + '18' }]}>
+                <MaterialCommunityIcons name="bell-outline" size={18} color={T.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={[ss.rowLabel, { color: T.textPrimary }]}>Push Notifications</Text>
+                <Text style={[ss.rowSub, { color: T.textHint }]}>
+                  Receive alerts on your device
+                </Text>
+              </View>
+              <Switch
+                value={pushNotifs}
+                onValueChange={handlePushToggle}
+                trackColor={{ false: T.textHint + '55', true: T.primary + '88' }}
+                thumbColor={pushNotifs ? T.primary : T.textHint}
+                disabled={savingPrefs}
+              />
+            </View>
+          </>
+        )}
+
         {/* ── Account (placeholder rows) ── */}
         <Text style={[ss.groupLabel, { color: T.textHint }]}>Account</Text>
 
         {[
-          { icon: 'bell-outline'         as any, label: 'Notifications',   sub: 'Manage alerts' },
           { icon: 'shield-lock-outline'  as any, label: 'Privacy',         sub: 'Control your data' },
           { icon: 'help-circle-outline'  as any, label: 'Help & Support',  sub: 'FAQs and contact' },
         ].map((item) => (
@@ -201,6 +303,17 @@ export default function ProfileTab() {
   const [prefs, setPrefs]             = useState<PrefItem[]>([]);
   const [stats, setStats]             = useState({ applied: 0, pendingMessages: 0, closedMessages: 0 });
   
+  // Preferred locations for job matching (separate from current location)
+  const [preferredLocations, setPreferredLocations] = useState<string[]>([]);
+  
+  // Social links
+  const [socialLinks, setSocialLinks] = useState<Record<string, string>>({});
+  
+  // Location city/region
+  const [locationCity, setLocationCity] = useState('');
+  const [locationRegion, setLocationRegion] = useState('');
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  
   // Track original data for comparison
   const [originalExperience, setOriginalExperience] = useState<ExperienceItem[]>([]);
   const [originalEducation, setOriginalEducation] = useState<EducationItem[]>([]);
@@ -209,6 +322,12 @@ export default function ProfileTab() {
   const [avatarChanged, setAvatarChanged] = useState(false);
   const [coverChanged, setCoverChanged] = useState(false);
   const [photosChanged, setPhotosChanged] = useState(false);
+  
+  // Resume and cover letter
+  const [resumeUrl, setResumeUrl] = useState<string | null>(null);
+  const [coverLetterUrl, setCoverLetterUrl] = useState<string | null>(null);
+  const [uploadingResume, setUploadingResume] = useState(false);
+  const [uploadingCoverLetter, setUploadingCoverLetter] = useState(false);
 
   // ── Load profile from API ────────────────────────────────────────────────
   useEffect(() => {
@@ -223,11 +342,21 @@ export default function ProfileTab() {
         const fullName = `${firstName} ${lastName}`.trim();
 
         if (fullName) setProfileName(fullName);
-        if (profile.headline) setProfileHeadline(profile.headline);
         if (profile.location) setProfileLocation(profile.location);
         if (profile.bio) setProfileAbout(profile.bio);
+        if (profile.location_city) setLocationCity(profile.location_city);
+        if (profile.location_region) setLocationRegion(profile.location_region);
+        
+        // Load social links
+        if (profile.social_links && typeof profile.social_links === 'object' && !Array.isArray(profile.social_links)) {
+          setSocialLinks(profile.social_links);
+        }
         if (profile.profile_photo_url) setAvatarPhoto(profile.profile_photo_url);
         if (profile.cover_url) setCoverPhoto(profile.cover_url);
+        
+        // Load resume and cover letter URLs
+        if (profile.resume_url) setResumeUrl(profile.resume_url);
+        if (profile.cover_letter_url) setCoverLetterUrl(profile.cover_letter_url);
 
         // Handle nested skills structure
         if (profile.skills && typeof profile.skills === 'object') {
@@ -283,6 +412,48 @@ export default function ProfileTab() {
             closedMessages: profile.stats.closed_messages ?? 0 
           });
         }
+
+        // Load job preferences (including preferred_locations)
+        if (profile.job_preferences && typeof profile.job_preferences === 'object') {
+          // Load desired_position as profileHeadline
+          if (profile.job_preferences.desired_position) {
+            setProfileHeadline(profile.job_preferences.desired_position);
+          }
+          
+          if (Array.isArray(profile.job_preferences.preferred_locations)) {
+            setPreferredLocations(profile.job_preferences.preferred_locations);
+          }
+          
+          // Load work_type and employment_type as prefs
+          const loadedPrefs: PrefItem[] = [];
+          let prefId = 1;
+          
+          if (Array.isArray(profile.job_preferences.work_type)) {
+            profile.job_preferences.work_type.forEach((type: string) => {
+              loadedPrefs.push({
+                id: prefId++,
+                label: type.charAt(0).toUpperCase() + type.slice(1),
+                icon: 'tag-outline',
+                on: true
+              });
+            });
+          }
+          
+          if (Array.isArray(profile.job_preferences.employment_type)) {
+            profile.job_preferences.employment_type.forEach((type: string) => {
+              loadedPrefs.push({
+                id: prefId++,
+                label: type.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('-'),
+                icon: 'tag-outline',
+                on: true
+              });
+            });
+          }
+          
+          if (loadedPrefs.length > 0) {
+            setPrefs(loadedPrefs);
+          }
+        }
       })
       .catch((err) => { 
         console.error('Failed to load profile:', err);
@@ -296,27 +467,178 @@ export default function ProfileTab() {
   const [showAddExp,  setShowAddExp]  = useState(false);
   const [showAddEdu,  setShowAddEdu]  = useState(false);
   const [showAddPref, setShowAddPref] = useState(false);
+  const [showAddLocation, setShowAddLocation] = useState(false);
   const [newExp,  setNewExp]          = useState({ role: '', company: '', period: '' });
   const [newEdu,  setNewEdu]          = useState({ degree: '', school: '', period: '' });
   const [newPref, setNewPref]         = useState('');
+  const [newLocation, setNewLocation] = useState('');
 
   const EXP_COLORS = [T.primary, '#4ade80', '#60a5fa', '#f472b6', '#fb923c'];
   const EXP_ICONS: React.ComponentProps<typeof MaterialCommunityIcons>['name'][] =
     ['code-braces', 'laptop', 'briefcase-outline', 'rocket-launch-outline', 'office-building-outline'];
 
-  const addExperience = () => {
+  const addExperience = async () => {
     if (!newExp.role.trim()) return;
-    const idx = experience.length % EXP_COLORS.length;
-    setExperience(prev => [...prev, { id: Date.now(), ...newExp, icon: EXP_ICONS[idx], color: EXP_COLORS[idx] }]);
-    setNewExp({ role: '', company: '', period: '' });
-    setShowAddExp(false);
+    
+    setSaving(true);
+    try {
+      // Parse period into start_date and end_date
+      const periodParts = newExp.period.split(/[-–—]/);
+      const startDate = periodParts[0]?.trim() || '';
+      const endDate = periodParts[1]?.trim() || null;
+      
+      await api.post('/profile/applicant/experience', {
+        position: newExp.role.trim(),
+        company: newExp.company.trim(),
+        start_date: startDate,
+        end_date: endDate === 'Present' || endDate === 'present' ? null : endDate,
+      });
+      
+      // Reload profile to get fresh data with correct indices
+      const data: any = await api.get('/profile/applicant');
+      const profile = data?.profile ?? data;
+      if (profile && Array.isArray(profile.work_experience)) {
+        const expData = profile.work_experience.map((e: any, i: number) => ({
+          id: i + 1,
+          role: e.position ?? e.role ?? '',
+          company: e.company ?? '',
+          period: `${e.start_date ?? ''}${e.end_date ? ` - ${e.end_date}` : ''}`.trim(),
+          icon: EXP_ICONS[i % EXP_ICONS.length],
+          color: EXP_COLORS[i % EXP_COLORS.length],
+        }));
+        setExperience(expData);
+        setOriginalExperience(expData);
+      }
+      
+      setNewExp({ role: '', company: '', period: '' });
+      setShowAddExp(false);
+      Alert.alert('Success', 'Work experience added successfully!');
+    } catch (err: any) {
+      console.error('Add experience error:', err);
+      Alert.alert('Error', err?.message || 'Failed to add work experience. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const addEducation = () => {
+  const addEducation = async () => {
     if (!newEdu.degree.trim()) return;
-    setEducation(prev => [...prev, { id: Date.now(), ...newEdu }]);
-    setNewEdu({ degree: '', school: '', period: '' });
-    setShowAddEdu(false);
+    
+    setSaving(true);
+    try {
+      await api.post('/profile/applicant/education', {
+        degree: newEdu.degree.trim(),
+        institution: newEdu.school.trim(),
+        graduation_year: newEdu.period.trim(),
+      });
+      
+      // Reload profile to get fresh data with correct indices
+      const data: any = await api.get('/profile/applicant');
+      const profile = data?.profile ?? data;
+      if (profile && Array.isArray(profile.education)) {
+        const eduData = profile.education.map((e: any, i: number) => ({ 
+          id: i + 1, 
+          degree: e.degree ?? '', 
+          school: e.institution ?? e.school ?? '', 
+          period: e.graduation_year ? String(e.graduation_year) : '' 
+        }));
+        setEducation(eduData);
+        setOriginalEducation(eduData);
+      }
+      
+      setNewEdu({ degree: '', school: '', period: '' });
+      setShowAddEdu(false);
+      Alert.alert('Success', 'Education added successfully!');
+    } catch (err: any) {
+      console.error('Add education error:', err);
+      Alert.alert('Error', err?.message || 'Failed to add education. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const deleteExperience = async (index: number) => {
+    Alert.alert(
+      'Delete Experience',
+      'Are you sure you want to delete this work experience?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              await api.delete(`/profile/applicant/experience/${index}`);
+              
+              // Reload profile
+              const data: any = await api.get('/profile/applicant');
+              const profile = data?.profile ?? data;
+              if (profile && Array.isArray(profile.work_experience)) {
+                const expData = profile.work_experience.map((e: any, i: number) => ({
+                  id: i + 1,
+                  role: e.position ?? e.role ?? '',
+                  company: e.company ?? '',
+                  period: `${e.start_date ?? ''}${e.end_date ? ` - ${e.end_date}` : ''}`.trim(),
+                  icon: EXP_ICONS[i % EXP_ICONS.length],
+                  color: EXP_COLORS[i % EXP_COLORS.length],
+                }));
+                setExperience(expData);
+                setOriginalExperience(expData);
+              }
+              
+              Alert.alert('Success', 'Work experience deleted successfully!');
+            } catch (err: any) {
+              console.error('Delete experience error:', err);
+              Alert.alert('Error', err?.message || 'Failed to delete work experience. Please try again.');
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const deleteEducation = async (index: number) => {
+    Alert.alert(
+      'Delete Education',
+      'Are you sure you want to delete this education entry?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            setSaving(true);
+            try {
+              await api.delete(`/profile/applicant/education/${index}`);
+              
+              // Reload profile
+              const data: any = await api.get('/profile/applicant');
+              const profile = data?.profile ?? data;
+              if (profile && Array.isArray(profile.education)) {
+                const eduData = profile.education.map((e: any, i: number) => ({ 
+                  id: i + 1, 
+                  degree: e.degree ?? '', 
+                  school: e.institution ?? e.school ?? '', 
+                  period: e.graduation_year ? String(e.graduation_year) : '' 
+                }));
+                setEducation(eduData);
+                setOriginalEducation(eduData);
+              }
+              
+              Alert.alert('Success', 'Education deleted successfully!');
+            } catch (err: any) {
+              console.error('Delete education error:', err);
+              Alert.alert('Error', err?.message || 'Failed to delete education. Please try again.');
+            } finally {
+              setSaving(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const addPref = () => {
@@ -324,6 +646,22 @@ export default function ProfileTab() {
     setPrefs(prev => [...prev, { id: Date.now(), label: newPref.trim(), icon: 'tag-outline', on: true }]);
     setNewPref('');
     setShowAddPref(false);
+  };
+
+  const addPreferredLocation = () => {
+    const trimmed = newLocation.trim();
+    if (!trimmed) return;
+    if (preferredLocations.includes(trimmed)) {
+      Alert.alert('Duplicate', 'This location is already in your preferred locations.');
+      return;
+    }
+    setPreferredLocations(prev => [...prev, trimmed]);
+    setNewLocation('');
+    setShowAddLocation(false);
+  };
+
+  const removePreferredLocation = (location: string) => {
+    setPreferredLocations(prev => prev.filter(loc => loc !== location));
   };
 
   const pickAvatar = async () => {
@@ -359,6 +697,35 @@ export default function ProfileTab() {
     router.replace('/(auth)/login');
   };
 
+  const handleDetectLocation = async () => {
+    setDetectingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Location permission is required to detect your location.');
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const [result] = await Location.reverseGeocodeAsync({
+        latitude: loc.coords.latitude,
+        longitude: loc.coords.longitude,
+      });
+      if (result) {
+        const city = result.city || result.subregion || '';
+        const region = result.region || '';
+        setLocationCity(city);
+        setLocationRegion(region);
+        const displayLocation = [city, region].filter(Boolean).join(', ');
+        if (displayLocation) setProfileLocation(displayLocation);
+      }
+    } catch (err) {
+      console.error('Location detection failed:', err);
+      Alert.alert('Error', 'Could not detect your location. Please enter it manually.');
+    } finally {
+      setDetectingLocation(false);
+    }
+  };
+
   const handleSaveProfile = async () => {
     setSaving(true);
     setUploading(false);
@@ -373,8 +740,8 @@ export default function ProfileTab() {
         last_name: lastName || '-',
         location: profileLocation,
         bio: profileAbout,
-        location_city: null,
-        location_region: null,
+        location_city: locationCity || null,
+        location_region: locationRegion || null,
       });
 
       // 2. Save skills with nested structure (only if there are skills)
@@ -462,12 +829,12 @@ export default function ProfileTab() {
       }
 
       // 6. Save job preferences (if prefs have been modified)
-      if (prefs.length > 0) {
+      if (prefs.length > 0 || preferredLocations.length > 0) {
         try {
           // Convert prefs to job preferences structure
           const jobPreferences = {
             desired_position: profileHeadline || null,
-            preferred_locations: [profileLocation].filter(Boolean),
+            preferred_locations: preferredLocations.length > 0 ? preferredLocations : [],
             work_type: prefs.filter(p => ['remote', 'hybrid', 'onsite'].includes(p.label.toLowerCase()) && p.on)
               .map(p => p.label.toLowerCase()),
             employment_type: prefs.filter(p => ['full-time', 'part-time', 'contract', 'freelance', 'internship'].includes(p.label.toLowerCase()) && p.on)
@@ -482,7 +849,19 @@ export default function ProfileTab() {
         }
       }
 
-      // 7. Save experience entries (compare with original)
+      // 7. Save social links
+      try {
+        const filteredLinks = Object.fromEntries(
+          Object.entries(socialLinks).filter(([_, v]) => v && v.trim())
+        );
+        await api.patch('/profile/applicant/social-links', {
+          social_links: filteredLinks,
+        });
+      } catch (err) {
+        console.error('Social links save failed:', err);
+      }
+
+      // 8. Save experience entries (compare with original)
       // Note: For simplicity, we're not doing individual CRUD here
       // In production, you'd track which items were added/removed/updated
       
@@ -560,6 +939,93 @@ export default function ProfileTab() {
       setHardSkills(prev => prev.filter(s => s !== skill));
     } else {
       setSoftSkills(prev => prev.filter(s => s !== skill));
+    }
+  };
+
+  // Resume and Cover Letter handlers
+  const pickResume = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsEditing: false,
+        quality: 1,
+      });
+      
+      if (!result.canceled && result.assets[0]) {
+        setUploadingResume(true);
+        try {
+          const asset = result.assets[0];
+          const uploadedUrl = await uploadSingleFile(
+            { uri: asset.uri, name: `resume_${Date.now()}.pdf` },
+            'document'
+          );
+          
+          await api.patch('/profile/applicant/resume', {
+            resume_url: uploadedUrl,
+          });
+          
+          setResumeUrl(uploadedUrl);
+          Alert.alert('Success', 'Resume updated successfully!');
+        } catch (err) {
+          console.error('Resume upload failed:', err);
+          Alert.alert('Upload Error', 'Failed to upload resume. Please try again.');
+        } finally {
+          setUploadingResume(false);
+        }
+      }
+    } catch (err) {
+      console.error('File picker error:', err);
+      Alert.alert('Error', 'Failed to open file picker. Please try again.');
+    }
+  };
+
+  const pickCoverLetter = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.All,
+        allowsEditing: false,
+        quality: 1,
+      });
+      
+      if (!result.canceled && result.assets[0]) {
+        setUploadingCoverLetter(true);
+        try {
+          const asset = result.assets[0];
+          const uploadedUrl = await uploadSingleFile(
+            { uri: asset.uri, name: `cover_letter_${Date.now()}.pdf` },
+            'document'
+          );
+          
+          await api.patch('/profile/applicant/cover-letter', {
+            cover_letter_url: uploadedUrl,
+          });
+          
+          setCoverLetterUrl(uploadedUrl);
+          Alert.alert('Success', 'Cover letter updated successfully!');
+        } catch (err) {
+          console.error('Cover letter upload failed:', err);
+          Alert.alert('Upload Error', 'Failed to upload cover letter. Please try again.');
+        } finally {
+          setUploadingCoverLetter(false);
+        }
+      }
+    } catch (err) {
+      console.error('File picker error:', err);
+      Alert.alert('Error', 'Failed to open file picker. Please try again.');
+    }
+  };
+
+  const openDocument = async (url: string, type: 'resume' | 'cover letter') => {
+    try {
+      const supported = await Linking.canOpenURL(url);
+      if (supported) {
+        await Linking.openURL(url);
+      } else {
+        Alert.alert('Error', `Cannot open ${type}. URL may be invalid.`);
+      }
+    } catch (err) {
+      console.error(`Failed to open ${type}:`, err);
+      Alert.alert('Error', `Failed to open ${type}. Please try again.`);
     }
   };
 
@@ -743,6 +1209,45 @@ export default function ProfileTab() {
                   placeholderTextColor={T.textHint}
                 />
               </View>
+
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.fieldLabel, { color: T.textHint }]}>City</Text>
+                  <TextInput
+                    style={[s.heroInput, { backgroundColor: T.surfaceHigh, borderColor: T.border, color: T.textPrimary }]}
+                    value={locationCity}
+                    onChangeText={setLocationCity}
+                    placeholder="City"
+                    placeholderTextColor={T.textHint}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={[s.fieldLabel, { color: T.textHint }]}>Region</Text>
+                  <TextInput
+                    style={[s.heroInput, { backgroundColor: T.surfaceHigh, borderColor: T.border, color: T.textPrimary }]}
+                    value={locationRegion}
+                    onChangeText={setLocationRegion}
+                    placeholder="Region"
+                    placeholderTextColor={T.textHint}
+                  />
+                </View>
+              </View>
+
+              <TouchableOpacity
+                style={[s.editBtn, { borderColor: T.primary + '44', backgroundColor: T.primary + '12', alignSelf: 'flex-start', marginBottom: 0 }]}
+                onPress={handleDetectLocation}
+                disabled={detectingLocation}
+                activeOpacity={0.7}
+              >
+                {detectingLocation ? (
+                  <ActivityIndicator size="small" color={T.primary} />
+                ) : (
+                  <MaterialCommunityIcons name="crosshairs-gps" size={13} color={T.primary} />
+                )}
+                <Text style={[s.editBtnText, { color: T.primary }]}>
+                  {detectingLocation ? 'Detecting...' : 'Detect Location'}
+                </Text>
+              </TouchableOpacity>
             </View>
           ) : (
             <>
@@ -775,6 +1280,24 @@ export default function ProfileTab() {
             </React.Fragment>
           ))}
         </View>
+
+        {/* ── My Applications Button ───────────────────────────────────────── */}
+        <TouchableOpacity
+          style={[s.applicationsBtn, { backgroundColor: T.surface, borderColor: T.border }]}
+          activeOpacity={0.8}
+          onPress={() => router.push('/applications')}
+        >
+          <View style={[s.applicationsBtnIcon, { backgroundColor: T.primary + '18' }]}>
+            <MaterialCommunityIcons name="briefcase-outline" size={20} color={T.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={[s.applicationsBtnTitle, { color: T.textPrimary }]}>My Applications</Text>
+            <Text style={[s.applicationsBtnSub, { color: T.textHint }]}>
+              View all your job applications
+            </Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={T.textHint} />
+        </TouchableOpacity>
 
         <Sep />
 
@@ -958,7 +1481,7 @@ export default function ProfileTab() {
             </Text>
           ) : (
             <View style={{ gap: 16 }}>
-              {experience.map((exp) => (
+              {experience.map((exp, index) => (
                 <View key={exp.id} style={s.expRow}>
                   <View style={[s.expIcon, { backgroundColor: exp.color + '18' }]}>
                     <MaterialCommunityIcons name={exp.icon} size={15} color={exp.color} />
@@ -968,7 +1491,7 @@ export default function ProfileTab() {
                     <Text style={[s.expMeta, { color: T.textHint }]}>{exp.company} · {exp.period}</Text>
                   </View>
                   {editMode && (
-                    <TouchableOpacity onPress={() => setExperience(prev => prev.filter(e => e.id !== exp.id))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity onPress={() => deleteExperience(index)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <MaterialCommunityIcons name="close-circle" size={18} color={T.danger} />
                     </TouchableOpacity>
                   )}
@@ -1007,7 +1530,7 @@ export default function ProfileTab() {
             </Text>
           ) : (
             <View style={{ gap: 16 }}>
-              {education.map((edu) => (
+              {education.map((edu, index) => (
                 <View key={edu.id} style={s.expRow}>
                   <View style={[s.expIcon, { backgroundColor: T.primary + '18' }]}>
                     <MaterialCommunityIcons name="school-outline" size={15} color={T.primary} />
@@ -1017,7 +1540,7 @@ export default function ProfileTab() {
                     <Text style={[s.expMeta, { color: T.textHint }]}>{edu.school} · {edu.period}</Text>
                   </View>
                   {editMode && (
-                    <TouchableOpacity onPress={() => setEducation(prev => prev.filter(e => e.id !== edu.id))} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity onPress={() => deleteEducation(index)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                       <MaterialCommunityIcons name="close-circle" size={18} color={T.danger} />
                     </TouchableOpacity>
                   )}
@@ -1035,6 +1558,97 @@ export default function ProfileTab() {
               </TouchableOpacity>
             </View>
           )}
+        </View>
+
+        <Sep />
+
+        {/* ── Resume & Documents ───────────────────────────────────────────── */}
+        <View style={s.section}>
+          <SectionLabel title="Resume & Documents" />
+          
+          {/* Resume */}
+          <View style={[s.documentCard, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
+            <View style={[s.documentIcon, { backgroundColor: T.primary + '18' }]}>
+              <MaterialCommunityIcons name="file-document-outline" size={20} color={T.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.documentTitle, { color: T.textPrimary }]}>Resume / CV</Text>
+              <Text style={[s.documentStatus, { color: resumeUrl ? T.textSub : T.textHint }]}>
+                {resumeUrl ? 'Uploaded' : 'Not uploaded'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {resumeUrl && (
+                <TouchableOpacity
+                  style={[s.documentBtn, { backgroundColor: T.surface, borderColor: T.border }]}
+                  onPress={() => openDocument(resumeUrl, 'resume')}
+                >
+                  <MaterialCommunityIcons name="eye-outline" size={14} color={T.textSub} />
+                  <Text style={[s.documentBtnText, { color: T.textSub }]}>View</Text>
+                </TouchableOpacity>
+              )}
+              {editMode && (
+                <TouchableOpacity
+                  style={[s.documentBtn, { backgroundColor: T.primary, borderColor: T.primary }]}
+                  onPress={pickResume}
+                  disabled={uploadingResume}
+                >
+                  {uploadingResume ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="upload" size={14} color="#fff" />
+                      <Text style={[s.documentBtnText, { color: '#fff' }]}>
+                        {resumeUrl ? 'Update' : 'Upload'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+
+          {/* Cover Letter */}
+          <View style={[s.documentCard, { backgroundColor: T.surfaceHigh, borderColor: T.border, marginTop: 12 }]}>
+            <View style={[s.documentIcon, { backgroundColor: '#60a5fa18' }]}>
+              <MaterialCommunityIcons name="file-document-edit-outline" size={20} color="#60a5fa" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[s.documentTitle, { color: T.textPrimary }]}>Cover Letter</Text>
+              <Text style={[s.documentStatus, { color: coverLetterUrl ? T.textSub : T.textHint }]}>
+                {coverLetterUrl ? 'Uploaded' : 'Not uploaded'}
+              </Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {coverLetterUrl && (
+                <TouchableOpacity
+                  style={[s.documentBtn, { backgroundColor: T.surface, borderColor: T.border }]}
+                  onPress={() => openDocument(coverLetterUrl, 'cover letter')}
+                >
+                  <MaterialCommunityIcons name="eye-outline" size={14} color={T.textSub} />
+                  <Text style={[s.documentBtnText, { color: T.textSub }]}>View</Text>
+                </TouchableOpacity>
+              )}
+              {editMode && (
+                <TouchableOpacity
+                  style={[s.documentBtn, { backgroundColor: '#60a5fa', borderColor: '#60a5fa' }]}
+                  onPress={pickCoverLetter}
+                  disabled={uploadingCoverLetter}
+                >
+                  {uploadingCoverLetter ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <MaterialCommunityIcons name="upload" size={14} color="#fff" />
+                      <Text style={[s.documentBtnText, { color: '#fff' }]}>
+                        {coverLetterUrl ? 'Update' : 'Upload'}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
         </View>
 
         <Sep />
@@ -1073,6 +1687,142 @@ export default function ProfileTab() {
               <TouchableOpacity style={[s.addConfirmBtn, { backgroundColor: T.primary }]} onPress={addPref}>
                 <Text style={s.addConfirmText}>Add Preference</Text>
               </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <Sep />
+
+        {/* ── Preferred Locations ──────────────────────────────────────────── */}
+        <View style={s.section}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <SectionLabel title="Preferred Work Locations" />
+            {editMode && (
+              <TouchableOpacity 
+                style={[s.addBtn, { borderColor: T.border, backgroundColor: T.surfaceHigh }]} 
+                onPress={() => setShowAddLocation(v => !v)}
+              >
+                <MaterialCommunityIcons name={showAddLocation ? 'minus' : 'plus'} size={12} color={T.primary} />
+                <Text style={[s.addBtnText, { color: T.primary }]}>{showAddLocation ? 'Cancel' : 'Add'}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          
+          {preferredLocations.length === 0 ? (
+            <Text style={{ fontSize: 13, color: T.textHint, fontStyle: 'italic', textAlign: 'center', paddingVertical: 20 }}>
+              No preferred locations set. Add locations where you'd like to work.
+            </Text>
+          ) : (
+            <View style={s.chips}>
+              {preferredLocations.map((location, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    s.prefChip,
+                    { backgroundColor: T.primary + '15', borderColor: T.primary + '55' }
+                  ]}
+                >
+                  <MaterialCommunityIcons name="map-marker" size={13} color={T.primary} />
+                  <Text style={[s.chipText, { color: T.primary }]}>{location}</Text>
+                  {editMode && (
+                    <TouchableOpacity 
+                      onPress={() => removePreferredLocation(location)} 
+                      hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }} 
+                      style={{ marginLeft: 4 }}
+                    >
+                      <MaterialCommunityIcons name="close" size={11} color={T.primary} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              ))}
+            </View>
+          )}
+          
+          {editMode && showAddLocation && (
+            <View style={[s.addForm, { marginTop: 12, backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
+              <TextInput 
+                style={[s.addInput, { backgroundColor: T.surface, borderColor: T.border, color: T.textPrimary }]} 
+                placeholder="e.g. Makati, Metro Manila" 
+                placeholderTextColor={T.textHint} 
+                value={newLocation} 
+                onChangeText={setNewLocation} 
+              />
+              <TouchableOpacity 
+                style={[s.addConfirmBtn, { backgroundColor: T.primary }]} 
+                onPress={addPreferredLocation}
+              >
+                <Text style={s.addConfirmText}>Add Location</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <Sep />
+
+        {/* ── Social Links ──────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <SectionLabel title="Social Links" />
+          {editMode ? (
+            <View style={{ gap: 12 }}>
+              {[
+                { key: 'linkedin', label: 'LinkedIn', icon: 'linkedin' as const, placeholder: 'https://linkedin.com/in/...' },
+                { key: 'github', label: 'GitHub', icon: 'github' as const, placeholder: 'https://github.com/...' },
+                { key: 'portfolio', label: 'Portfolio', icon: 'web' as const, placeholder: 'https://yourportfolio.com' },
+                { key: 'twitter', label: 'Twitter / X', icon: 'twitter' as const, placeholder: 'https://twitter.com/...' },
+              ].map(({ key, label, icon, placeholder }) => (
+                <View key={key} style={{ gap: 6 }}>
+                  <Text style={[s.fieldLabel, { color: T.textHint }]}>{label}</Text>
+                  <View style={[s.heroInput, { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: T.surfaceHigh, borderColor: T.border, paddingHorizontal: 12 }]}>
+                    <MaterialCommunityIcons name={icon} size={16} color={T.textHint} />
+                    <TextInput
+                      style={{ flex: 1, fontSize: 13, color: T.textPrimary, paddingVertical: 0 }}
+                      placeholder={placeholder}
+                      placeholderTextColor={T.textHint}
+                      value={socialLinks[key] || ''}
+                      onChangeText={(v) => setSocialLinks(prev => ({ ...prev, [key]: v }))}
+                      keyboardType="url"
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                    />
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {Object.keys(socialLinks).length === 0 || Object.values(socialLinks).every(v => !v) ? (
+                <Text style={{ fontSize: 13, color: T.textHint, fontStyle: 'italic', textAlign: 'center', paddingVertical: 20 }}>
+                  No social links added yet
+                </Text>
+              ) : (
+                Object.entries(socialLinks)
+                  .filter(([_, url]) => url && url.trim())
+                  .map(([key, url]) => {
+                    const iconMap: Record<string, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+                      linkedin: 'linkedin', github: 'github', portfolio: 'web', twitter: 'twitter',
+                    };
+                    const labelMap: Record<string, string> = {
+                      linkedin: 'LinkedIn', github: 'GitHub', portfolio: 'Portfolio', twitter: 'Twitter / X',
+                    };
+                    return (
+                      <TouchableOpacity
+                        key={key}
+                        style={[s.expRow, { paddingVertical: 6 }]}
+                        onPress={() => Linking.openURL(url)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[s.expIcon, { backgroundColor: T.primary + '18' }]}>
+                          <MaterialCommunityIcons name={iconMap[key] || 'link-variant'} size={15} color={T.primary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={[s.expRole, { color: T.textPrimary }]}>{labelMap[key] || key}</Text>
+                          <Text style={[s.expMeta, { color: T.primary }]} numberOfLines={1}>{url}</Text>
+                        </View>
+                        <MaterialCommunityIcons name="open-in-new" size={14} color={T.textHint} />
+                      </TouchableOpacity>
+                    );
+                  })
+              )}
             </View>
           )}
         </View>
@@ -1140,6 +1890,11 @@ const s = StyleSheet.create({
   statLbl:   { fontSize: 10, marginTop: 3, fontWeight: '500' },
   statSep:   { width: 1 },
 
+  applicationsBtn: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 24, marginTop: 16, borderRadius: 16, borderWidth: 1, paddingHorizontal: 16, paddingVertical: 14 },
+  applicationsBtnIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  applicationsBtnTitle: { fontSize: 15, fontWeight: '700', marginBottom: 2 },
+  applicationsBtnSub: { fontSize: 12 },
+
   section:   { paddingHorizontal: 24 },
   aboutText: { fontSize: 14, lineHeight: 22 },
   aboutInput:{ minHeight: 120, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, lineHeight: 22 },
@@ -1167,6 +1922,14 @@ const s = StyleSheet.create({
   addInput:      { borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13 },
   addConfirmBtn: { borderRadius: 10, paddingVertical: 11, alignItems: 'center' },
   addConfirmText:{ fontSize: 13, fontWeight: '700', color: '#fff' },
+  
+  // Document card styles
+  documentCard:   { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 14 },
+  documentIcon:   { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  documentTitle:  { fontSize: 14, fontWeight: '700', marginBottom: 2 },
+  documentStatus: { fontSize: 12 },
+  documentBtn:    { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
+  documentBtnText:{ fontSize: 12, fontWeight: '600' },
 });
 
 const modal = StyleSheet.create({

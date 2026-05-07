@@ -94,6 +94,8 @@ export function useDashboardStats() {
   return useQuery<DashboardStats>({
     queryKey: queryKeys.dashboard.stats,
     queryFn: ({ signal }) => dashboardService.stats(signal),
+    refetchOnWindowFocus: true,
+    staleTime: 0, // Always refetch when navigating back to dashboard
   });
 }
 
@@ -460,19 +462,23 @@ export function useMatchStats() {
   });
 }
 
-export function useApplications(filters: { status?: string; companyId?: string }, page: number = 1, pageSize: number = 20) {
-  return useQuery({
-    queryKey: ['applications', 'list', filters, page, pageSize],
-    queryFn: ({ signal }) => matchService.applications(filters, page, pageSize, signal),
-  });
-}
-
-export function useApplicationStats() {
-  return useQuery({
-    queryKey: ['applications', 'stats'],
-    queryFn: ({ signal }) => matchService.applicationStats(signal),
-  });
-}
+// TODO: Implement backend routes for applications management
+// Backend routes /admin/applications and /admin/applications/stats do not exist yet
+// Uncomment and implement when backend routes are created
+//
+// export function useApplications(filters: { status?: string; companyId?: string }, page: number = 1, pageSize: number = 20) {
+//   return useQuery({
+//     queryKey: ['applications', 'list', filters, page, pageSize],
+//     queryFn: ({ signal }) => matchService.applications(filters, page, pageSize, signal),
+//   });
+// }
+//
+// export function useApplicationStats() {
+//   return useQuery({
+//     queryKey: ['applications', 'stats'],
+//     queryFn: ({ signal }) => matchService.applicationStats(signal),
+//   });
+// }
 
 // ─── Admin Users Hooks ───────────────────────────────────────────
 import { adminUserService, type AdminUser, type AdminUserFilters, type CreateAdminUserRequest, type UpdateRoleRequest } from '@/services/adminUserService';

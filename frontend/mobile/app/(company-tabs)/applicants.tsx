@@ -1,69 +1,82 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, StatusBar, Alert, ActivityIndicator, RefreshControl } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useTabBarHeight } from '../../hooks/useTabBarHeight';
 import { useTheme } from '../../theme';
+import { jobService, type Job } from '../../services/jobService';
+
+// TODO: Add tests for job list screen
+// Test cases should cover:
+// - Loading jobs from API
+// - Handling empty state
+// - Filtering by status
+// - Optimistic updates with rollback
+// - Error handling for network failures
+// - Pull-to-refresh functionality
 
 const SEED_PRIMARY = '#a855f7';
 
+// Icon mapping for different job types
+const JOB_ICONS: Record<string, React.ComponentProps<typeof MaterialCommunityIcons>['name']> = {
+  'frontend': 'code-braces',
+  'backend': 'server-outline',
+  'fullstack': 'laptop',
+  'designer': 'pencil-ruler',
+  'product': 'lightbulb-outline',
+  'marketing': 'bullhorn-outline',
+  'sales': 'handshake-outline',
+  'default': 'briefcase-outline',
+};
+
+const JOB_COLORS = [SEED_PRIMARY, '#4ade80', '#60a5fa', '#f472b6', '#fb923c'];
+
 export type JobPost = {
   id: number;
-  localKey?: string;
   title: string;
   dept: string;
   description: string;
   icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
   color: string;
   applicants: number;
-  status: 'open' | 'paused';
+  status: 'open' | 'paused' | 'closed';
+  location?: string;
+  location_region?: string;
 };
-
-export const INITIAL_JOBS: JobPost[] = [
-  {
-    id: 1,
-    title: 'Frontend Developer',
-    dept: 'Engineering',
-    description: 'Build responsive and interactive user interfaces using React, TypeScript, and modern web technologies.',
-    icon: 'code-braces',
-    color: SEED_PRIMARY,
-    applicants: 24,
-    status: 'open',
-  },
-  {
-    id: 2,
-    title: 'UI/UX Designer',
-    dept: 'Design',
-    description: 'Create beautiful, intuitive designs and user experiences for digital products and applications.',
-    icon: 'pencil-ruler',
-    color: '#4ade80',
-    applicants: 18,
-    status: 'open',
-  },
-  {
-    id: 3,
-    title: 'Backend Developer',
-    dept: 'Engineering',
-    description: 'Develop robust backend systems and APIs using Laravel, Node.js, or Python for scalable applications.',
-    icon: 'server-outline',
-    color: '#60a5fa',
-    applicants: 11,
-    status: 'paused',
-  },
-];
 
 type Filter = 'all' | 'open' | 'paused';
 type ApplicantsRouteParams = {
   applicants: {
-    newJob?: {
-      localKey: string;
-      title: string;
-      dept: string;
-      description: string;
-      icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'];
-      color: string;
-    };
+    newJobId?: number;
+    editJobId?: number;
+  };
+};
+
+// Helper to map API job to display format
+const mapJobToDisplay = (job: Job, index: number): JobPost => {
+  const titleLower = job.title.toLowerCase();
+  let icon: React.ComponentProps<typeof MaterialCommunityIcons>['name'] = 'briefcase-outline';
+  
+  // Try to match icon based on title
+  for (const [key, value] of Object.entries(JOB_ICONS)) {
+    if (titleLower.includes(key)) {
+      icon = value;
+      break;
+    }
+  }
+  
+  return {
+    id: job.id,
+    title: job.title,
+    dept: job.location_region || job.location || 'General',
+    description: job.description,
+    icon,
+    color: JOB_COLORS[index % JOB_COLORS.length],
+    applicants: job.applicants_count || 0,
+    status: job.status === 'closed' ? 'paused' : job.status,
+    location: job.location,
+    location_region: job.location_region,
   };
 };
 
@@ -74,51 +87,146 @@ export default function JobPostingsScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<RouteProp<ApplicantsRouteParams, 'applicants'>>();
 
-  const [jobs, setJobs] = useState<JobPost[]>(INITIAL_JOBS);
+  const [jobs, setJobs] = useState<JobPost[]>([]);
   const [filter, setFilter] = useState<Filter>('all');
   const [selected, setSelected] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const filtered = jobs.filter((j) => (filter === 'all' ? true : j.status === filter));
 
+  // Load jobs from API
+  const loadJobs = useCallback(async (showLoader = true) => {
+    if (showLoader) setLoading(true);
+    setError(null);
+    
+    try {
+      const apiJobs = await jobService.list();
+      const displayJobs = apiJobs.map((job, index) => mapJobToDisplay(job, index));
+      setJobs(displayJobs);
+    } catch (err: any) {
+      console.error('Failed to load jobs:', err);
+      setError(err?.message || 'Failed to load jobs');
+      Alert.alert('Error', 'Failed to load job postings. Please try again.');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Initial load
   useEffect(() => {
-    const incoming = route.params?.newJob;
-    if (!incoming) return;
+    loadJobs();
+  }, [loadJobs]);
 
-    setJobs((prev) => {
-      if (prev.some((job) => job.localKey === incoming.localKey)) {
-        return prev;
-      }
+  // Handle new job created
+  useEffect(() => {
+    const newJobId = route.params?.newJobId;
+    if (newJobId) {
+      // Reload jobs to get the new one
+      loadJobs(false);
+      navigation.setParams({ newJobId: undefined });
+    }
+  }, [route.params?.newJobId, loadJobs, navigation]);
 
-      return [
-        ...prev,
+  // Pull to refresh
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadJobs(false);
+  }, [loadJobs]);
+
+  // Toggle job status (pause/reopen) with confirmation and optimistic update
+  const toggleStatus = useCallback(async (id: number) => {
+    const job = jobs.find(j => j.id === id);
+    if (!job) return;
+
+    const action = job.status === 'open' ? 'pause' : 'reopen';
+    const actionText = action === 'pause' ? 'Pause' : 'Reopen';
+    
+    Alert.alert(
+      `${actionText} Job?`,
+      `Are you sure you want to ${action} "${job.title}"?${action === 'pause' ? ' Applicants won\'t be able to see this job while paused.' : ''}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
         {
-          id: Date.now(),
-          localKey: incoming.localKey,
-          title: incoming.title,
-          dept: incoming.dept || 'General',
-          description: incoming.description || '',
-          icon: incoming.icon ?? 'briefcase-outline',
-          color: incoming.color ?? T.primary,
-          applicants: 0,
-          status: 'open',
+          text: actionText,
+          onPress: async () => {
+            // Optimistic update
+            const previousJobs = [...jobs];
+            setJobs(prev => prev.map(j => 
+              j.id === id ? { ...j, status: j.status === 'open' ? 'paused' as const : 'open' as const } : j
+            ));
+
+            try {
+              if (action === 'pause') {
+                await jobService.close(id);
+              } else {
+                await jobService.restore(id);
+              }
+            } catch (err: any) {
+              console.error(`Failed to ${action} job:`, err);
+              // Rollback on error
+              setJobs(previousJobs);
+              Alert.alert('Error', `Failed to ${action} job. Please try again.`);
+            }
+          },
         },
-      ];
-    });
+      ]
+    );
+  }, [jobs]);
 
-    navigation.setParams({ newJob: undefined });
-  }, [navigation, route.params?.newJob, T.primary]);
+  // Delete job with confirmation and optimistic update
+  const removeJob = useCallback(async (id: number) => {
+    const job = jobs.find(j => j.id === id);
+    if (!job) return;
 
-  const toggleStatus = (id: number) => {
-    setJobs((prev) => prev.map((j) => (j.id === id ? { ...j, status: j.status === 'open' ? 'paused' : 'open' } : j)));
-  };
+    Alert.alert(
+      'Delete Job?',
+      `Are you sure you want to delete "${job.title}"?\n\nThis will remove the job posting and all associated data. This action will be logged for audit purposes.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            // Optimistic update
+            const previousJobs = [...jobs];
+            setJobs(prev => prev.filter(j => j.id !== id));
+            if (selected === id) setSelected(null);
 
-  const removeJob = (id: number) => {
-    setJobs((prev) => prev.filter((j) => j.id !== id));
-    if (selected === id) setSelected(null);
-  };
+            try {
+              await jobService.delete(id);
+            } catch (err: any) {
+              console.error('Failed to delete job:', err);
+              // Rollback on error
+              setJobs(previousJobs);
+              Alert.alert('Error', 'Failed to delete job. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }, [jobs, selected]);
+
+  // Navigate to edit job
+  const editJob = useCallback((id: number) => {
+    navigation.navigate('CreateJobScreen', { editJobId: id });
+  }, [navigation]);
 
   const openCount = jobs.filter((j) => j.status === 'open').length;
   const totalApps = jobs.reduce((a, j) => a + j.applicants, 0);
+
+  // Loading state
+  if (loading) {
+    return (
+      <View style={[s.screen, { paddingTop: topInset, backgroundColor: T.bg, justifyContent: 'center', alignItems: 'center' }]}>
+        <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
+        <ActivityIndicator size="large" color={T.primary} />
+        <Text style={[s.loadingText, { color: T.textSub, marginTop: 16 }]}>Loading jobs...</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={[s.screen, { paddingTop: topInset, backgroundColor: T.bg }]}>
@@ -166,11 +274,23 @@ export default function JobPostingsScreen() {
         keyExtractor={(item) => String(item.id)}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: tabBarHeight + 24 }}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={T.primary}
+            colors={[T.primary]}
+          />
+        }
         ListEmptyComponent={
           <View style={s.empty}>
             <MaterialCommunityIcons name="briefcase-off-outline" size={40} color={T.textHint} />
-            <Text style={[s.emptyText, { color: T.textSub }]}>No job posts yet</Text>
-            <Text style={[s.emptyHint, { color: T.textHint }]}>Tap "New Post" to add your first one</Text>
+            <Text style={[s.emptyText, { color: T.textSub }]}>
+              {error ? 'Failed to load jobs' : 'No job posts yet'}
+            </Text>
+            <Text style={[s.emptyHint, { color: T.textHint }]}>
+              {error ? 'Pull down to retry' : 'Tap "New Post" to add your first one'}
+            </Text>
           </View>
         }
         renderItem={({ item }) => {
@@ -219,6 +339,11 @@ export default function JobPostingsScreen() {
                   <Text style={[s.descriptionText, { color: T.textPrimary }]}>{item.description}</Text>
                   <View style={[s.divider, { backgroundColor: T.borderFaint }]} />
                   <View style={s.actionsRow}>
+                    <TouchableOpacity style={s.actionBtn} onPress={() => editJob(item.id)} activeOpacity={0.8}>
+                      <MaterialCommunityIcons name="pencil-outline" size={15} color={T.primary} />
+                      <Text style={[s.actionText, { color: T.primary }]}>Edit</Text>
+                    </TouchableOpacity>
+
                     <TouchableOpacity style={s.actionBtn} onPress={() => toggleStatus(item.id)} activeOpacity={0.8}>
                       <MaterialCommunityIcons
                         name={item.status === 'open' ? 'pause-circle-outline' : 'play-circle-outline'}
@@ -228,11 +353,6 @@ export default function JobPostingsScreen() {
                       <Text style={[s.actionText, { color: item.status === 'open' ? T.textHint : '#4ade80' }]}>
                         {item.status === 'open' ? 'Pause' : 'Reopen'}
                       </Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity style={s.actionBtn} activeOpacity={0.8}>
-                      <MaterialCommunityIcons name="account-search-outline" size={15} color={T.primary} />
-                      <Text style={[s.actionText, { color: T.primary }]}>View Applicants</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={s.actionBtn} onPress={() => removeJob(item.id)} activeOpacity={0.8}>
@@ -282,4 +402,5 @@ const s = StyleSheet.create({
   empty: { alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 8 },
   emptyText: { fontSize: 16, fontWeight: '700' },
   emptyHint: { fontSize: 13 },
+  loadingText: { fontSize: 14, fontWeight: '600' },
 });
