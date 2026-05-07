@@ -200,7 +200,7 @@ function ConversationScreen({
   onBack,
   tabBarHeight,
 }: {
-  applicant: typeof PIPELINE[number];
+  applicant: Match;
   onBack: () => void;
   tabBarHeight: number;
 }) {
@@ -569,7 +569,7 @@ export default function CompanyMatchesScreen() {
     return (
       <View style={[s.screen, { paddingTop: topInset, backgroundColor: T.bg, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
         <StatusBar barStyle={T.bg === '#f5f3ff' ? 'dark-content' : 'light-content'} />
-        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={T.rose} />
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={T.danger} />
         <Text style={{ color: T.textPrimary, fontSize: 18, fontWeight: '700', marginTop: 16 }}>Failed to load matches</Text>
         <Text style={{ color: T.textSub, fontSize: 14, marginTop: 8, textAlign: 'center' }}>{error}</Text>
         <TouchableOpacity
@@ -860,7 +860,7 @@ export default function CompanyMatchesScreen() {
                 </View>
               </>
             ) : (
-              CLOSED_APPLICANTS.length === 0 ? (
+              closedMatches.length === 0 ? (
                 <View style={s.reviewsEmptyWrap}>
                   <MaterialCommunityIcons name="star-off-outline" size={40} color={T.borderFaint} />
                   <Text style={[s.reviewsEmptyTitle, { color: T.textSub }]}>No closed conversations yet</Text>
@@ -874,7 +874,7 @@ export default function CompanyMatchesScreen() {
                     <Text style={[s.sectionTitle, { color: T.textPrimary }]}>Closed conversations</Text>
                   </View>
                   <View style={[s.card, { backgroundColor: T.surface, borderColor: T.borderFaint }]}>
-                    {CLOSED_APPLICANTS.map((app, i) => {
+                    {closedMatches.map((app: Match, i: number) => {
                       const appReviews = submittedReviews.filter(r => r.applicantId === app.id);
                       return (
                         <View key={app.id}>
