@@ -139,11 +139,11 @@ class ProfileOnboardingService
             'location' => null,
             'location_city' => null,
             'location_region' => null,
-            'skills' => [],
+            'skills' => ['hard_skills' => [], 'soft_skills' => []],
+            'job_preferences' => null,
             'work_experience' => [],
             'education' => [],
             'social_links' => [],
-            'completed_profile_fields' => [],
             'notification_preferences' => [],
             'onboarding_step' => 1,
             'onboarding_completed_at' => null,
@@ -303,12 +303,36 @@ class ProfileOnboardingService
 
     private function completeApplicantStepSkills(string $userId, array $data): void
     {
-        if (! isset($data['skills']) || ! is_array($data['skills']) || count($data['skills']) < 1) {
+        // Accept both nested structure and flat array for backward compatibility
+        if (isset($data['skills']['hard_skills']) || isset($data['skills']['soft_skills'])) {
+            // New nested structure
+            $skillsData = [
+                'hard_skills' => $data['skills']['hard_skills'] ?? [],
+                'soft_skills' => $data['skills']['soft_skills'] ?? [],
+            ];
+        } elseif (isset($data['hard_skills']) || isset($data['soft_skills'])) {
+            // Direct hard_skills/soft_skills in data
+            $skillsData = [
+                'hard_skills' => $data['hard_skills'] ?? [],
+                'soft_skills' => $data['soft_skills'] ?? [],
+            ];
+        } elseif (isset($data['skills']) && is_array($data['skills'])) {
+            // Legacy flat array - treat all as hard skills
+            $skillsData = [
+                'hard_skills' => array_values($data['skills']),
+                'soft_skills' => [],
+            ];
+        } else {
+            throw new InvalidArgumentException('STEP_DATA_INVALID');
+        }
+
+        // Validate at least one skill
+        if (empty($skillsData['hard_skills']) && empty($skillsData['soft_skills'])) {
             throw new InvalidArgumentException('STEP_DATA_INVALID');
         }
 
         $profile = $this->ensureApplicantDocument($userId);
-        $this->applicantDocs->update($profile, ['skills' => array_values($data['skills'])]);
+        $this->applicantDocs->update($profile, ['skills' => $skillsData]);
     }
 
     private function completeApplicantStepExperienceEducation(string $userId, array $data): void

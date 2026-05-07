@@ -15,6 +15,7 @@ type Props = {
   inputRowStyle: any;
   inputStyle: any;
   autoDetected?: boolean;
+  userEmail: string;
   onBack: () => void;
   onChangeInviteCode: (value: string) => void;
   onVerify: () => void;
@@ -31,6 +32,7 @@ export function RegisterInviteCodeScreen({
   inputRowStyle,
   inputStyle,
   autoDetected = false,
+  userEmail,
   onBack,
   onChangeInviteCode,
   onVerify,
