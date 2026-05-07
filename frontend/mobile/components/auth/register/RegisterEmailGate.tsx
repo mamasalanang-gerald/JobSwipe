@@ -1,9 +1,9 @@
 import { Link } from 'expo-router';
-import React from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StatusBar, Text, TouchableOpacity, View, Animated, Easing } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { SvgXml } from 'react-native-svg';
-import { Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
+import { useRef, useEffect } from 'react';
+import { OrbBackground, AnimatedField } from './SharedAuthComponents';
 import type { Role } from './types';
 
 const GOOGLE_ICON_SVG = `
@@ -23,6 +23,7 @@ function GoogleIcon() {
 type Props = {
   T: any;
   topInset: number;
+  bottomInset: number;
   role: Role;
   email: string;
   error: string;
@@ -38,174 +39,238 @@ type Props = {
 };
 
 export function RegisterEmailGate({
-  T,
   topInset,
+  bottomInset,
   role,
   email,
   error,
   googleLoading = false,
-  fieldLabelStyle,
-  inputRowStyle,
-  inputStyle,
   onBack,
   onChangeEmail,
   onContinue,
   onGoogleRegister,
   onInviteCode,
 }: Props) {
+  const sheetSlide = useRef(new Animated.Value(80)).current;
+  const sheetOpacity = useRef(new Animated.Value(0)).current;
+  const arrowNudge = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(sheetSlide, {
+        toValue: 0, duration: 700, delay: 100,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+      Animated.timing(sheetOpacity, {
+        toValue: 1, duration: 500, delay: 100,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+    ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowNudge, {
+          toValue: 6, duration: 600,
+          easing: Easing.inOut(Easing.sin), useNativeDriver: true,
+        }),
+        Animated.timing(arrowNudge, {
+          toValue: 0, duration: 600,
+          easing: Easing.inOut(Easing.sin), useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" />
-      <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['5'] }}>
-        <TouchableOpacity
-          onPress={onBack}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], alignSelf: 'flex-start' }}
-          activeOpacity={0.7}
-        >
-          <MaterialCommunityIcons name="arrow-left" size={20} color={T.textSub} />
-          <Text style={{ fontSize: Typography.md, color: T.textSub }}>Back</Text>
-        </TouchableOpacity>
-      </View>
+    <OrbBackground>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      
+      <View style={{ flex: 1, justifyContent: 'flex-end' }}>
+        <Animated.View style={{
+          backgroundColor: '#fff',
+          borderTopLeftRadius: 32,
+          borderTopRightRadius: 32,
+          paddingHorizontal: 28,
+          paddingTop: 28,
+          paddingBottom: Math.max(bottomInset, 24) + 8,
+          maxHeight: '85%',
+          transform: [{ translateY: sheetSlide }],
+          opacity: sheetOpacity,
+        }}>
+          {/* Back button */}
+          <TouchableOpacity
+            onPress={onBack}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start', marginBottom: 20 }}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#6b7280" />
+            <Text style={{ fontSize: 14, color: '#6b7280', fontWeight: '600' }}>Back</Text>
+          </TouchableOpacity>
 
-      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={{ fontSize: Typography['2xl'], fontWeight: Typography.bold as any, color: T.textPrimary, letterSpacing: -0.3 }}>
-              Create your account
-            </Text>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, lineHeight: 20 }}>
-              {role === 'applicant'
-                ? 'Start with your email, then we’ll guide you through each applicant onboarding step.'
-                : 'Use your work email to create a company account, or join an existing company with an invite code.'}
-            </Text>
-          </View>
-        </SectionCard>
+          {/* Drag handle */}
+          <View style={{
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: '#e5e7eb',
+            alignSelf: 'center',
+            marginBottom: 24,
+          }} />
 
-        {error ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={T.danger} />
-            <Text style={{ flex: 1, color: T.danger, fontSize: Typography.base }}>{error}</Text>
-          </View>
-        ) : null}
+          <Text style={{
+            fontSize: 24,
+            fontWeight: '800',
+            color: '#111827',
+            letterSpacing: -0.5,
+            marginBottom: 8,
+          }}>
+            Create your account
+          </Text>
+          <Text style={{ fontSize: 14, color: '#6b7280', lineHeight: 22, marginBottom: 24 }}>
+            {role === 'applicant'
+              ? "Start with your email, then we'll guide you through each step."
+              : 'Use your work email to create a company account, or join with an invite code.'}
+          </Text>
 
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Registration Form">
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={fieldLabelStyle}>Email address</Text>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="email-outline" size={16} color={T.textHint} />
-              <TextInput
-                style={inputStyle}
-                placeholder={role === 'hr' ? 'admin@company.com' : 'your.email@example.com'}
-                placeholderTextColor={T.textHint}
-                value={email}
-                onChangeText={onChangeEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-                autoFocus
-              />
+          {/* Error banner */}
+          {!!error && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: 10,
+              backgroundColor: '#FEF2F2',
+              borderWidth: 1,
+              borderColor: '#FECACA',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+            }}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#EF4444" style={{ marginTop: 1 }} />
+              <Text style={{ flex: 1, fontSize: 13, color: '#EF4444', lineHeight: 20 }}>{error}</Text>
             </View>
-            <Text style={{ fontSize: Typography.xs, color: T.textHint }}>
+          )}
+
+          {/* Email field */}
+          <View style={{ marginBottom: 20 }}>
+            <AnimatedField
+              label="Email address"
+              placeholder={role === 'hr' ? 'admin@company.com' : 'your.email@example.com'}
+              value={email}
+              onChangeText={onChangeEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+              autoFocus
+            />
+            <Text style={{ fontSize: 12, color: '#9ca3af', marginTop: 6 }}>
               {role === 'hr' ? 'Use your work email to create a company account.' : "We'll send a verification code to this address."}
             </Text>
           </View>
-        </SectionCard>
 
-        <TouchableOpacity
-          style={{
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: T.primary,
-            borderRadius: Radii.lg,
-            paddingVertical: Spacing['4'],
-            ...Shadows.colored(T.primary),
-          }}
-          onPress={onContinue}
-          activeOpacity={0.85}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-            <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>Continue</Text>
-            <MaterialCommunityIcons name="arrow-right" size={18} color={T.white} />
-          </View>
-        </TouchableOpacity>
-
-        {role === 'applicant' && (
-          <>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] }}>
-              <View style={{ flex: 1, height: 1, backgroundColor: T.border }} />
-              <Text style={{ fontSize: Typography.sm, color: T.textHint }}>or</Text>
-              <View style={{ flex: 1, height: 1, backgroundColor: T.border }} />
-            </View>
-
-            <TouchableOpacity
-              style={{
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexDirection: 'row',
-                gap: Spacing['2'],
-                borderWidth: 1.5,
-                borderColor: T.border,
-                borderRadius: Radii.lg,
-                paddingVertical: Spacing['4'],
-                backgroundColor: T.surface,
-                opacity: googleLoading ? 0.7 : 1,
-              }}
-              onPress={onGoogleRegister}
-              activeOpacity={0.85}
-              disabled={googleLoading}
-            >
-              <GoogleIcon />
-              <Text style={{ fontSize: Typography.md, fontWeight: Typography.semibold as any, color: T.textPrimary }}>
-                {googleLoading ? 'Opening Google...' : 'Continue with Google'}
-              </Text>
-            </TouchableOpacity>
-          </>
-        )}
-
-        {role === 'hr' && (
+          {/* Continue button */}
           <TouchableOpacity
+            onPress={onContinue}
+            activeOpacity={0.88}
             style={{
+              height: 56,
+              borderRadius: 16,
+              backgroundColor: '#8B5CF6',
+              flexDirection: 'row',
               alignItems: 'center',
               justifyContent: 'center',
-              flexDirection: 'row',
-              gap: Spacing['2'],
-              borderWidth: 1.5,
-              borderColor: T.primary,
-              borderRadius: Radii.lg,
-              paddingVertical: Spacing['4'],
-              backgroundColor: T.surface,
+              gap: 10,
+              marginBottom: 16,
+              shadowColor: '#8B5CF6',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.4,
+              shadowRadius: 12,
+              elevation: 6,
             }}
-            onPress={onInviteCode}
-            activeOpacity={0.85}
           >
-            <MaterialCommunityIcons name="ticket-confirmation-outline" size={18} color={T.primary} />
-            <Text style={{ fontSize: Typography.md, fontWeight: Typography.semibold as any, color: T.primary }}>
-              Register via Invite Code
+            <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700', letterSpacing: -0.3 }}>
+              Continue
             </Text>
+            <Animated.Text style={{
+              color: 'rgba(255,255,255,0.8)',
+              fontSize: 18,
+              transform: [{ translateX: arrowNudge }],
+            }}>
+              →
+            </Animated.Text>
           </TouchableOpacity>
-        )}
 
-        <Text style={{ fontSize: Typography.xs, color: T.textHint, textAlign: 'center', lineHeight: 18 }}>
-          By continuing, you agree to our <Text style={{ color: T.primary, fontWeight: Typography.medium as any }}>Terms of Service</Text> and{' '}
-          <Text style={{ color: T.primary, fontWeight: Typography.medium as any }}>Privacy Policy</Text>.
-        </Text>
+          {role === 'applicant' && (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginVertical: 16 }}>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#e5e7eb' }} />
+                <Text style={{ fontSize: 13, color: '#9ca3af' }}>or</Text>
+                <View style={{ flex: 1, height: 1, backgroundColor: '#e5e7eb' }} />
+              </View>
 
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing['2'] }}>
-            <Text style={{ fontSize: Typography.md, color: T.textSub }}>Already have an account?</Text>
+              <TouchableOpacity
+                style={{
+                  height: 56,
+                  borderRadius: 16,
+                  borderWidth: 1.5,
+                  borderColor: '#e5e7eb',
+                  backgroundColor: '#fff',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  opacity: googleLoading ? 0.7 : 1,
+                }}
+                onPress={onGoogleRegister}
+                activeOpacity={0.85}
+                disabled={googleLoading}
+              >
+                <GoogleIcon />
+                <Text style={{ fontSize: 15, fontWeight: '600', color: '#111827' }}>
+                  {googleLoading ? 'Opening Google...' : 'Continue with Google'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          {role === 'hr' && (
+            <TouchableOpacity
+              style={{
+                height: 56,
+                borderRadius: 16,
+                borderWidth: 1.5,
+                borderColor: '#8B5CF6',
+                backgroundColor: '#fff',
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+              }}
+              onPress={onInviteCode}
+              activeOpacity={0.85}
+            >
+              <MaterialCommunityIcons name="ticket-confirmation-outline" size={18} color="#8B5CF6" />
+              <Text style={{ fontSize: 15, fontWeight: '600', color: '#8B5CF6' }}>
+                Register via Invite Code
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center', lineHeight: 18, marginTop: 20 }}>
+            By continuing, you agree to our <Text style={{ color: '#8B5CF6', fontWeight: '600' }}>Terms of Service</Text> and <Text style={{ color: '#8B5CF6', fontWeight: '600' }}>Privacy Policy</Text>.
+          </Text>
+
+          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 5, marginTop: 20 }}>
+            <Text style={{ fontSize: 14, color: '#6b7280' }}>Already have an account?</Text>
             <Link href="/(auth)/login" asChild>
-              <TouchableOpacity>
-                <Text style={{ fontSize: Typography.md, color: T.primary, fontWeight: Typography.semibold as any }}>Sign in</Text>
+              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}>
+                <Text style={{ fontSize: 14, color: '#D8B4FE', fontWeight: '700' }}>
+                  Sign in
+                </Text>
               </TouchableOpacity>
             </Link>
           </View>
-        </SectionCard>
-
-        <Spacer size="xl" />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </Animated.View>
+      </View>
+    </OrbBackground>
   );
 }

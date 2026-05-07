@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { router } from 'expo-router';
-import { KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { Image } from 'react-native';
+import { Animated, Easing, KeyboardAvoidingView, Platform, ScrollView, StatusBar, Text, TouchableOpacity, View, Image } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { Divider, Radii, SectionCard, Shadows, Spacer, Spacing, Typography } from '../../ui';
+import { OrbBackground, AnimatedField } from './SharedAuthComponents';
 import type { AuthRole } from '../../../store/authStore';
 import { api } from '../../../services/api';
 
@@ -50,17 +49,59 @@ export function HRInviteRegistrationForm({
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const arrowAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+        Animated.timing(arrowAnim, {
+          toValue: 0,
+          duration: 800,
+          easing: Easing.inOut(Easing.ease),
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
+
+  const arrowTranslate = arrowAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 4],
+  });
+
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
   const hasMinLength = password.length >= 8;
   const strengthLevel =
     password.length === 0 ? null : !hasMinLength || !hasUppercase || !hasNumber ? 'weak' : password.length < 12 ? 'good' : 'strong';
-  const strengthColor = strengthLevel === 'weak' ? T.danger : strengthLevel === 'good' ? T.warning : T.success;
+  const strengthColor = strengthLevel === 'weak' ? '#EF4444' : strengthLevel === 'good' ? '#F59E0B' : '#10B981';
   const resolvedTitle = jobTitle === 'Custom' ? customJobTitle.trim() : jobTitle;
 
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
@@ -129,95 +170,149 @@ export function HRInviteRegistrationForm({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" />
-      <View style={{ paddingHorizontal: Spacing['5'], paddingTop: Spacing['4'], paddingBottom: Spacing['3'] }}>
-        <TouchableOpacity onPress={onBack} style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], alignSelf: 'flex-start' }} activeOpacity={0.7}>
-          <MaterialCommunityIcons name="arrow-left" size={20} color={T.textSub} />
-          <Text style={{ fontSize: Typography.md, color: T.textSub }}>Back</Text>
-        </TouchableOpacity>
-      </View>
+    <OrbBackground>
+      <KeyboardAvoidingView
+        style={{ flex: 1, paddingTop: topInset }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <StatusBar barStyle="light-content" />
+        
+        {/* Back Button */}
+        <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 12 }}>
+          <TouchableOpacity
+            onPress={onBack}
+            style={{ flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'flex-start' }}
+            activeOpacity={0.7}
+          >
+            <MaterialCommunityIcons name="arrow-left" size={20} color="#FFFFFF" />
+            <Text style={{ fontSize: 14, color: '#FFFFFF', fontWeight: '500' }}>Back</Text>
+          </TouchableOpacity>
+        </View>
 
-      <ScrollView contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['4'] }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        {detectedCompany && (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], backgroundColor: T.primary + '18', borderWidth: 1, borderColor: T.primary + '33', borderRadius: Radii.lg, paddingHorizontal: Spacing['4'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="office-building" size={20} color={T.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: Typography.sm, fontWeight: Typography.semibold as any, color: T.primary }}>
-                Joining {detectedCompany.name}
+        {/* Bottom Sheet */}
+        <Animated.View
+          style={{
+            flex: 1,
+            backgroundColor: '#FFFFFF',
+            borderTopLeftRadius: 32,
+            borderTopRightRadius: 32,
+            transform: [{ translateY: slideAnim }],
+            opacity: fadeAnim,
+          }}
+        >
+          <ScrollView
+            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24, gap: 24 }}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {/* Company Badge */}
+            {detectedCompany && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#F3E8FF', borderWidth: 1, borderColor: '#E9D5FF', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 12 }}>
+                <MaterialCommunityIcons name="office-building" size={20} color="#8B5CF6" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '600', color: '#8B5CF6' }}>
+                    Joining {detectedCompany.name}
+                  </Text>
+                  <Text style={{ fontSize: 12, color: '#6B7280' }}>HR team member via invite</Text>
+                </View>
+                <MaterialCommunityIcons name="check-circle" size={18} color="#10B981" />
+              </View>
+            )}
+
+            {/* Header */}
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 24, fontWeight: '700', color: '#111827', letterSpacing: -0.5 }}>
+                HR registration
               </Text>
-              <Text style={{ fontSize: Typography.xs, color: T.textSub }}>HR team member via invite</Text>
-            </View>
-            <MaterialCommunityIcons name="check-circle" size={18} color={T.success} />
-          </View>
-        )}
-
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ gap: Spacing['1'] }}>
-            <Text style={{ fontSize: Typography['2xl'], fontWeight: Typography.bold as any, color: T.textPrimary, letterSpacing: -0.3 }}>
-              HR registration
-            </Text>
-            <Text style={{ fontSize: Typography.sm, color: T.textSub, lineHeight: 20 }}>
-              Finish your invite-based registration to join the company team.
-            </Text>
-          </View>
-        </SectionCard>
-
-        {formError ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={T.danger} />
-            <Text style={{ flex: 1, color: T.danger, fontSize: Typography.base }}>{formError}</Text>
-          </View>
-        ) : null}
-
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Personal Info">
-          <View style={{ gap: Spacing['4'] }}>
-            <View style={{ gap: Spacing['1'] }}>
-              <Text style={fieldLabelStyle}>Email</Text>
-              <View style={[inputRowStyle, { backgroundColor: T.surfaceHigh, opacity: 0.7 }]}>
-                <MaterialCommunityIcons name="email-outline" size={16} color={T.textHint} />
-                <Text style={[inputStyle, { color: T.textSub, flex: 1 }]}>{email}</Text>
-                <MaterialCommunityIcons name="lock-outline" size={14} color={T.textHint} />
-              </View>
-              <Text style={{ fontSize: Typography.xs, color: T.textHint }}>Pre-filled from invite and locked</Text>
+              <Text style={{ fontSize: 14, color: '#6B7280', lineHeight: 20 }}>
+                Finish your invite-based registration to join the company team.
+              </Text>
             </View>
 
-            <View style={{ flexDirection: 'row', gap: Spacing['3'] }}>
-              <View style={{ flex: 1, gap: Spacing['2'] }}>
-                <Text style={fieldLabelStyle}>First name *</Text>
-                <View style={inputRowStyle}>
-                  <MaterialCommunityIcons name="account-outline" size={16} color={T.textHint} />
-                  <TextInput style={inputStyle} placeholder="John" placeholderTextColor={T.textHint} value={firstName} onChangeText={setFirstName} />
-                </View>
+            {/* Error Banner */}
+            {formError ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FEF2F2', borderWidth: 1, borderColor: '#FECACA', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 12 }}>
+                <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#EF4444" />
+                <Text style={{ flex: 1, color: '#EF4444', fontSize: 13 }}>{formError}</Text>
               </View>
-              <View style={{ flex: 1, gap: Spacing['2'] }}>
-                <Text style={fieldLabelStyle}>Last name *</Text>
-                <View style={inputRowStyle}>
-                  <MaterialCommunityIcons name="account-outline" size={16} color={T.textHint} />
-                  <TextInput style={inputStyle} placeholder="Doe" placeholderTextColor={T.textHint} value={lastName} onChangeText={setLastName} />
-                </View>
+            ) : null}
+
+            {/* Email (locked) */}
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, textTransform: 'uppercase' }}>
+                EMAIL
+              </Text>
+              <View style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#F3F4F6',
+                borderWidth: 1.5,
+                borderColor: '#E5E7EB',
+                borderRadius: 14,
+                paddingHorizontal: 16,
+                paddingVertical: 15,
+                gap: 10,
+                opacity: 0.7,
+              }}>
+                <MaterialCommunityIcons name="email-outline" size={16} color="#9CA3AF" />
+                <Text style={{ flex: 1, fontSize: 14, color: '#6B7280' }}>{email}</Text>
+                <MaterialCommunityIcons name="lock-outline" size={14} color="#9CA3AF" />
+              </View>
+              <Text style={{ fontSize: 11, color: '#9CA3AF' }}>Pre-filled from invite and locked</Text>
+            </View>
+
+            {/* Name Fields */}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <View style={{ flex: 1 }}>
+                <AnimatedField
+                  label="First name"
+                  placeholder="John"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <AnimatedField
+                  label="Last name"
+                  placeholder="Doe"
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                />
               </View>
             </View>
 
-            <Divider spacing={Spacing['1']} />
-
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Job title *</Text>
-              <TouchableOpacity style={[inputRowStyle, { justifyContent: 'space-between' }]} onPress={() => setShowJobTitleDropdown((value) => !value)}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], flex: 1 }}>
-                  <MaterialCommunityIcons name="briefcase-outline" size={16} color={T.textHint} />
-                  <Text style={{ color: resolvedTitle ? T.textPrimary : T.textHint, fontSize: Typography.md }}>
+            {/* Job Title */}
+            <View style={{ gap: 6 }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, textTransform: 'uppercase' }}>
+                JOB TITLE *
+              </Text>
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  backgroundColor: '#F9FAFB',
+                  borderWidth: 1.5,
+                  borderColor: '#E5E7EB',
+                  borderRadius: 14,
+                  paddingHorizontal: 16,
+                  paddingVertical: 15,
+                }}
+                onPress={() => setShowJobTitleDropdown(!showJobTitleDropdown)}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                  <MaterialCommunityIcons name="briefcase-outline" size={16} color="#9CA3AF" />
+                  <Text style={{ color: resolvedTitle ? '#111827' : '#9CA3AF', fontSize: 14 }}>
                     {resolvedTitle || 'Select or type your title'}
                   </Text>
                 </View>
-                <MaterialCommunityIcons name={showJobTitleDropdown ? 'chevron-up' : 'chevron-down'} size={18} color={T.textHint} />
+                <MaterialCommunityIcons name={showJobTitleDropdown ? 'chevron-up' : 'chevron-down'} size={18} color="#9CA3AF" />
               </TouchableOpacity>
 
               {showJobTitleDropdown && (
-                <View style={{ gap: Spacing['2'], backgroundColor: T.surfaceHigh, borderRadius: Radii.lg, padding: Spacing['2'] }}>
+                <View style={{ gap: 8, backgroundColor: '#F9FAFB', borderRadius: 14, padding: 8 }}>
                   {jobTitleOptions.map((option) => (
                     <TouchableOpacity
                       key={option}
@@ -225,118 +320,119 @@ export function HRInviteRegistrationForm({
                         setJobTitle(option);
                         setShowJobTitleDropdown(false);
                       }}
-                      style={{ paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'], borderRadius: Radii.md }}
+                      style={{ paddingHorizontal: 12, paddingVertical: 12, borderRadius: 10 }}
                     >
-                      <Text style={{ fontSize: Typography.sm, color: T.textPrimary }}>{option}</Text>
+                      <Text style={{ fontSize: 14, color: '#111827' }}>{option}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
               )}
 
               {jobTitle === 'Custom' && (
-                <View style={inputRowStyle}>
-                  <MaterialCommunityIcons name="pencil-outline" size={16} color={T.textHint} />
-                  <TextInput
-                    style={inputStyle}
-                    placeholder="Enter custom job title"
-                    placeholderTextColor={T.textHint}
-                    value={customJobTitle}
-                    onChangeText={setCustomJobTitle}
-                  />
-                </View>
+                <AnimatedField
+                  label=""
+                  placeholder="Enter custom job title"
+                  value={customJobTitle}
+                  onChangeText={setCustomJobTitle}
+                />
               )}
             </View>
 
-            <Divider spacing={Spacing['1']} />
-
-            <View style={{ gap: Spacing['2'] }}>
-              <Text style={fieldLabelStyle}>Profile photo</Text>
-              <View style={{ alignItems: 'center', gap: Spacing['2'] }}>
+            {/* Profile Photo */}
+            <View style={{ gap: 8 }}>
+              <Text style={{ fontSize: 10, fontWeight: '700', color: '#9CA3AF', letterSpacing: 1, textTransform: 'uppercase' }}>
+                PROFILE PHOTO
+              </Text>
+              <View style={{ alignItems: 'center', gap: 12 }}>
                 <TouchableOpacity
                   onPress={pickPhoto}
-                  style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: T.surfaceHigh, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: profilePhoto ? T.primary : T.border }}
+                  style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', borderWidth: 2, borderColor: profilePhoto ? '#8B5CF6' : '#E5E7EB' }}
                 >
-                  {profilePhoto ? <Image source={{ uri: profilePhoto.uri }} style={{ width: 72, height: 72 }} /> : <MaterialCommunityIcons name="account" size={36} color={T.textHint} />}
+                  {profilePhoto ? <Image source={{ uri: profilePhoto.uri }} style={{ width: 80, height: 80 }} /> : <MaterialCommunityIcons name="account" size={40} color="#9CA3AF" />}
                 </TouchableOpacity>
-                <TouchableOpacity onPress={pickPhoto} style={{ alignItems: 'center' }} activeOpacity={0.7}>
-                  <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.semibold as any }}>{profilePhoto ? 'Change photo' : 'Upload photo'}</Text>
+                <TouchableOpacity onPress={pickPhoto} activeOpacity={0.7}>
+                  <Text style={{ fontSize: 14, color: '#8B5CF6', fontWeight: '600' }}>{profilePhoto ? 'Change photo' : 'Upload photo'}</Text>
                 </TouchableOpacity>
                 {profilePhoto && (
-                  <TouchableOpacity onPress={() => setProfilePhoto(null)} style={{ alignItems: 'center' }} activeOpacity={0.7}>
-                    <Text style={{ fontSize: Typography.xs, color: T.danger }}>Remove</Text>
+                  <TouchableOpacity onPress={() => setProfilePhoto(null)} activeOpacity={0.7}>
+                    <Text style={{ fontSize: 12, color: '#EF4444' }}>Remove</Text>
                   </TouchableOpacity>
                 )}
               </View>
             </View>
-          </View>
-        </SectionCard>
 
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Create Password">
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={fieldLabelStyle}>Password</Text>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="lock-outline" size={16} color={T.textHint} />
-              <TextInput
-                style={[inputStyle, { flex: 1 }]}
-                placeholder="At least 8 chars, 1 uppercase, 1 number"
-                placeholderTextColor={T.textHint}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity onPress={() => setShowPassword((value) => !value)}>
-                <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={T.textHint} />
-              </TouchableOpacity>
-            </View>
+            {/* Password Fields */}
+            <AnimatedField
+              label="Password"
+              placeholder="At least 8 chars, 1 uppercase, 1 number"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              right={
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+              }
+            />
             {strengthLevel && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] }}>
-                <View style={{ flex: 1, height: 3, backgroundColor: T.surfaceHigh, borderRadius: Radii.full, overflow: 'hidden' }}>
-                  <View style={{ height: '100%', borderRadius: Radii.full, backgroundColor: strengthColor, width: strengthLevel === 'weak' ? '33%' : strengthLevel === 'good' ? '66%' : '100%' }} />
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: -16 }}>
+                <View style={{ flex: 1, height: 3, backgroundColor: '#E5E7EB', borderRadius: 999, overflow: 'hidden' }}>
+                  <View style={{ height: '100%', borderRadius: 999, backgroundColor: strengthColor, width: strengthLevel === 'weak' ? '33%' : strengthLevel === 'good' ? '66%' : '100%' }} />
                 </View>
-                <Text style={{ fontSize: Typography.xs, color: strengthColor, fontWeight: Typography.semibold as any, minWidth: 36 }}>
+                <Text style={{ fontSize: 11, color: strengthColor, fontWeight: '600', minWidth: 40 }}>
                   {strengthLevel === 'weak' ? 'Weak' : strengthLevel === 'good' ? 'Good' : 'Strong'}
                 </Text>
               </View>
             )}
 
-            <Divider spacing={Spacing['2']} />
+            <AnimatedField
+              label="Confirm password"
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirm}
+              autoCapitalize="none"
+              right={
+                <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
+                  <MaterialCommunityIcons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+              }
+            />
 
-            <Text style={fieldLabelStyle}>Confirm password</Text>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="lock-check-outline" size={16} color={T.textHint} />
-              <TextInput
-                style={[inputStyle, { flex: 1 }]}
-                placeholder="Re-enter your password"
-                placeholderTextColor={T.textHint}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showConfirm}
-              />
-              <TouchableOpacity onPress={() => setShowConfirm((value) => !value)}>
-                <MaterialCommunityIcons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={18} color={T.textHint} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        </SectionCard>
-
-        <TouchableOpacity
-          style={{ alignItems: 'center', justifyContent: 'center', backgroundColor: T.primary, borderRadius: Radii.lg, paddingVertical: Spacing['4'], opacity: submitting ? 0.6 : 1, ...Shadows.colored(T.primary) }}
-          onPress={handleSubmit}
-          activeOpacity={0.85}
-          disabled={submitting}
-        >
-          {submitting ? (
-            <MaterialCommunityIcons name="loading" size={18} color={T.white} />
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'] }}>
-              <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>Create account</Text>
-              <MaterialCommunityIcons name="check" size={18} color={T.white} />
-            </View>
-          )}
-        </TouchableOpacity>
-
-        <Spacer size="xl" />
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#8B5CF6',
+                borderRadius: 16,
+                paddingVertical: 16,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: submitting ? 0.6 : 1,
+                shadowColor: '#8B5CF6',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.3,
+                shadowRadius: 8,
+                elevation: 4,
+              }}
+              onPress={handleSubmit}
+              activeOpacity={0.85}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <MaterialCommunityIcons name="loading" size={18} color="#FFFFFF" />
+              ) : (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Create account</Text>
+                  <Animated.View style={{ transform: [{ translateX: arrowTranslate }] }}>
+                    <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
+                  </Animated.View>
+                </View>
+              )}
+            </TouchableOpacity>
+          </ScrollView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </OrbBackground>
   );
 }
