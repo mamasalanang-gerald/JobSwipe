@@ -106,7 +106,7 @@ services:
     environment:
       - REDIS_HOSTS=local:redis:6379:0:${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     ports:
-      - '8081:8081'
+      - '8083:8081'
     networks:
       - jobapp_network
     depends_on:

@@ -10,6 +10,7 @@ import { api } from '../../../services/api';
 type Props = {
   T: any;
   topInset: number;
+  bottomInset: number;
   email: string;
   detectedCompany: { name: string; validCodes: string[] } | null;
   fieldLabelStyle: any;
@@ -17,14 +18,20 @@ type Props = {
   inputStyle: any;
   jobTitleOptions: string[];
   setToken: (token: string, role?: AuthRole | null) => Promise<void>;
-  inviteCode: string;
   onOtpSent: () => void;
   onBack: () => void;
+  onNeedInviteCode: (formData: {
+    firstName: string;
+    lastName: string;
+    jobTitle: string;
+    password: string;
+  }) => void;
 };
 
 export function HRInviteRegistrationForm({
   T,
   topInset,
+  bottomInset,
   email,
   detectedCompany,
   fieldLabelStyle,
@@ -32,9 +39,9 @@ export function HRInviteRegistrationForm({
   inputStyle,
   jobTitleOptions,
   setToken,
-  inviteCode,
   onOtpSent,
   onBack,
+  onNeedInviteCode,
 }: Props) {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -93,9 +100,16 @@ export function HRInviteRegistrationForm({
 
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>[\]\\/\-_+=~`';]/.test(password);
   const hasMinLength = password.length >= 8;
   const strengthLevel =
-    password.length === 0 ? null : !hasMinLength || !hasUppercase || !hasNumber ? 'weak' : password.length < 12 ? 'good' : 'strong';
+    password.length === 0 
+      ? null 
+      : !hasMinLength || !hasUppercase || !hasNumber || !hasSpecialChar
+        ? 'weak' 
+        : password.length < 12 
+          ? 'good' 
+          : 'strong';
   const strengthColor = strengthLevel === 'weak' ? '#EF4444' : strengthLevel === 'good' ? '#F59E0B' : '#10B981';
   const resolvedTitle = jobTitle === 'Custom' ? customJobTitle.trim() : jobTitle;
 
@@ -142,31 +156,22 @@ export function HRInviteRegistrationForm({
       setFormError('Password must contain at least 1 number.');
       return;
     }
+    if (!hasSpecialChar) {
+      setFormError('Password must contain at least 1 special character (!@#$%^&*(),.?":{}|<>[]\\/-_+=~`\';).');
+      return;
+    }
     if (password !== confirmPassword) {
       setFormError('Passwords do not match.');
       return;
     }
 
-    setSubmitting(true);
-    try {
-      const data = await api.post('/auth/register', {
-        email,
-        password,
-        role: 'hr',
-        company_invite_token: inviteCode,
-      }) as unknown as { token?: string };
-
-      if (data?.token) {
-        await setToken(data.token, 'hr');
-        router.replace('/(company-tabs)');
-      } else {
-        onOtpSent();
-      }
-    } catch (err: any) {
-      setFormError(err?.message || 'Registration failed. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+    // All validation passed - now ask for invite code
+    onNeedInviteCode({
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      jobTitle: resolvedTitle,
+      password,
+    });
   };
 
   return (
@@ -201,7 +206,7 @@ export function HRInviteRegistrationForm({
           }}
         >
           <ScrollView
-            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 24, gap: 24 }}
+            contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: Math.max(bottomInset, 24) + 24, gap: 24 }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -260,6 +265,45 @@ export function HRInviteRegistrationForm({
               </View>
               <Text style={{ fontSize: 11, color: '#9CA3AF' }}>Pre-filled from invite and locked</Text>
             </View>
+
+            {/* Password Fields */}
+            <AnimatedField
+              label="Password"
+              placeholder="8+ chars, uppercase, number, special char"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              right={
+                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                  <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+              }
+            />
+            {strengthLevel && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: -16 }}>
+                <View style={{ flex: 1, height: 3, backgroundColor: '#E5E7EB', borderRadius: 999, overflow: 'hidden' }}>
+                  <View style={{ height: '100%', borderRadius: 999, backgroundColor: strengthColor, width: strengthLevel === 'weak' ? '33%' : strengthLevel === 'good' ? '66%' : '100%' }} />
+                </View>
+                <Text style={{ fontSize: 11, color: strengthColor, fontWeight: '600', minWidth: 40 }}>
+                  {strengthLevel === 'weak' ? 'Weak' : strengthLevel === 'good' ? 'Good' : 'Strong'}
+                </Text>
+              </View>
+            )}
+
+            <AnimatedField
+              label="Confirm password"
+              placeholder="Re-enter your password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry={!showConfirm}
+              autoCapitalize="none"
+              right={
+                <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
+                  <MaterialCommunityIcons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
+                </TouchableOpacity>
+              }
+            />
 
             {/* Name Fields */}
             <View style={{ flexDirection: 'row', gap: 12 }}>
@@ -361,45 +405,6 @@ export function HRInviteRegistrationForm({
               </View>
             </View>
 
-            {/* Password Fields */}
-            <AnimatedField
-              label="Password"
-              placeholder="At least 8 chars, 1 uppercase, 1 number"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              right={
-                <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                  <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
-                </TouchableOpacity>
-              }
-            />
-            {strengthLevel && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: -16 }}>
-                <View style={{ flex: 1, height: 3, backgroundColor: '#E5E7EB', borderRadius: 999, overflow: 'hidden' }}>
-                  <View style={{ height: '100%', borderRadius: 999, backgroundColor: strengthColor, width: strengthLevel === 'weak' ? '33%' : strengthLevel === 'good' ? '66%' : '100%' }} />
-                </View>
-                <Text style={{ fontSize: 11, color: strengthColor, fontWeight: '600', minWidth: 40 }}>
-                  {strengthLevel === 'weak' ? 'Weak' : strengthLevel === 'good' ? 'Good' : 'Strong'}
-                </Text>
-              </View>
-            )}
-
-            <AnimatedField
-              label="Confirm password"
-              placeholder="Re-enter your password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry={!showConfirm}
-              autoCapitalize="none"
-              right={
-                <TouchableOpacity onPress={() => setShowConfirm(!showConfirm)}>
-                  <MaterialCommunityIcons name={showConfirm ? 'eye-off-outline' : 'eye-outline'} size={18} color="#9CA3AF" />
-                </TouchableOpacity>
-              }
-            />
-
             {/* Submit Button */}
             <TouchableOpacity
               style={{
@@ -423,9 +428,9 @@ export function HRInviteRegistrationForm({
                 <MaterialCommunityIcons name="loading" size={18} color="#FFFFFF" />
               ) : (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Create account</Text>
+                  <Text style={{ color: '#FFFFFF', fontSize: 16, fontWeight: '600' }}>Continue</Text>
                   <Animated.View style={{ transform: [{ translateX: arrowTranslate }] }}>
-                    <MaterialCommunityIcons name="check" size={18} color="#FFFFFF" />
+                    <MaterialCommunityIcons name="arrow-right" size={18} color="#FFFFFF" />
                   </Animated.View>
                 </View>
               )}
