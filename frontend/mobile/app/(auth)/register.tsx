@@ -173,6 +173,12 @@ export default function RegisterScreen() {
   const [isInvitedHR, setIsInvitedHR] = useState(false);
   const [pendingAuthRole, setPendingAuthRole] = useState<'applicant' | 'hr' | 'company_admin' | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number; fileName: string } | null>(null);
+  const [hrFormData, setHrFormData] = useState<{
+    firstName: string;
+    lastName: string;
+    jobTitle: string;
+    password: string;
+  } | null>(null);
 
   // Entrance animations (matches login)
   const heroOpacity  = useRef(new Animated.Value(0)).current;
@@ -210,9 +216,16 @@ export default function RegisterScreen() {
 
   const hasUppercase = /[A-Z]/.test(password);
   const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>[\]\\/\-_+=~`';]/.test(password);
   const hasMinLength = password.length >= 8;
   const strengthLevel =
-    password.length === 0 ? null : !hasMinLength || !hasUppercase || !hasNumber ? 'weak' : password.length < 12 ? 'good' : 'strong';
+    password.length === 0 
+      ? null 
+      : !hasMinLength || !hasUppercase || !hasNumber || !hasSpecialChar
+        ? 'weak' 
+        : password.length < 12 
+          ? 'good' 
+          : 'strong';
   const strengthColor = strengthLevel === 'weak' ? '#EF4444' : strengthLevel === 'good' ? '#F59E0B' : '#10B981';
 
   // Input styles now match the white sheet of the login page
@@ -442,6 +455,7 @@ export default function RegisterScreen() {
       if (!hasMinLength) return setError('Password must be at least 8 characters.'), false;
       if (!hasUppercase) return setError('Password must contain at least 1 uppercase letter.'), false;
       if (!hasNumber) return setError('Password must contain at least 1 number.'), false;
+      if (!hasSpecialChar) return setError('Password must contain at least 1 special character (!@#$%^&*(),.?":{}|<>[]\\/-_+=~`\';).'), false;
     }
     if (stepKey === 'basic' && (!firstName || !lastName || !location)) return setError('First name, last name, and location are required.'), false;
     if (stepKey === 'resume' && !resumeFile) return setError('Please upload your resume before continuing.'), false;
@@ -767,13 +781,49 @@ export default function RegisterScreen() {
         onChangeInviteCode={(value) => { setInviteCode(value); setInviteError(''); }}
         onVerify={async () => {
           if (!inviteCode.trim()) { setInviteError('Please enter your invite code.'); return; }
-          try {
-            const data = await api.post('/company/invites/validate', { email, token: inviteCode.trim() }) as { company_name: string; role: string; valid: boolean };
-            if (data.valid) {
-              setDetectedCompany({ name: data.company_name, validCodes: [] });
-              setIsInvitedHR(true); setShowInvitePrompt(false); setEmailDone(true);
-            } else { setInviteError('Invalid invite code. Please check with your company admin.'); }
-          } catch { setInviteError('Invalid invite code. Please check with your company admin.'); }
+          
+          // If we have HR form data, this is the final step - register the user
+          if (hrFormData) {
+            setLoading(true);
+            try {
+              // Validate invite code
+              const validationData = await api.post('/company/invites/validate', { email, token: inviteCode.trim() }) as { company_name: string; role: string; valid: boolean };
+              if (!validationData.valid) {
+                setInviteError('Invalid invite code. Please check with your company admin.');
+                setLoading(false);
+                return;
+              }
+
+              // Register with the saved form data
+              const data = await api.post('/auth/register', {
+                email,
+                password: hrFormData.password,
+                role: 'hr',
+                company_invite_token: inviteCode.trim(),
+              }) as unknown as { token?: string };
+
+              if (data?.token) {
+                await setToken(data.token, 'hr');
+                router.replace('/(company-tabs)');
+              } else {
+                setOtpSent(true);
+                setShowInvitePrompt(false);
+              }
+            } catch (err: any) {
+              setInviteError(err?.message || 'Invalid invite code. Please check with your company admin.');
+            } finally {
+              setLoading(false);
+            }
+          } else {
+            // Original flow - just validate and show HR form
+            try {
+              const data = await api.post('/company/invites/validate', { email, token: inviteCode.trim() }) as { company_name: string; role: string; valid: boolean };
+              if (data.valid) {
+                setDetectedCompany({ name: data.company_name, validCodes: [] });
+                setIsInvitedHR(true); setShowInvitePrompt(false); setEmailDone(true);
+              } else { setInviteError('Invalid invite code. Please check with your company admin.'); }
+            } catch { setInviteError('Invalid invite code. Please check with your company admin.'); }
+          }
         }}
         onRequestInvite={() => {
           setInviteError('');
@@ -799,14 +849,19 @@ export default function RegisterScreen() {
     );
   }
 
-  if (isInvitedHR && emailDone) {
+  if (isInvitedHR && emailDone && !showInvitePrompt) {
     return (
       <HRInviteRegistrationForm
-        T={T} topInset={topInset} email={email} detectedCompany={detectedCompany}
+        T={T} topInset={topInset} bottomInset={bottomInset} email={email} detectedCompany={detectedCompany}
         fieldLabelStyle={fieldLabelStyle} inputRowStyle={inputRowStyle} inputStyle={inputStyle}
-        jobTitleOptions={JOB_TITLE_OPTIONS} setToken={setToken} inviteCode={inviteCode}
+        jobTitleOptions={JOB_TITLE_OPTIONS} setToken={setToken}
         onOtpSent={() => { setError(''); setOtpCode(''); setIsInvitedHR(false); setOtpSent(true); }}
-        onBack={() => { setEmailDone(false); setIsInvitedHR(false); setInviteCode(''); setInviteError(''); setShowInvitePrompt(false); }}
+        onBack={() => { setEmailDone(false); setIsInvitedHR(false); setInviteCode(''); setInviteError(''); setShowInvitePrompt(false); setHrFormData(null); }}
+        onNeedInviteCode={(formData) => {
+          // Save form data and show invite code screen
+          setHrFormData(formData);
+          setShowInvitePrompt(true);
+        }}
       />
     );
   }
@@ -820,11 +875,53 @@ export default function RegisterScreen() {
         onBack={() => { resetForm(); setRoleSelected(false); }}
         onChangeEmail={setEmail}
         onGoogleRegister={() => { void handleGoogleRegister(); }}
-        onContinue={() => {
+        onContinue={async () => {
           const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
           if (!email) { setError('Please enter your email address.'); return; }
           if (!emailRegex.test(email)) { setError('Please enter a valid email address.'); return; }
-          setError(''); setEmailDone(true);
+          
+          // For company/HR role, check if email domain already has a company
+          if (role === 'hr') {
+            setLoading(true);
+            try {
+              console.log('Checking company domain for email:', email);
+              const result = await api.post('/auth/check-company-domain', { email }) as { 
+                company_exists: boolean; 
+                company_name?: string; 
+                requires_invite: boolean 
+              };
+              
+              console.log('Company domain check result:', result);
+              
+              if (result.company_exists && result.requires_invite) {
+                // Company exists - go directly to HR invite form (skip invite code screen)
+                console.log('Company exists, going to HR invite form');
+                const companyName = result.company_name || 'this company';
+                setDetectedCompany({ name: companyName, validCodes: [] });
+                setIsInvitedHR(true);
+                setEmailDone(true); // This will show the HR invite form
+                setError('');
+                setLoading(false);
+                return;
+              } else {
+                // No company exists - proceed to normal company admin registration
+                console.log('No company exists, proceeding to company admin registration');
+                setError('');
+                setEmailDone(true);
+              }
+            } catch (err: any) {
+              // On error, proceed to normal registration flow
+              console.error('Error checking company domain:', err);
+              console.error('Error details:', JSON.stringify(err, null, 2));
+              setError('');
+              setEmailDone(true);
+            } finally {
+              setLoading(false);
+            }
+          } else {
+            setError('');
+            setEmailDone(true);
+          }
         }}
         onInviteCode={() => { setError(''); setEmail(''); setShowInvitePrompt(true); }}
       />

@@ -58,15 +58,15 @@ function SettingsSheet({
   onSignOut: () => void;
 }) {
   const T = useTheme();
-  const [isLight, setIsLight] = useState(getThemeMode() === 'light');
+  const [isDark, setIsDark] = useState(getThemeMode() === 'dark');
   const [emailNotifs, setEmailNotifs] = useState(true);
   const [pushNotifs, setPushNotifs] = useState(true);
   const [loadingPrefs, setLoadingPrefs] = useState(false);
   const [savingPrefs, setSavingPrefs] = useState(false);
 
   const handleToggle = (val: boolean) => {
-    setIsLight(val);
-    setThemeMode(val ? 'light' : 'dark');
+    setIsDark(val);
+    setThemeMode(val ? 'dark' : 'light');
   };
 
   // Load notification preferences when modal opens
@@ -148,26 +148,26 @@ function SettingsSheet({
         <Text style={[ss.groupLabel, { color: T.textHint }]}>Appearance</Text>
 
         <View style={[ss.row, { backgroundColor: T.surfaceHigh, borderColor: T.border }]}>
-          <View style={[ss.iconWrap, { backgroundColor: isLight ? '#f59e0b18' : T.primary + '18' }]}>
+          <View style={[ss.iconWrap, { backgroundColor: isDark ? T.primary + '18' : '#f59e0b18' }]}>
             <MaterialCommunityIcons
-              name={isLight ? 'weather-sunny' : 'weather-night'}
+              name={isDark ? 'weather-night' : 'weather-sunny'}
               size={18}
-              color={isLight ? '#f59e0b' : T.primary}
+              color={isDark ? T.primary : '#f59e0b'}
             />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[ss.rowLabel, { color: T.textPrimary }]}>
-              {isLight ? 'Light Mode' : 'Dark Mode'}
+              {isDark ? 'Dark Mode' : 'Light Mode'}
             </Text>
             <Text style={[ss.rowSub, { color: T.textHint }]}>
-              {isLight ? 'Bright theme active' : 'Dark theme active'}
+              {isDark ? 'Dark theme active' : 'Bright theme active'}
             </Text>
           </View>
           <Switch
-            value={isLight}
+            value={isDark}
             onValueChange={handleToggle}
-            trackColor={{ false: T.primary + '55', true: '#f59e0b88' }}
-            thumbColor={isLight ? '#f59e0b' : T.primary}
+            trackColor={{ false: '#f59e0b88', true: T.primary + '55' }}
+            thumbColor={isDark ? T.primary : '#f59e0b'}
           />
         </View>
 
@@ -692,7 +692,6 @@ export default function ProfileTab() {
 
   const clearToken = useAuthStore((s) => s.clearToken);
   const handleSignOut = async () => {
-    try { await api.post('/auth/logout', {}); } catch { /* ignore */ }
     await clearToken();
     router.replace('/(auth)/login');
   };

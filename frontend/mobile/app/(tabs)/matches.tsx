@@ -305,20 +305,30 @@ function MessagesList({
   conversations,
   onOpenConversation,
   onOpenReview,
+  hasMatches,
 }: {
   conversations: Conversation[];
   onOpenConversation: (conversationId: MatchId) => void;
   onOpenReview: (companyId: MatchId) => void;
+  hasMatches: boolean;
 }) {
   const T = useTheme();
 
   if (conversations.length === 0) {
     return (
       <View style={styles.emptyState}>
-        <MaterialCommunityIcons name="message-text-outline" size={34} color="rgba(124,58,237,0.24)" />
-        <Text style={styles.emptyTitle}>No conversations yet</Text>
+        <MaterialCommunityIcons 
+          name={hasMatches ? "message-text-outline" : "briefcase-search-outline"} 
+          size={48} 
+          color="rgba(124,58,237,0.24)" 
+        />
+        <Text style={styles.emptyTitle}>
+          {hasMatches ? 'No conversations yet' : 'No matches yet'}
+        </Text>
         <Text style={styles.emptyCopy}>
-          Start a conversation from one of your matches and it will show up here.
+          {hasMatches 
+            ? 'Open a match above to start chatting and build your connection.'
+            : 'Start swiping to discover opportunities that match your profile!'}
         </Text>
       </View>
     );
@@ -1077,19 +1087,27 @@ export default function MatchesTab() {
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={[styles.pageScroll, { paddingBottom: tabBarHeight + 28 }]}
+        contentContainerStyle={[
+          styles.pageScroll, 
+          { paddingBottom: tabBarHeight + 28 },
+          // Center content when there are no matches and no conversations
+          (visibleMatches.length === 0 && visibleConversations.length === 0) && styles.pageScrollCentered
+        ]}
       >
-        <MatchCarousel 
-          matches={visibleMatches} 
-          currentTime={currentTime} 
-          onOpen={openPendingMatch}
-          onDecline={handleDeclineMatch}
-          decliningMatchId={decliningMatchId}
-        />
+        {visibleMatches.length > 0 && (
+          <MatchCarousel 
+            matches={visibleMatches} 
+            currentTime={currentTime} 
+            onOpen={openPendingMatch}
+            onDecline={handleDeclineMatch}
+            decliningMatchId={decliningMatchId}
+          />
+        )}
         <MessagesList
           conversations={visibleConversations}
           onOpenConversation={openConversation}
           onOpenReview={setReviewCompanyId}
+          hasMatches={visibleMatches.length > 0}
         />
       </ScrollView>
     </View>
@@ -1125,6 +1143,11 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   pageScroll: { paddingHorizontal: 20 },
+  pageScrollCentered: { 
+    flexGrow: 1, 
+    justifyContent: 'center',
+    minHeight: Dimensions.get('window').height - 200,
+  },
   sectionRow: {
     marginBottom: 10,
     flexDirection: 'row',
@@ -1243,9 +1266,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     borderRadius: 24,
     paddingHorizontal: 28,
-    paddingVertical: 40,
+    paddingVertical: 50,
     alignItems: 'center',
-    gap: 10,
+    justifyContent: 'center',
+    gap: 12,
   },
   emptyTitle: {
     fontSize: 18,

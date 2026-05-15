@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Image, ScrollView, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, Text, TextInput, TouchableOpacity, View, Platform, Modal } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -197,6 +197,167 @@ function Card({ title, children }: { title?: string; children: React.ReactNode }
     <View style={S.card}>
       {title ? <Text style={S.cardTitle}>{title}</Text> : null}
       {children}
+    </View>
+  );
+}
+
+// Date picker component using custom picker UI
+function DatePickerField({
+  label,
+  value,
+  onChange,
+  fieldLabelStyle,
+  inputRowStyle,
+}: {
+  label: string;
+  value: string;
+  onChange: (date: string) => void;
+  fieldLabelStyle: any;
+  inputRowStyle: any;
+}) {
+  const [showPicker, setShowPicker] = useState(false);
+  const [tempDate, setTempDate] = useState(() => {
+    if (value) {
+      const parsed = new Date(value);
+      return isNaN(parsed.getTime()) ? new Date() : parsed;
+    }
+    return new Date();
+  });
+
+  const formatDate = (d: Date): string => {
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const years = Array.from({ length: 100 }, (_, i) => new Date().getFullYear() - i);
+  const months = Array.from({ length: 12 }, (_, i) => ({
+    value: i,
+    label: String(i + 1).padStart(2, '0')
+  }));
+  const getDaysInMonth = (year: number, month: number) => {
+    return new Date(year, month + 1, 0).getDate();
+  };
+
+  const handleConfirm = () => {
+    onChange(formatDate(tempDate));
+    setShowPicker(false);
+  };
+
+  return (
+    <View style={{ flex: 1, gap: 6 }}>
+      <Text style={fieldLabelStyle}>{label}</Text>
+      <TouchableOpacity
+        style={inputRowStyle}
+        onPress={() => setShowPicker(true)}
+      >
+        <MaterialCommunityIcons name="calendar-outline" size={14} color="#9CA3AF" />
+        <Text style={{ flex: 1, fontSize: 14, color: value ? '#111827' : '#9CA3AF' }}>
+          {value || 'Select date'}
+        </Text>
+      </TouchableOpacity>
+
+      <Modal
+        visible={showPicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowPicker(false)}
+      >
+        <TouchableOpacity 
+          style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.5)' }}
+          activeOpacity={1}
+          onPress={() => setShowPicker(false)}
+        >
+          <TouchableOpacity 
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={{ 
+              width: '90%', 
+              maxWidth: 420,
+              backgroundColor: '#fff', 
+              borderRadius: 20, 
+              padding: 24,
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 8,
+              elevation: 8,
+            }}
+          >
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <TouchableOpacity onPress={() => setShowPicker(false)} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 16, color: '#EF4444', fontWeight: '600' }}>Cancel</Text>
+              </TouchableOpacity>
+              <Text style={{ fontSize: 17, fontWeight: '700', color: '#111827' }}>Select Date</Text>
+              <TouchableOpacity onPress={handleConfirm} style={{ padding: 4 }}>
+                <Text style={{ fontSize: 16, color: '#7C3AED', fontWeight: '600' }}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              {/* Year Picker */}
+              <View style={{ flex: 1.5, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, overflow: 'hidden', backgroundColor: '#F9FAFB' }}>
+                <Picker
+                  selectedValue={tempDate.getFullYear()}
+                  onValueChange={(year) => {
+                    const newDate = new Date(tempDate);
+                    newDate.setFullYear(year);
+                    setTempDate(newDate);
+                  }}
+                  itemStyle={{ fontSize: 18, height: 44 }}
+                  style={{ height: 180 }}
+                >
+                  {years.map((year) => (
+                    <Picker.Item key={year} label={String(year)} value={year} />
+                  ))}
+                </Picker>
+              </View>
+
+              {/* Month Picker */}
+              <View style={{ flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, overflow: 'hidden', backgroundColor: '#F9FAFB' }}>
+                <Picker
+                  selectedValue={tempDate.getMonth()}
+                  onValueChange={(month) => {
+                    const newDate = new Date(tempDate);
+                    newDate.setMonth(month);
+                    // Adjust day if it exceeds the new month's days
+                    const maxDay = getDaysInMonth(newDate.getFullYear(), month);
+                    if (newDate.getDate() > maxDay) {
+                      newDate.setDate(maxDay);
+                    }
+                    setTempDate(newDate);
+                  }}
+                  itemStyle={{ fontSize: 18, height: 44 }}
+                  style={{ height: 180 }}
+                >
+                  {months.map((month) => (
+                    <Picker.Item key={month.value} label={month.label} value={month.value} />
+                  ))}
+                </Picker>
+              </View>
+
+              {/* Day Picker */}
+              <View style={{ flex: 1, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 12, overflow: 'hidden', backgroundColor: '#F9FAFB' }}>
+                <Picker
+                  selectedValue={tempDate.getDate()}
+                  onValueChange={(day) => {
+                    const newDate = new Date(tempDate);
+                    newDate.setDate(day);
+                    setTempDate(newDate);
+                  }}
+                  itemStyle={{ fontSize: 18, height: 44 }}
+                  style={{ height: 180 }}
+                >
+                  {Array.from({ length: getDaysInMonth(tempDate.getFullYear(), tempDate.getMonth()) }, (_, i) => i + 1).map((day) => (
+                    <Picker.Item key={day} label={String(day).padStart(2, '0')} value={day} />
+                  ))}
+                </Picker>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -626,18 +787,20 @@ export function RegisterStepContent(props: Props) {
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <View style={{ flex: 1, gap: 6 }}>
-                    <Text style={fieldLabelStyle}>Start date</Text>
-                    <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor="#9CA3AF" value={entry.start_date} onChangeText={(v) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, start_date: v } : item))} />
-                    </View>
-                  </View>
-                  <View style={{ flex: 1, gap: 6 }}>
-                    <Text style={fieldLabelStyle}>End date</Text>
-                    <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="Present" placeholderTextColor="#9CA3AF" value={entry.end_date} onChangeText={(v) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, end_date: v } : item))} />
-                    </View>
-                  </View>
+                  <DatePickerField
+                    label="Start"
+                    value={entry.start_date}
+                    onChange={(date) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, start_date: date } : item))}
+                    fieldLabelStyle={fieldLabelStyle}
+                    inputRowStyle={inputRowStyle}
+                  />
+                  <DatePickerField
+                    label="End"
+                    value={entry.end_date}
+                    onChange={(date) => setWorkEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, end_date: date } : item))}
+                    fieldLabelStyle={fieldLabelStyle}
+                    inputRowStyle={inputRowStyle}
+                  />
                 </View>
                 <View style={{ gap: 6 }}>
                   <Text style={fieldLabelStyle}>Description</Text>
@@ -685,18 +848,20 @@ export function RegisterStepContent(props: Props) {
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
-                  <View style={{ flex: 1, gap: 6 }}>
-                    <Text style={fieldLabelStyle}>Start</Text>
-                    <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor="#9CA3AF" value={entry.start_date} onChangeText={(v) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, start_date: v } : item))} />
-                    </View>
-                  </View>
-                  <View style={{ flex: 1, gap: 6 }}>
-                    <Text style={fieldLabelStyle}>End</Text>
-                    <View style={inputRowStyle}>
-                      <TextInput style={inputStyle} placeholder="YYYY-MM-DD" placeholderTextColor="#9CA3AF" value={entry.end_date} onChangeText={(v) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, end_date: v } : item))} />
-                    </View>
-                  </View>
+                  <DatePickerField
+                    label="Start"
+                    value={entry.start_date}
+                    onChange={(date) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, start_date: date } : item))}
+                    fieldLabelStyle={fieldLabelStyle}
+                    inputRowStyle={inputRowStyle}
+                  />
+                  <DatePickerField
+                    label="End"
+                    value={entry.end_date}
+                    onChange={(date) => setEducationEntries((prev) => prev.map((item, idx) => idx === index ? { ...item, end_date: date } : item))}
+                    fieldLabelStyle={fieldLabelStyle}
+                    inputRowStyle={inputRowStyle}
+                  />
                 </View>
               </View>
             ))}
