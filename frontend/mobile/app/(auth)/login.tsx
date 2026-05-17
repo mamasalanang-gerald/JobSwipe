@@ -5,52 +5,246 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
   ActivityIndicator,
   StatusBar,
+  Animated,
+  Easing,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Link, router } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useAuthStore } from '../../store/authStore';
 import { api } from '../../services/api';
-import { useTheme } from '../../theme';
-import {
-  SectionCard,
-  Divider,
-  Spacer,
-  Typography,
-  Spacing,
-  Radii,
-  Shadows,
-} from '../../components/ui';
 
+// ─── Animated Orb ─────────────────────────────────────────────────────────────
+function Orb({
+  size,
+  color,
+  style,
+  opacity,
+  delay = 0,
+}: {
+  size: number;
+  color: string;
+  style?: object;
+  opacity: number;
+  delay?: number;
+}) {
+  const xy    = useRef(new Animated.ValueXY({ x: 0, y: 0 })).current;
+  const scale = useRef(new Animated.Value(1)).current;
 
+  useEffect(() => {
+    Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(xy, {
+            toValue: { x: 14, y: 20 },
+            duration: 4500,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(xy, {
+            toValue: { x: 0, y: 0 },
+            duration: 4500,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ]),
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(scale, {
+            toValue: 1.1,
+            duration: 4500,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+          Animated.timing(scale, {
+            toValue: 1,
+            duration: 4500,
+            easing: Easing.inOut(Easing.sin),
+            useNativeDriver: true,
+          }),
+        ]),
+      ])
+    ).start();
+  }, []);
 
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: color,
+          opacity,
+          transform: [
+            { translateX: xy.x },
+            { translateY: xy.y },
+            { scale },
+          ],
+        },
+        style,
+      ]}
+    />
+  );
+}
+
+// ─── Input Field ──────────────────────────────────────────────────────────────
+function Field({
+  label,
+  showForgot,
+  right,
+  inputRef,
+  ...props
+}: {
+  label: string;
+  showForgot?: boolean;
+  right?: React.ReactNode;
+  inputRef?: React.RefObject<TextInput | null>;
+  [k: string]: any;
+}) {
+  const [focused, setFocused] = useState(false);
+  const borderAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(borderAnim, {
+      toValue: focused ? 1 : 0,
+      duration: 200,
+      easing: Easing.out(Easing.quad),
+      useNativeDriver: false,
+    }).start();
+  }, [focused]);
+
+  const borderColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#F3F4F6', '#7C3AED'],
+  });
+
+  const bgColor = borderAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['#F9FAFB', '#FBFAFF'],
+  });
+
+  return (
+    <View style={{ gap: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{
+          fontSize: 10,
+          fontWeight: '700',
+          color: focused ? '#7C3AED' : '#9CA3AF',
+          letterSpacing: 1,
+          textTransform: 'uppercase',
+        }}>
+          {label}
+        </Text>
+        {showForgot && (
+          <TouchableOpacity 
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 0 }}
+            onPress={() => router.push('/(auth)/forgot-password')}
+          >
+            <Text style={{ fontSize: 12, color: '#7C3AED', fontWeight: '600' }}>
+              Forgot password?
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <Animated.View style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: bgColor,
+        borderWidth: 1.5,
+        borderColor,
+        borderRadius: 14,
+        paddingHorizontal: 16,
+        gap: 10,
+      }}>
+        <TextInput
+          ref={inputRef}
+          style={{
+            flex: 1,
+            paddingVertical: 15,
+            fontSize: 14,
+            color: '#111827',
+            letterSpacing: -0.2,
+          }}
+          placeholderTextColor="#9CA3AF"
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          {...props}
+        />
+        {right}
+      </Animated.View>
+    </View>
+  );
+}
+
+// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function LoginScreen() {
-  const T                               = useTheme();
   const [email, setEmail]               = useState('');
   const [password, setPassword]         = useState('');
   const [loading, setLoading]           = useState(false);
   const [error, setError]               = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const { top: topInset }               = useSafeAreaInsets();
+  const { top, bottom }                 = useSafeAreaInsets();
   const setToken                        = useAuthStore((s) => s.setToken);
-  const passwordInputRef                = useRef<TextInput>(null);
+  const passwordRef                     = useRef<TextInput>(null);
+
+  // Entrance animations
+  const heroOpacity  = useRef(new Animated.Value(0)).current;
+  const heroSlide    = useRef(new Animated.Value(-24)).current;
+  const sheetSlide   = useRef(new Animated.Value(80)).current;
+  const sheetOpacity = useRef(new Animated.Value(0)).current;
+  const arrowNudge   = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(heroOpacity, {
+        toValue: 1, duration: 700, delay: 100,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+      Animated.timing(heroSlide, {
+        toValue: 0, duration: 700, delay: 100,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+      Animated.timing(sheetSlide, {
+        toValue: 0, duration: 700, delay: 300,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+      Animated.timing(sheetOpacity, {
+        toValue: 1, duration: 500, delay: 300,
+        easing: Easing.out(Easing.cubic), useNativeDriver: true,
+      }),
+    ]).start();
+
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(arrowNudge, {
+          toValue: 6, duration: 600,
+          easing: Easing.inOut(Easing.sin), useNativeDriver: true,
+        }),
+        Animated.timing(arrowNudge, {
+          toValue: 0, duration: 600,
+          easing: Easing.inOut(Easing.sin), useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
 
   const handleLogin = async () => {
-    if (email == '' || password == '') { setError('Please fill in all fields.'); return; }
+    if (!email || !password) { setError('Please fill in all fields.'); return; }
     setError('');
     setLoading(true);
-
     try {
       const data = await api.post('/auth/login', { email, password });
-      // api interceptor unwraps { success, data } → data automatically
       const { token, user } = data as unknown as { token: string; user: { role: string } };
       const role = user?.role;
       if (role !== 'applicant' && role !== 'hr' && role !== 'company_admin') {
-        throw new Error('Unable to determine account role. Please try again.');
+        throw new Error('Unable to determine account role.');
       }
       await setToken(token, role as any);
       router.replace(role === 'applicant' ? '/(tabs)' : '/(company-tabs)');
@@ -61,161 +255,246 @@ export default function LoginScreen() {
     }
   };
 
-  // ── Dynamic styles ─────────────────────────────────────────────────────────
-  const inputRowStyle = {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: Spacing['2'],
-    backgroundColor: T.surface,
-    borderWidth: 1,
-    borderColor: T.border,
-    borderRadius: Radii.md,
-    paddingHorizontal: Spacing['3'],
-  };
-
-  const inputStyle = {
-    flex: 1,
-    paddingVertical: Spacing['3'],
-    fontSize: Typography.md,
-    color: T.textPrimary,
-  };
-
-  const fieldLabelStyle = {
-    fontSize: Typography.sm,
-    fontWeight: Typography.semibold as any,
-    color: T.textSub,
-    letterSpacing: 0.2,
-  };
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: T.bg, paddingTop: topInset }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <StatusBar barStyle="light-content" />
+    // flex: 1 + overflow hidden = the root never grows beyond the screen
+    <View style={{ flex: 1, backgroundColor: '#0D0520', overflow: 'hidden' }}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
 
-      <View style={{ paddingHorizontal: Spacing["5"], paddingTop: Spacing["4"], paddingBottom: Spacing["2"] }}>
-        <Text style={{ fontSize: Typography["2xl"], fontWeight: Typography.bold as any, color: T.textPrimary, letterSpacing: -0.3 }}>Sign In</Text>
-        <Text style={{ fontSize: Typography.sm, color: T.textSub, marginTop: Spacing["1"] }}>Welcome back to JobSwipe</Text>
-      </View>
+      {/* ── Orbs ──────────────────────────────────────────────────────── */}
+      <Orb size={320} color="#7C3AED" opacity={0.5} delay={0}    style={{ top: -120, left: -80 }} />
+      <Orb size={240} color="#EC4899" opacity={0.4} delay={500}  style={{ top: -60,  right: -80 }} />
+      <Orb size={160} color="#A855F7" opacity={0.3} delay={1000} style={{ top: 220,  left: 40 }} />
 
-      <ScrollView
-        contentContainerStyle={{ padding: Spacing['4'], gap: Spacing['3'] }}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+      {/* ── Hero — absolutely fills the dark background ────────────────── */}
+      <Animated.View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          paddingTop: top + 40,
+          paddingHorizontal: 28,
+          opacity: heroOpacity,
+          transform: [{ translateY: heroSlide }],
+        }}
       >
-
-        {/* ── Brand ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'], paddingVertical: Spacing['4'] }}>
-          <View style={{ width: 44, height: 44, borderRadius: Radii.md, backgroundColor: T.primary, alignItems: 'center', justifyContent: 'center', ...Shadows.colored(T.primary) }}>
-            <Text style={{ color: T.white, fontSize: Typography['2xl'], fontWeight: Typography.bold as any }}>J</Text>
+        {/* Logo */}
+        <View style={{ marginBottom: 32 }}>
+          <View style={{
+            width: 52,
+            height: 52,
+            borderRadius: 16,
+            backgroundColor: 'rgba(255,255,255,0.12)',
+            borderWidth: 1,
+            borderColor: 'rgba(255,255,255,0.18)',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 14,
+          }}>
+            <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>J</Text>
           </View>
-          <View>
-            <Text style={{ fontSize: Typography.xl, fontWeight: Typography.bold as any, color: T.textPrimary, letterSpacing: -0.3 }}>JobSwipe</Text>
-            <Text style={{ fontSize: Typography.sm, color: T.textHint, marginTop: 1 }}>Your next role is one swipe away</Text>
-          </View>
+          <Text style={{
+            fontSize: 12,
+            fontWeight: '600',
+            color: 'rgba(255,255,255,0.45)',
+            letterSpacing: 2.5,
+            textTransform: 'uppercase',
+          }}>
+            JobSwipe
+          </Text>
         </View>
 
+        {/* Headline */}
+        <Text style={{
+          fontSize: 42,
+          fontWeight: '800',
+          color: '#fff',
+          lineHeight: 46,
+          letterSpacing: -1.5,
+          marginBottom: 12,
+        }}>
+          Find work{'\n'}you{' '}
+          <Text style={{ color: '#C084FC' }}>love.</Text>
+        </Text>
+        <Text style={{
+          fontSize: 14,
+          color: 'rgba(255,255,255,0.45)',
+          lineHeight: 22,
+        }}>
+          Swipe through thousands of roles{'\n'}matched just for you.
+        </Text>
+      </Animated.View>
 
-        {error ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['2'], backgroundColor: T.dangerBg, borderWidth: 1, borderColor: T.danger + '44', borderRadius: Radii.md, paddingHorizontal: Spacing['3'], paddingVertical: Spacing['3'] }}>
-            <MaterialCommunityIcons name="alert-circle-outline" size={15} color={T.danger} />
-            <Text style={{ flex: 1, color: T.danger, fontSize: Typography.base }}>{error}</Text>
-          </View>
-        ) : null}
+      {/* ── Sheet — pinned to the bottom, keyboard-aware ───────────────── */}
+      {/*
+        KeyboardAvoidingView with justifyContent:"flex-end" keeps the sheet
+        glued to the bottom at rest. When the keyboard opens it pushes the
+        sheet up exactly enough to stay visible. No ScrollView means no
+        bounce / over-scroll — the hero behind is always locked in place.
+      */}
+      <KeyboardAvoidingView
+        style={{ flex: 1, justifyContent: 'flex-end' }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <Animated.View style={{
+          backgroundColor: '#fff',
+          borderTopLeftRadius: 32,
+          borderTopRightRadius: 32,
+          paddingHorizontal: 28,
+          paddingTop: 28,
+          // Respect home indicator on notched devices
+          paddingBottom: Math.max(bottom, 24) + 8,
+          maxHeight: '65%', // Limit sheet height so hero content is visible
+          transform: [{ translateY: sheetSlide }],
+          opacity: sheetOpacity,
+        }}>
 
-        {/* ── Credentials ── */}
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }} title="Your credentials">
+          {/* Drag handle (decorative only — sheet does not actually drag) */}
+          <View style={{
+            width: 40,
+            height: 4,
+            borderRadius: 2,
+            backgroundColor: '#E5E7EB',
+            alignSelf: 'center',
+            marginBottom: 28,
+          }} />
 
-          <View style={{ gap: Spacing['2'] }}>
-            <Text style={fieldLabelStyle}>Email</Text>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="email-outline" size={16} color={T.textHint} />
-              <TextInput
-                style={inputStyle}
-                placeholder="you@example.com"
-                placeholderTextColor={T.textHint}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                returnKeyType="next"
-                onSubmitEditing={() => passwordInputRef.current?.focus()}
+          <Text style={{
+            fontSize: 22,
+            fontWeight: '800',
+            color: '#111827',
+            letterSpacing: -0.5,
+            marginBottom: 24,
+          }}>
+            Sign in
+          </Text>
+
+          {/* Error banner */}
+          {!!error && (
+            <View style={{
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: 10,
+              backgroundColor: '#FEF2F2',
+              borderWidth: 1,
+              borderColor: '#FECACA',
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 16,
+            }}>
+              <MaterialCommunityIcons
+                name="alert-circle-outline"
+                size={16}
+                color="#EF4444"
+                style={{ marginTop: 1 }}
               />
+              <Text style={{ flex: 1, fontSize: 13, color: '#EF4444', lineHeight: 20 }}>
+                {error}
+              </Text>
             </View>
+          )}
+
+          {/* Input fields */}
+          <View style={{ gap: 14, marginBottom: 20 }}>
+            <Field
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+            />
+            <Field
+              label="Password"
+              showForgot
+              inputRef={passwordRef}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!showPassword}
+              autoCapitalize="none"
+              returnKeyType="done"
+              onSubmitEditing={handleLogin}
+              right={
+                <TouchableOpacity
+                  onPress={() => setShowPassword(!showPassword)}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
+                >
+                  <MaterialCommunityIcons
+                    name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={18}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              }
+            />
           </View>
 
-          <Divider spacing={Spacing['4']} />
-
-          <View style={{ gap: Spacing['2'] }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-              <Text style={fieldLabelStyle}>Password</Text>
-              <TouchableOpacity>
-                <Text style={{ fontSize: Typography.sm, color: T.primary, fontWeight: Typography.medium as any }}>Forgot password?</Text>
-              </TouchableOpacity>
+          {/* CTA button */}
+          <TouchableOpacity
+            onPress={handleLogin}
+            activeOpacity={0.88}
+            disabled={loading}
+            style={{ opacity: loading ? 0.65 : 1 }}
+          >
+            <View style={{
+              height: 56,
+              borderRadius: 16,
+              backgroundColor: '#7C3AED',
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 10,
+            }}>
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <>
+                  <Text style={{
+                    color: '#fff',
+                    fontSize: 16,
+                    fontWeight: '700',
+                    letterSpacing: -0.3,
+                  }}>
+                    Continue
+                  </Text>
+                  <Animated.Text style={{
+                    color: 'rgba(255,255,255,0.6)',
+                    fontSize: 18,
+                    transform: [{ translateX: arrowNudge }],
+                  }}>
+                    →
+                  </Animated.Text>
+                </>
+              )}
             </View>
-            <View style={inputRowStyle}>
-              <MaterialCommunityIcons name="lock-outline" size={16} color={T.textHint} />
-              <TextInput
-                ref={passwordInputRef}
-                style={[inputStyle, { flex: 1 }]}
-                placeholder="••••••••"
-                placeholderTextColor={T.textHint}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-                returnKeyType="done"
-                onSubmitEditing={handleLogin}
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={{ padding: Spacing['1'] }}>
-                <MaterialCommunityIcons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color={T.textHint} />
-              </TouchableOpacity>
-            </View>
-          </View>
+          </TouchableOpacity>
 
-        </SectionCard>
-
-        {/* ── Sign in button ── */}
-        <TouchableOpacity
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing['2'], backgroundColor: T.primary, borderRadius: Radii.lg, paddingVertical: Spacing['4'], opacity: loading ? 0.6 : 1, ...Shadows.colored(T.primary) }}
-          onPress={handleLogin}
-          activeOpacity={0.85}
-          disabled={loading}
-        >
-          {loading
-            ? <ActivityIndicator color={T.white} />
-            : (
-              <>
-                <Text style={{ color: T.white, fontSize: Typography.lg, fontWeight: Typography.semibold as any }}>Sign in</Text>
-                <MaterialCommunityIcons name="arrow-right" size={18} color={T.white} />
-              </>
-            )
-          }
-        </TouchableOpacity>
-
-        {/* ── OR divider ── */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: Spacing['3'] }}>
-          <View style={{ flex: 1, height: 1, backgroundColor: T.borderFaint }} />
-          <Text style={{ fontSize: Typography.sm, color: T.textHint }}>or</Text>
-          <View style={{ flex: 1, height: 1, backgroundColor: T.borderFaint }} />
-        </View>
-
-        {/* ── Register ── */}
-        <SectionCard style={{ backgroundColor: T.surface, borderRadius: Radii.lg }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: Spacing['2'] }}>
-            <Text style={{ fontSize: Typography.md, color: T.textSub }}>Don't have an account?</Text>
+          {/* Sign-up link */}
+          <View style={{
+            flexDirection: 'row',
+            justifyContent: 'center',
+            alignItems: 'center',
+            gap: 5,
+            marginTop: 20,
+          }}>
+            <Text style={{ fontSize: 13, color: '#9CA3AF' }}>New here?</Text>
             <Link href="/(auth)/register" asChild>
-              <TouchableOpacity>
-                <Text style={{ fontSize: Typography.md, color: T.primary, fontWeight: Typography.semibold as any }}>Create one</Text>
+              <TouchableOpacity hitSlop={{ top: 10, bottom: 10, left: 4, right: 10 }}>
+                <Text style={{ fontSize: 13, color: '#7C3AED', fontWeight: '700' }}>
+                  Create account →
+                </Text>
               </TouchableOpacity>
             </Link>
           </View>
-        </SectionCard>
 
-        <Spacer size="xl" />
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </Animated.View>
+      </KeyboardAvoidingView>
+    </View>
   );
 }

@@ -20,8 +20,8 @@ import {
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { useTheme, setThemeMode, getThemeMode } from '../../theme';
 import { api } from '../../services/api';
+import { useTheme, setThemeMode, getThemeMode } from '../../theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 

@@ -165,8 +165,8 @@ export default function CompanyHomeTab() {
     try {
       setLoadingJobs(true);
       const jobsList = await jobService.list();
-      // Only show active/open jobs
-      const activeJobs = jobsList.filter(j => j.status === 'active' || j.status === 'open');
+      // Only show open jobs
+      const activeJobs = jobsList.filter(j => j.status === 'open');
       setJobs(activeJobs);
       
       // Auto-select first job if available

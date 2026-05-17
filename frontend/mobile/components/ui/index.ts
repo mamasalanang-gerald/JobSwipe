@@ -1,10 +1,13 @@
-// ─── Theme ────────────────────────────────────────────────────────────────────
+// Alert components
+export { CustomAlert, AlertHelper } from './CustomAlert';
+export { AlertProvider } from './AlertProvider';
+export { showGlobalAlert, setGlobalAlertHandler } from './alertTypes';
+export type { AlertType, AlertButton, AlertState } from './alertTypes';
+
+// Design system exports
 export { Colors, Typography, Spacing, Radii, Shadows, cardBase } from './themes';
 
-// ─── Badge Components ─────────────────────────────────────────────────────────
-export { SwipeLabel, MatchBadge, StatusPill, CountBadge, TagBadge } from './Badge';
-
-// ─── Button Components ────────────────────────────────────────────────────────
+// Button components
 export {
   PrimaryButton,
   SecondaryButton,
@@ -14,7 +17,16 @@ export {
   TextButton,
 } from './Button';
 
-// ─── JobCard Components ───────────────────────────────────────────────────────
+// Badge components
+export {
+  SwipeLabel,
+  MatchBadge,
+  StatusPill,
+  CountBadge,
+  TagBadge,
+} from './Badge';
+
+// JobCard components
 export {
   CompanyLogo,
   JobCardHeader,
@@ -26,10 +38,9 @@ export {
   JobCardHero,
   JobCardMatchBar,
 } from './JobCard';
-
 export type { StatItem, JobTag } from './JobCard';
 
-// ─── Layout / Structural Components ──────────────────────────────────────────
+// Layout components
 export {
   PageHeader,
   ProgressBar,
